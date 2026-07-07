@@ -79,6 +79,15 @@
     padding-top:22px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
   .hint{font-size:.78rem;color:var(--muted);margin-top:8px;line-height:1.55}
   .hint b{color:var(--text)}
+  .hint.ok{color:var(--accent)} .hint.err{color:var(--gold)}
+  .copy-opt{display:block;width:100%;text-align:left;background:#0e1411;border:1px solid var(--edge2);
+    border-radius:10px;padding:10px 12px;margin-top:8px;color:var(--text);font-size:.86rem;cursor:pointer;
+    font-family:inherit;line-height:1.4;transition:border-color .15s,background .15s}
+  .copy-opt:hover{border-color:var(--accent);background:rgba(0,200,83,.06)}
+  .copy-opt b{color:var(--accent);font-weight:800;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;display:block;margin-bottom:3px}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--edge2);border-top-color:var(--accent);
+    border-radius:50%;animation:sp .7s linear infinite;vertical-align:-1px;margin-right:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);
     background:var(--accent);color:var(--accent-ink);font-weight:800;padding:12px 22px;border-radius:999px;
     box-shadow:0 12px 30px rgba(0,0,0,.5);transition:transform .3s;z-index:50;font-size:.9rem}
@@ -112,6 +121,13 @@
   <!-- ADICIONAR -->
   <div class="panel">
     <h2>Adicionar produto</h2>
+    <label>Link de afiliado (gerado no painel do ML)</label>
+    <div style="display:flex;gap:8px;align-items:stretch">
+      <input type="url" id="pLink" placeholder="https://meli.la/..." style="flex:1">
+      <button class="btn ghost sm" id="idBtn" type="button" style="white-space:nowrap">🔎 Identificar</button>
+    </div>
+    <div id="idStatus" class="hint" style="margin-top:6px;min-height:0"></div>
+
     <label>Foto do produto (print do Mercado Livre)</label>
     <div class="drop" id="drop">📷 Clique ou arraste o print aqui</div>
     <input type="file" id="prodFile" accept="image/*" hidden>
@@ -129,23 +145,25 @@
     <div id="prodForm" style="display:none">
       <div class="item" style="background:transparent;border:none;padding:8px 0 0;margin:0">
         <img id="prodThumb" class="thumb" alt="">
-        <span class="hint" style="margin:0">Recorte pronto ✓</span>
+        <span class="hint" id="thumbNote" style="margin:0">Recorte pronto ✓</span>
       </div>
       <div class="row">
         <div><label>Categoria</label><input type="text" id="pCat" value="Fotografia"></div>
-        <div><label>Link de afiliado (gerado no painel do ML)</label><input type="url" id="pLink" placeholder="https://meli.la/..."></div>
+        <div><label>Nome do produto</label><input type="text" id="pNome" placeholder="Ex: Lente Sigma 70-200mm f/2.8"></div>
       </div>
-      <label>Nome do produto</label>
-      <input type="text" id="pNome" placeholder="Ex: Lente Sigma 70-200mm f/2.8">
-      <label>Frase curta de venda</label>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px">
+        <label style="margin-bottom:0">Frase curta de venda</label>
+        <button class="btn sm" id="copyBtn" type="button">✨ Sugerir copy</button>
+      </div>
       <textarea id="pFrase" placeholder="Ex: A lente que eu uso em todos os ensaios."></textarea>
+      <div id="copyOpts"></div>
       <div class="flags">
         <label class="chk"><input type="checkbox" id="pHype"> 🔥 Hypado</label>
         <label class="chk"><input type="checkbox" id="pTop"> 🏆 Mais vendido</label>
       </div>
       <button class="btn wide" id="addBtn">+ Adicionar produto</button>
     </div>
-    <p class="hint">💡 <b>Como pegar o link:</b> no painel de Afiliados do ML → <b>Criar link</b> → cole a URL do produto → gere → cole aqui. Produtos marcados como 🔥/🏆 sobem automaticamente pro topo da página com selo.</p>
+    <p class="hint">💡 <b>Fluxo:</b> cole o link → <b>Identificar</b> (puxa nome + foto quando o ML deixa) → <b>Sugerir copy</b> escreve a frase pro seu público → marque 🔥/🏆 → adicione. Se o ML bloquear a identificação, é só colar o nome do produto e gerar a copy normalmente.</p>
   </div>
 
   <!-- LISTA -->
@@ -247,6 +265,7 @@ document.getElementById("cropOk").addEventListener("click",()=>{
   x.drawImage(cropSrc,sel.x*sc,sel.y*sc,sel.s*sc,sel.s*sc,0,0,out,out);
   pendingImg=c.toDataURL("image/jpeg",.8);
   document.getElementById("prodThumb").src=pendingImg;
+  document.getElementById("thumbNote").textContent="Recorte pronto ✓";
   document.getElementById("cropper").style.display="none";
   document.getElementById("prodForm").style.display="block";
 });
@@ -278,6 +297,8 @@ document.getElementById("addBtn").addEventListener("click",()=>{
   document.getElementById("pHype").checked=false;document.getElementById("pTop").checked=false;
   document.getElementById("prodForm").style.display="none";pendingImg=null;
   document.getElementById("prodThumb").src="";
+  document.getElementById("copyOpts").innerHTML="";
+  const st=document.getElementById("idStatus");st.className="hint";st.innerHTML="";
 });
 
 /* ---------- list ---------- */
@@ -454,6 +475,193 @@ document.getElementById("genBtn").addEventListener("click",()=>{
 document.getElementById("clearBtn").addEventListener("click",()=>{
   if(confirm("Apagar todos os produtos do painel? (não afeta o que já está no GitHub)")){
     state.produtos=[];save();renderList();}
+});
+
+/* ================= COPY ENGINE (offline, público do Phill) ================= */
+const COPY = {
+  lente:["A nitidez e o bokeh que separam foto de amador de foto profissional.",
+    "Alcance pra fechar o enquadramento sem chegar perto — do retrato ao esporte.",
+    "A lente que eu não largo em ensaio nem em cobertura de evento.",
+    "Foco rápido e imagem cravada mesmo com o assunto em movimento."],
+  microfone:["Áudio limpo é o que faz seu vídeo parecer profissional — não a câmera.",
+    "Sem fio e sem ruído: grava em qualquer lugar com som de estúdio.",
+    "O microfone que salva qualquer gravação externa.",
+    "Chega de vídeo bonito com áudio ruim afundando o resultado."],
+  tripe:["Estabilidade pra enquadrar certo e soltar as mãos na hora da foto.",
+    "De plano baixo a plano alto sem tremer um frame.",
+    "A base firme que todo criador precisa ter na mochila.",
+    "Longa exposição, timelapse, entrevista: ele aguenta o trampo todo."],
+  luz:["Luz cinematográfica no controle: você para de depender do sol.",
+    "A diferença entre um vídeo caseiro e uma produção de verdade.",
+    "Ilumina seu set em qualquer horário, com a cor certa.",
+    "Sombra e temperatura na medida pra sua imagem ganhar profundidade."],
+  ring:["Luz uniforme pra live, selfie e conteúdo com cara de profissional.",
+    "O aliado das gravações de rosto, tutoriais e stories.",
+    "Aquela luz redonda no olhar que valoriza qualquer take."],
+  cartao:["Velocidade pra descarregar e editar sem travar o fluxo.",
+    "Transfere os arquivos em segundos e te devolve pra criar.",
+    "Backup rápido é o que evita perder o trabalho do dia inteiro."],
+  gimbal:["Movimento suave e cinematográfico direto do celular.",
+    "Acabaram os vídeos tremidos: parece que você tem um trilho na mão.",
+    "Estabilização de 3 eixos pra dar cara de cinema no seu conteúdo."],
+  instantaneo:["Transforma o clique num presente físico na hora — a alma do Print in Loco.",
+    "O registro que a pessoa leva pra casa e nunca esquece.",
+    "Foto na mão emociona mais que mil stories."],
+  camera:["O equipamento que dá conta do ensaio ao evento ao vivo.",
+    "Qualidade de imagem pra levar seu trabalho pro próximo nível."],
+  bateria:["Autonomia pra não perder o clique por falta de energia.",
+    "Energia de sobra pra aguentar o dia inteiro de cobertura."],
+  cabo:["Aquele acessório simples que evita dor de cabeça no meio do job.",
+    "Conexão confiável pra seu setup nunca te deixar na mão."],
+  bolsa:["Proteção e organização pra levar todo o equipamento com segurança.",
+    "Seu kit inteiro protegido e à mão em qualquer deslocamento."],
+  default:["Um daqueles equipamentos que fazem diferença de verdade no resultado.",
+    "O tipo de gear que eu recomendo de olhos fechados.",
+    "Praticidade e qualidade pra elevar o nível do seu conteúdo."]
+};
+const TIPOS = [
+  ["instantaneo",/instax|instant[âa]ne|selphy|polaroid|impress|zink|filme fotogr/i],
+  ["ring",/ring\s?l[a-z]*t|ringlight|anel de luz|luz de anel/i],
+  ["luz",/ilumina|led|softbox|painel de luz|refletor|iluminador|light\b|luz\s|kit de luz/i],
+  ["gimbal",/gimbal|estabilizador|steadicam|3 eixos/i],
+  ["microfone",/microfone|mic\b|lapela|lark|rode|wireless mic|de lapela/i],
+  ["lente",/lente|objetiva|zoom|prime|\d{2,3}mm|teleobjetiva/i],
+  ["tripe",/trip[ée]|pedestal|monopé|suporte|slider|cabe[çc]ote/i],
+  ["cartao",/cart[ãa]o|leitor|cfexpress|sd\b|micro\s?sd|mem[óo]ria|ssd|hd externo/i],
+  ["bateria",/bateria|power\s?bank|carregador|npf|fonte/i],
+  ["bolsa",/bolsa|mochila|case|maleta|capa/i],
+  ["cabo",/cabo|adaptador|hdmi|usb-?c/i],
+  ["camera",/c[âa]mera|camera|dslr|mirrorless|sony|canon|nikon|fujifilm|gopro|action cam/i]
+];
+function detectarTipo(nome){
+  const n=(nome||"").toLowerCase();
+  for(const [tipo,rx] of TIPOS){ if(rx.test(n)) return tipo; }
+  return "default";
+}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function gerarCopy(nome){
+  const tipo=detectarTipo(nome);
+  let pool=shuffle(COPY[tipo]);
+  // completa até 3 com defaults, sem repetir
+  const extra=shuffle(COPY.default).filter(x=>!pool.includes(x));
+  while(pool.length<3 && extra.length) pool.push(extra.shift());
+  return pool.slice(0,3);
+}
+function mostrarCopyOpts(nome){
+  const box=document.getElementById("copyOpts");
+  const opts=gerarCopy(nome);
+  box.innerHTML=opts.map((t,i)=>
+    `<button type="button" class="copy-opt" data-t="${esc(t)}"><b>Opção ${i+1} · clique pra usar</b>${esc(t)}</button>`).join("");
+  box.querySelectorAll(".copy-opt").forEach(b=>b.addEventListener("click",()=>{
+    document.getElementById("pFrase").value=b.getAttribute("data-t");
+    toast("Copy aplicada ✓");
+  }));
+}
+document.getElementById("copyBtn").addEventListener("click",()=>{
+  const nome=document.getElementById("pNome").value.trim();
+  if(!nome){toast("Preencha o nome do produto (ou use Identificar)");return;}
+  mostrarCopyOpts(nome);
+});
+
+/* ================= IDENTIFICAR PRODUTO PELO LINK ================= */
+const PROXIES=[
+  u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+  u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
+  u=>"https://thingproxy.freeboard.io/fetch/"+u
+];
+function decodeEntities(s){const t=document.createElement("textarea");t.innerHTML=s;return t.value;}
+function metaFrom(html){
+  const grab=p=>{
+    let m=html.match(new RegExp("<meta[^>]+(?:property|name)=[\"']"+p+"[\"'][^>]*content=[\"']([^\"']+)[\"']","i"))
+        ||html.match(new RegExp("<meta[^>]+content=[\"']([^\"']+)[\"'][^>]*(?:property|name)=[\"']"+p+"[\"']","i"));
+    return m?decodeEntities(m[1]):null;
+  };
+  let title=grab("og:title")||grab("twitter:title");
+  if(!title){const t=html.match(/<title>([^<]+)<\/title>/i);title=t?decodeEntities(t[1]):null;}
+  let image=grab("og:image")||grab("twitter:image");
+  return {title,image};
+}
+function limparTitulo(t){
+  if(!t) return "";
+  return t.replace(/\s*[|\-–]\s*(mercado\s?livre|mercadolibre).*$/i,"")
+          .replace(/^\s*compre\s+/i,"").trim();
+}
+function pareceBloqueio(html,title){
+  const h=(html||"").toLowerCase();
+  if(/captcha|are you a robot|verifique que.*humano|acesso negado|access denied|unusual traffic/i.test(h)) return true;
+  if(!title || /mercado\s?livre$/i.test(title.trim())) return true;
+  return false;
+}
+async function fetchVia(url){
+  for(const mk of PROXIES){
+    try{
+      const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),9000);
+      const r=await fetch(mk(url),{signal:ctrl.signal});
+      clearTimeout(to);
+      if(!r.ok) continue;
+      const txt=await r.text();
+      if(txt && txt.length>500) return txt;
+    }catch(e){/* tenta próximo */}
+  }
+  return null;
+}
+async function baixarImagem(imgUrl){
+  for(const mk of PROXIES){
+    try{
+      const ctrl=new AbortController();const to=setTimeout(()=>ctrl.abort(),9000);
+      const r=await fetch(mk(imgUrl),{signal:ctrl.signal});clearTimeout(to);
+      if(!r.ok) continue;
+      const blob=await r.blob();
+      if(!blob.type.startsWith("image/")||blob.size<1000) continue;
+      const durl=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(blob);});
+      // center-crop 560
+      const im=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=durl;});
+      const m=Math.min(im.width,im.height),out=560,c=document.createElement("canvas");c.width=c.height=out;
+      const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,out,out);
+      x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,out,out);
+      return c.toDataURL("image/jpeg",.8);
+    }catch(e){}
+  }
+  return null;
+}
+function setStatus(html,cls){const el=document.getElementById("idStatus");el.className="hint "+(cls||"");el.innerHTML=html;}
+document.getElementById("idBtn").addEventListener("click",async()=>{
+  const link=document.getElementById("pLink").value.trim();
+  if(!link){toast("Cole o link primeiro");return;}
+  setStatus('<span class="spin"></span>Buscando o produto…');
+  document.getElementById("idBtn").disabled=true;
+  try{
+    const html=await fetchVia(link);
+    if(!html){ setStatus("⚠️ Não consegui acessar (o ML bloqueia robôs ou o proxy caiu). Cole o nome do produto abaixo e clique em ✨ Sugerir copy.","err");
+      document.getElementById("prodForm").style.display="block"; return; }
+    const {title,image}=metaFrom(html);
+    const nome=limparTitulo(title);
+    if(pareceBloqueio(html,nome)){ setStatus("⚠️ O ML respondeu com bloqueio anti-robô. Cole o nome do produto abaixo — a copy é gerada do mesmo jeito.","err");
+      document.getElementById("prodForm").style.display="block"; return; }
+    // sucesso: preenche nome + copy
+    document.getElementById("pNome").value=nome;
+    document.getElementById("prodForm").style.display="block";
+    mostrarCopyOpts(nome);
+    // tenta imagem
+    if(image){
+      setStatus('✓ Produto identificado. <span class="spin"></span>Baixando a foto…',"ok");
+      const dataUrl=await baixarImagem(image);
+      if(dataUrl){ pendingImg=dataUrl;
+        document.getElementById("prodThumb").src=dataUrl;
+        document.getElementById("thumbNote").textContent="Foto do produto puxada do ML ✓";
+        setStatus("✓ Nome, foto e copy prontos! Revise, marque 🔥/🏆 e adicione.","ok");
+      } else {
+        setStatus("✓ Nome e copy prontos. A foto não veio — jogue o print na área acima.","ok");
+      }
+    } else {
+      setStatus("✓ Nome e copy prontos. Adicione o print na área de foto acima.","ok");
+    }
+  }catch(e){
+    setStatus("⚠️ Deu erro na busca. Cole o nome do produto e use ✨ Sugerir copy.","err");
+    document.getElementById("prodForm").style.display="block";
+  }finally{
+    document.getElementById("idBtn").disabled=false;
+  }
 });
 
 /* ---------- init ---------- */
