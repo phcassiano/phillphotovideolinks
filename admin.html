@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel · Link na Bio — Phill Cassiano</title>
+<style>
+  :root{
+    --bg:#0b0f0d; --panel:#141a17; --edge:#1f2a24; --edge2:#2a382f;
+    --text:#eef4f0; --muted:#93a49b; --accent:#00C853; --accent-dark:#00a445;
+    --accent-ink:#04140a; --gold:#e6b84f; --danger:#e5533c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    line-height:1.5;background-image:radial-gradient(60% 40% at 50% -5%,rgba(0,200,83,.12),transparent 70%);
+    min-height:100vh;padding:24px 16px 80px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:1.4rem;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.9rem;margin-top:4px;margin-bottom:22px}
+  .panel{background:var(--panel);border:1px solid var(--edge);border-radius:16px;
+    padding:18px;margin-bottom:18px}
+  .panel h2{font-size:.78rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:14px}
+  label{display:block;font-size:.8rem;color:var(--muted);margin:10px 0 5px;font-weight:600}
+  input[type=text],input[type=url],textarea,select{
+    width:100%;background:#0e1411;border:1px solid var(--edge2);border-radius:10px;
+    color:var(--text);padding:11px 12px;font-size:.92rem;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:56px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:520px){.row{grid-template-columns:1fr}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+    background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:.9rem;
+    border:none;border-radius:10px;padding:12px 18px;cursor:pointer;transition:background .15s,transform .1s}
+  .btn:hover{background:var(--accent-dark)}.btn:active{transform:scale(.98)}
+  .btn.ghost{background:transparent;border:1.5px solid var(--edge2);color:var(--text)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.sm{padding:7px 12px;font-size:.78rem;border-radius:8px}
+  .btn.danger{background:transparent;border:1.5px solid rgba(229,83,60,.5);color:var(--danger)}
+  .btn.danger:hover{background:var(--danger);color:#fff}
+  .btn.wide{width:100%;padding:15px;font-size:1rem;margin-top:6px}
+  /* dropzone + cropper */
+  .drop{border:2px dashed var(--edge2);border-radius:12px;padding:26px;text-align:center;
+    color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;font-size:.9rem}
+  .drop:hover,.drop.over{border-color:var(--accent);background:rgba(0,200,83,.05)}
+  .cropper{margin-top:14px;display:none}
+  .crop-stage{position:relative;display:inline-block;touch-action:none;user-select:none;
+    border-radius:10px;overflow:hidden;background:#000}
+  .crop-stage img{display:block;max-width:100%;pointer-events:none}
+  .crop-sel{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.55);
+    cursor:move}
+  .crop-handle{position:absolute;right:-9px;bottom:-9px;width:20px;height:20px;border-radius:50%;
+    background:var(--accent);border:2px solid #04140a;cursor:nwse-resize}
+  .crop-actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  .thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#fff;flex-shrink:0}
+  /* flags */
+  .flags{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
+  .chk{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--text);cursor:pointer;
+    font-weight:600}
+  .chk input{width:18px;height:18px;accent-color:var(--accent)}
+  /* list */
+  .item{display:flex;gap:12px;align-items:center;background:#0e1411;border:1px solid var(--edge2);
+    border-radius:12px;padding:10px;margin-bottom:10px}
+  .item .info{flex:1;min-width:0}
+  .item .nome{font-size:.9rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .meta{font-size:.75rem;color:var(--muted);margin-top:2px}
+  .pills{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+  .pill{font-size:.66rem;font-weight:800;letter-spacing:.04em;padding:2px 8px;border-radius:999px;cursor:pointer;
+    border:1px solid var(--edge2);color:var(--muted);background:transparent;user-select:none}
+  .pill.on-hype{background:rgba(0,200,83,.15);border-color:var(--accent);color:var(--accent)}
+  .pill.on-top{background:rgba(230,184,79,.15);border-color:var(--gold);color:var(--gold)}
+  .item .ctrls{display:flex;gap:5px;flex-shrink:0}
+  .iconbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--edge2);background:transparent;
+    color:var(--muted);cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center}
+  .iconbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .iconbtn.del:hover{border-color:var(--danger);color:var(--danger)}
+  .bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);
+    padding-top:22px;margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:8px;line-height:1.55}
+  .hint b{color:var(--text)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(120px);
+    background:var(--accent);color:var(--accent-ink);font-weight:800;padding:12px 22px;border-radius:999px;
+    box-shadow:0 12px 30px rgba(0,0,0,.5);transition:transform .3s;z-index:50;font-size:.9rem}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .empty{text-align:center;color:var(--muted);font-size:.88rem;padding:20px 0}
+  a.link{color:var(--accent);text-decoration:none}
+  code{background:#0e1411;border:1px solid var(--edge2);border-radius:6px;padding:1px 6px;font-size:.85em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛠️ Painel · Link na Bio</h1>
+  <p class="sub">Adicione produtos hypados e mais vendidos e gere seu <code>index.html</code> pronto pra publicar. Tudo roda aqui no navegador — nada é enviado pra lugar nenhum.</p>
+
+  <!-- PERFIL -->
+  <div class="panel">
+    <h2>Perfil</h2>
+    <div class="item" style="background:transparent;border:none;padding:0;margin-bottom:12px">
+      <img id="avatarPrev" class="thumb" style="border-radius:50%" alt="avatar">
+      <button class="btn ghost sm" onclick="document.getElementById('avatarFile').click()">Trocar foto</button>
+      <input type="file" id="avatarFile" accept="image/*" hidden>
+    </div>
+    <div class="row">
+      <div><label>Nome</label><input type="text" id="hNome"></div>
+      <div><label>@ (usuário Instagram)</label><input type="text" id="hHandle"></div>
+    </div>
+    <label>WhatsApp (só números, com DDD — deixe vazio pra ocultar)</label>
+    <input type="text" id="hWhats" placeholder="5511968122868">
+  </div>
+
+  <!-- ADICIONAR -->
+  <div class="panel">
+    <h2>Adicionar produto</h2>
+    <label>Foto do produto (print do Mercado Livre)</label>
+    <div class="drop" id="drop">📷 Clique ou arraste o print aqui</div>
+    <input type="file" id="prodFile" accept="image/*" hidden>
+    <div class="cropper" id="cropper">
+      <label>Ajuste o recorte (arraste pra mover, use a bolinha pra redimensionar)</label>
+      <div class="crop-stage" id="stage">
+        <img id="cropImg" alt="">
+        <div class="crop-sel" id="sel"><div class="crop-handle" id="handle"></div></div>
+      </div>
+      <div class="crop-actions">
+        <button class="btn sm" id="cropOk">✓ Usar recorte</button>
+        <button class="btn ghost sm" id="cropCancel">Cancelar</button>
+      </div>
+    </div>
+    <div id="prodForm" style="display:none">
+      <div class="item" style="background:transparent;border:none;padding:8px 0 0;margin:0">
+        <img id="prodThumb" class="thumb" alt="">
+        <span class="hint" style="margin:0">Recorte pronto ✓</span>
+      </div>
+      <div class="row">
+        <div><label>Categoria</label><input type="text" id="pCat" value="Fotografia"></div>
+        <div><label>Link de afiliado (gerado no painel do ML)</label><input type="url" id="pLink" placeholder="https://meli.la/..."></div>
+      </div>
+      <label>Nome do produto</label>
+      <input type="text" id="pNome" placeholder="Ex: Lente Sigma 70-200mm f/2.8">
+      <label>Frase curta de venda</label>
+      <textarea id="pFrase" placeholder="Ex: A lente que eu uso em todos os ensaios."></textarea>
+      <div class="flags">
+        <label class="chk"><input type="checkbox" id="pHype"> 🔥 Hypado</label>
+        <label class="chk"><input type="checkbox" id="pTop"> 🏆 Mais vendido</label>
+      </div>
+      <button class="btn wide" id="addBtn">+ Adicionar produto</button>
+    </div>
+    <p class="hint">💡 <b>Como pegar o link:</b> no painel de Afiliados do ML → <b>Criar link</b> → cole a URL do produto → gere → cole aqui. Produtos marcados como 🔥/🏆 sobem automaticamente pro topo da página com selo.</p>
+  </div>
+
+  <!-- LISTA -->
+  <div class="panel">
+    <h2>Produtos na página (<span id="count">0</span>)</h2>
+    <div id="list"><div class="empty">Nenhum produto ainda. Carregue seu <code>index.html</code> atual abaixo ou adicione um novo acima.</div></div>
+  </div>
+
+  <div class="bar">
+    <button class="btn ghost" onclick="document.getElementById('importFile').click()">📂 Carregar index.html atual</button>
+    <input type="file" id="importFile" accept=".html,text/html" hidden>
+    <button class="btn" id="genBtn" style="flex:1;min-width:180px">⬇️ Gerar index.html</button>
+    <button class="btn danger sm" id="clearBtn">Limpar tudo</button>
+  </div>
+  <p class="hint">Depois de gerar, é só substituir o arquivo no GitHub (Add file → Upload files → sobe o <code>index.html</code> novo → Commit).</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT_AVATAR = "data:image/jpeg;base64,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";
+const state = {
+  header:{avatar:DEFAULT_AVATAR,nome:"Phill Cassiano · Photo e Video",handle:"phill.photovideodf",whats:"5511968122868"},
+  produtos:[]
+};
+let pendingImg=null; // cropped dataURL awaiting "adicionar"
+
+/* ---------- persistence ---------- */
+function save(){try{localStorage.setItem("linkbio_state",JSON.stringify(state));}catch(e){}}
+function load(){
+  try{const s=JSON.parse(localStorage.getItem("linkbio_state"));
+    if(s&&s.header){state.header=s.header;state.produtos=s.produtos||[];}}catch(e){}
+}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ---------- header UI ---------- */
+function syncHeaderUI(){
+  document.getElementById("avatarPrev").src=state.header.avatar;
+  document.getElementById("hNome").value=state.header.nome;
+  document.getElementById("hHandle").value=state.header.handle;
+  document.getElementById("hWhats").value=state.header.whats;
+}
+["hNome","hHandle","hWhats"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",e=>{
+    const k=id==="hNome"?"nome":id==="hHandle"?"handle":"whats";
+    state.header[k]=e.target.value.replace(/^@/,"").trim();save();});
+});
+document.getElementById("avatarFile").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;
+  cropToSquare(f,220,d=>{state.header.avatar=d;syncHeaderUI();save();});
+});
+
+/* ---------- image helpers ---------- */
+function readImage(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>cb(im);im.src=r.result;};r.readAsDataURL(file);}
+function cropToSquare(file,size,cb){ // simple center-crop (used for avatar)
+  readImage(file,im=>{const m=Math.min(im.width,im.height);const c=document.createElement("canvas");
+    c.width=c.height=size;const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,size,size);
+    x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,size,size);
+    cb(c.toDataURL("image/jpeg",.85));});
+}
+
+/* ---------- cropper (product) ---------- */
+let cropSrc=null,dispScale=1,sel={x:0,y:0,s:0},stageW=0,stageH=0;
+const stage=document.getElementById("stage"),cropImgEl=document.getElementById("cropImg"),
+      selEl=document.getElementById("sel"),handleEl=document.getElementById("handle");
+function openCropper(file){
+  readImage(file,im=>{
+    cropSrc=im;
+    const maxW=Math.min(320,document.querySelector(".panel").clientWidth-36);
+    dispScale=Math.min(maxW/im.width,360/im.height,1);
+    stageW=Math.round(im.width*dispScale);stageH=Math.round(im.height*dispScale);
+    cropImgEl.src=im.src;cropImgEl.style.width=stageW+"px";cropImgEl.style.height=stageH+"px";
+    stage.style.width=stageW+"px";stage.style.height=stageH+"px";
+    const s=Math.min(stageW,stageH);sel={x:(stageW-s)/2,y:(stageH-s)/2,s:s};
+    drawSel();document.getElementById("cropper").style.display="block";
+    document.getElementById("prodForm").style.display="none";
+  });
+}
+function drawSel(){selEl.style.left=sel.x+"px";selEl.style.top=sel.y+"px";
+  selEl.style.width=sel.s+"px";selEl.style.height=sel.s+"px";}
+function clampSel(){sel.s=Math.max(40,Math.min(sel.s,stageW,stageH));
+  sel.x=Math.max(0,Math.min(sel.x,stageW-sel.s));sel.y=Math.max(0,Math.min(sel.y,stageH-sel.s));}
+let drag=null;
+function pt(e){const r=stage.getBoundingClientRect();const t=e.touches?e.touches[0]:e;
+  return{x:t.clientX-r.left,y:t.clientY-r.top};}
+selEl.addEventListener("pointerdown",e=>{e.preventDefault();
+  drag={mode:"move",p:pt(e),ox:sel.x,oy:sel.y};selEl.setPointerCapture(e.pointerId);});
+handleEl.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();
+  drag={mode:"resize",p:pt(e),os:sel.s};handleEl.setPointerCapture(e.pointerId);});
+window.addEventListener("pointermove",e=>{if(!drag)return;const p=pt(e);
+  if(drag.mode==="move"){sel.x=drag.ox+(p.x-drag.p.x);sel.y=drag.oy+(p.y-drag.p.y);}
+  else{const d=Math.max(p.x-drag.p.x,p.y-drag.p.y);sel.s=drag.os+d;}
+  clampSel();drawSel();});
+window.addEventListener("pointerup",()=>{drag=null;});
+document.getElementById("cropOk").addEventListener("click",()=>{
+  const sc=1/dispScale,out=560,c=document.createElement("canvas");c.width=c.height=out;
+  const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,out,out);
+  x.drawImage(cropSrc,sel.x*sc,sel.y*sc,sel.s*sc,sel.s*sc,0,0,out,out);
+  pendingImg=c.toDataURL("image/jpeg",.8);
+  document.getElementById("prodThumb").src=pendingImg;
+  document.getElementById("cropper").style.display="none";
+  document.getElementById("prodForm").style.display="block";
+});
+document.getElementById("cropCancel").addEventListener("click",()=>{
+  document.getElementById("cropper").style.display="none";pendingImg=null;});
+
+/* ---------- dropzone ---------- */
+const drop=document.getElementById("drop"),prodFile=document.getElementById("prodFile");
+drop.addEventListener("click",()=>prodFile.click());
+prodFile.addEventListener("change",e=>{if(e.target.files[0])openCropper(e.target.files[0]);});
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
+drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))openCropper(f);});
+
+/* ---------- add product ---------- */
+document.getElementById("addBtn").addEventListener("click",()=>{
+  const nome=document.getElementById("pNome").value.trim();
+  const link=document.getElementById("pLink").value.trim();
+  if(!pendingImg){toast("Faça o recorte da foto primeiro");return;}
+  if(!nome){toast("Preencha o nome do produto");return;}
+  if(!link){toast("Cole o link de afiliado");return;}
+  state.produtos.push({
+    img:pendingImg,cat:document.getElementById("pCat").value.trim()||"Fotografia",
+    nome:nome,frase:document.getElementById("pFrase").value.trim(),link:link,
+    hype:document.getElementById("pHype").checked,top:document.getElementById("pTop").checked
+  });
+  save();renderList();toast("Produto adicionado ✓");
+  ["pNome","pLink","pFrase"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("pHype").checked=false;document.getElementById("pTop").checked=false;
+  document.getElementById("prodForm").style.display="none";pendingImg=null;
+  document.getElementById("prodThumb").src="";
+});
+
+/* ---------- list ---------- */
+function move(i,d){const j=i+d;if(j<0||j>=state.produtos.length)return;
+  [state.produtos[i],state.produtos[j]]=[state.produtos[j],state.produtos[i]];save();renderList();}
+function toTop(i){const [p]=state.produtos.splice(i,1);state.produtos.unshift(p);save();renderList();}
+function del(i){state.produtos.splice(i,1);save();renderList();}
+function toggle(i,k){state.produtos[i][k]=!state.produtos[i][k];save();renderList();}
+function renderList(){
+  document.getElementById("count").textContent=state.produtos.length;
+  const el=document.getElementById("list");
+  if(!state.produtos.length){el.innerHTML='<div class="empty">Nenhum produto ainda. Carregue seu <code>index.html</code> atual abaixo ou adicione um novo acima.</div>';return;}
+  el.innerHTML=state.produtos.map((p,i)=>`
+    <div class="item">
+      <img class="thumb" src="${p.img}" alt="">
+      <div class="info">
+        <div class="nome">${esc(p.nome)}</div>
+        <div class="meta">${esc(p.cat)}</div>
+        <div class="pills">
+          <span class="pill ${p.hype?'on-hype':''}" onclick="toggle(${i},'hype')">🔥 Hypado</span>
+          <span class="pill ${p.top?'on-top':''}" onclick="toggle(${i},'top')">🏆 Mais vendido</span>
+        </div>
+      </div>
+      <div class="ctrls">
+        <button class="iconbtn" title="Topo" onclick="toTop(${i})">⤒</button>
+        <button class="iconbtn" title="Subir" onclick="move(${i},-1)">↑</button>
+        <button class="iconbtn" title="Descer" onclick="move(${i},1)">↓</button>
+        <button class="iconbtn del" title="Excluir" onclick="del(${i})">✕</button>
+      </div>
+    </div>`).join("");
+}
+function esc(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- import existing index.html ---------- */
+document.getElementById("importFile").addEventListener("change",e=>{
+  const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{try{importHtml(r.result);toast("Página carregada ✓");}catch(err){toast("Não consegui ler esse arquivo");}};
+  r.readAsText(f);
+});
+function importHtml(html){
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  const av=doc.querySelector(".avatar");if(av&&av.getAttribute("src"))state.header.avatar=av.getAttribute("src");
+  const h1=doc.querySelector("header h1");if(h1)state.header.nome=h1.textContent.trim();
+  const hd=doc.querySelector(".handle");if(hd)state.header.handle=hd.textContent.trim().replace(/^@/,"");
+  const wa=doc.querySelector(".whats");if(wa){const m=(wa.getAttribute("href")||"").match(/wa\.me\/(\d+)/);state.header.whats=m?m[1]:"";}
+  const cards=[...doc.querySelectorAll("article.card")];
+  if(cards.length){
+    state.produtos=cards.map(c=>{
+      const img=c.querySelector(".card-img");const tag=c.querySelector(".tag");
+      const h2=c.querySelector("h2");const p=c.querySelector("p");const a=c.querySelector("a.buy");
+      const flags=(c.getAttribute("data-flags")||"").split(",");
+      return{img:img?img.getAttribute("src"):"",cat:tag?tag.textContent.trim():"Fotografia",
+        nome:h2?h2.textContent.trim():"",frase:p?p.textContent.trim():"",
+        link:a?a.getAttribute("href"):"",hype:flags.includes("hype"),top:flags.includes("top")};
+    });
+  }
+  save();syncHeaderUI();renderList();
+}
+
+/* ---------- generate index.html ---------- */
+function sorted(){ // featured first, stable
+  const feat=[],rest=[];state.produtos.forEach(p=>((p.hype||p.top)?feat:rest).push(p));
+  return feat.concat(rest);
+}
+function cardHtml(p){
+  const flags=[p.hype?"hype":"",p.top?"top":""].filter(Boolean).join(",");
+  let badges="";
+  if(p.top||p.hype){badges='\n        <div class="badges">'+
+    (p.top?'<span class="badge badge-top">🏆 Mais vendido</span>':'')+
+    (p.hype?'<span class="badge badge-hype">🔥 Hypado</span>':'')+'</div>';}
+  return `    <article class="card" data-flags="${flags}">
+      <div class="media"><img class="card-img" src="${p.img}" alt="${esc(p.nome)}">${badges}
+      </div>
+      <div class="card-body">
+        <span class="tag">${esc(p.cat)}</span>
+        <h2>${esc(p.nome)}</h2>
+        <p>${esc(p.frase)}</p>
+        <a class="buy" href="${p.link}" target="_blank" rel="noopener sponsored">Comprar</a>
+      </div>
+    </article>`;
+}
+function buildIndex(){
+  const h=state.header;
+  const whatsBlock=h.whats?`
+    <a class="whats" href="https://wa.me/${h.whats}" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.66 15L2 22l5.16-1.32A10 10 0 1 0 12 2zm0 18.2c-1.5 0-2.97-.4-4.25-1.15l-.3-.18-3.06.78.8-2.98-.2-.31A8.2 8.2 0 1 1 12 20.2zm4.5-6.13c-.25-.12-1.46-.72-1.68-.8-.23-.08-.4-.12-.56.12-.16.25-.64.8-.78.97-.14.16-.29.18-.53.06-.25-.12-1.04-.38-1.98-1.22-.73-.65-1.22-1.45-1.37-1.7-.14-.24-.01-.38.11-.5.11-.11.25-.29.37-.43.12-.14.16-.25.25-.41.08-.16.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.4-.42-.56-.42h-.48c-.16 0-.43.06-.66.31-.22.25-.86.84-.86 2.05 0 1.2.88 2.37 1 2.53.12.16 1.73 2.64 4.2 3.7.59.25 1.05.4 1.4.52.59.19 1.13.16 1.55.1.47-.07 1.46-.6 1.67-1.18.2-.57.2-1.06.14-1.17-.06-.1-.22-.16-.47-.28z"/></svg>
+      Fale comigo no WhatsApp
+    </a>`:"";
+  const cards=sorted().map(cardHtml).join("\n\n");
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Indica\u00e7\u00f5es de ${esc(h.nome)} \u2014 links de afiliado Mercado Livre.">
+<title>${esc(h.nome)} | Links</title>
+<style>
+  :root{--bg:#0b0f0d;--card:#141a17;--card-edge:#1f2a24;--text:#eef4f0;--muted:#93a49b;
+    --accent:#00C853;--accent-dark:#00a445;--accent-ink:#04140a;--gold:#e6b84f;}
+  *{margin:0;padding:0;box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;min-height:100vh;background-image:radial-gradient(60% 40% at 50% -5%,rgba(0,200,83,.14),transparent 70%);}
+  .wrap{max-width:680px;margin:0 auto;padding:40px 20px 48px}
+  header{text-align:center;margin-bottom:28px}
+  .avatar{width:112px;height:112px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 16px;
+    border:3px solid var(--accent);box-shadow:0 0 0 5px rgba(0,200,83,.15),0 12px 30px rgba(0,0,0,.5);}
+  h1{font-size:1.45rem;font-weight:800;letter-spacing:-.02em}
+  .handle{display:inline-block;margin-top:4px;color:var(--accent);font-weight:600;text-decoration:none;font-size:.98rem}
+  .handle:hover{text-decoration:underline}
+  .bio{color:var(--muted);font-size:.92rem;margin-top:8px}
+  .whats{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:11px 22px;border-radius:999px;
+    background:transparent;border:1.5px solid var(--accent);color:var(--accent);font-weight:700;font-size:.92rem;
+    text-decoration:none;transition:background .2s,color .2s}
+  .whats:hover{background:var(--accent);color:var(--accent-ink)}.whats svg{width:18px;height:18px;fill:currentColor}
+  .disclosure{background:rgba(0,200,83,.07);border:1px solid rgba(0,200,83,.25);border-radius:12px;
+    padding:10px 14px;font-size:.8rem;color:var(--muted);text-align:center;margin-bottom:28px}
+  .disclosure strong{color:var(--text);font-weight:600}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;align-items:stretch}
+  .card{background:var(--card);border:1px solid var(--card-edge);border-radius:18px;overflow:hidden;
+    display:flex;flex-direction:column;transition:transform .2s,border-color .2s,box-shadow .2s}
+  .card:hover{transform:translateY(-4px);border-color:rgba(0,200,83,.45);box-shadow:0 14px 34px rgba(0,0,0,.45)}
+  .media{position:relative;line-height:0}
+  .card-img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;background:#fff}
+  .badges{position:absolute;top:10px;left:10px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .badge{font-size:.66rem;font-weight:800;letter-spacing:.03em;padding:5px 10px;border-radius:999px;
+    color:#04140a;box-shadow:0 4px 12px rgba(0,0,0,.35)}
+  .badge-hype{background:var(--accent)}.badge-top{background:var(--gold)}
+  .card-body{padding:16px 16px 18px;display:flex;flex-direction:column;flex:1}
+  .tag{align-self:flex-start;font-size:.68rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--accent);background:rgba(0,200,83,.12);border:1px solid rgba(0,200,83,.3);padding:4px 10px;
+    border-radius:999px;margin-bottom:10px}
+  .card h2{font-size:1rem;font-weight:700;letter-spacing:-.01em;line-height:1.35}
+  .card p{color:var(--muted);font-size:.88rem;margin-top:6px;flex:1}
+  .buy{margin-top:16px;display:block;text-align:center;background:var(--accent);color:var(--accent-ink);
+    font-weight:800;font-size:.95rem;padding:13px 16px;border-radius:12px;text-decoration:none;
+    transition:background .2s,transform .1s}
+  .buy:hover{background:var(--accent-dark)}.buy:active{transform:scale(.98)}
+  footer{text-align:center;color:var(--muted);font-size:.78rem;margin-top:36px}
+  footer a{color:var(--accent);text-decoration:none}
+  @media (max-width:400px){.wrap{padding:32px 14px 40px}h1{font-size:1.3rem}}
+  @media (prefers-reduced-motion:reduce){.card,.card:hover{transform:none;transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="avatar" src="${h.avatar}" alt="Foto de ${esc(h.nome)}">
+    <h1>${esc(h.nome)}</h1>
+    <a class="handle" href="https://instagram.com/${h.handle}" target="_blank" rel="noopener">@${esc(h.handle)}</a>
+    <p class="bio">Equipamentos que eu uso e recomendo \ud83d\udcf8</p>${whatsBlock}
+  </header>
+  <div class="disclosure">
+    \u26a0\ufe0f <strong>Publicidade:</strong> esta p\u00e1gina cont\u00e9m links de afiliado do Mercado Livre.
+    Ao comprar por eles, posso receber uma comiss\u00e3o \u2014 sem custo extra pra voc\u00ea.
+  </div>
+  <main class="grid">
+${cards}
+  </main>
+  <footer>
+    \u00a9 ${new Date().getFullYear()} ${esc(h.nome)} \u00b7 Links de afiliado Mercado Livre \u00b7
+    <a href="https://instagram.com/${h.handle}" target="_blank" rel="noopener">@${esc(h.handle)}</a>
+  </footer>
+</div>
+</body>
+</html>`;
+}
+document.getElementById("genBtn").addEventListener("click",()=>{
+  if(!state.produtos.length){toast("Adicione pelo menos 1 produto");return;}
+  const blob=new Blob([buildIndex()],{type:"text/html"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="index.html";
+  document.body.appendChild(a);a.click();a.remove();
+  toast("index.html gerado ✓");
+});
+document.getElementById("clearBtn").addEventListener("click",()=>{
+  if(confirm("Apagar todos os produtos do painel? (não afeta o que já está no GitHub)")){
+    state.produtos=[];save();renderList();}
+});
+
+/* ---------- init ---------- */
+load();syncHeaderUI();renderList();
+</script>
+</body>
+</html>
