@@ -41,19 +41,35 @@
   .btn.danger:hover{background:var(--danger);color:#fff}
   .btn.wide{width:100%;padding:15px;font-size:1rem;margin-top:6px}
   /* dropzone + cropper */
-  .drop{border:2px dashed var(--edge2);border-radius:12px;padding:26px;text-align:center;
+  .drop{border:2px dashed var(--edge2);border-radius:12px;padding:22px;text-align:center;
     color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;font-size:.9rem}
   .drop:hover,.drop.over{border-color:var(--accent);background:rgba(0,200,83,.05)}
+  .drop.over{border-style:solid}
+  .drop small{display:block;margin-top:5px;font-size:.72rem;opacity:.75}
   .cropper{margin-top:14px;display:none}
   .crop-stage{position:relative;display:inline-block;touch-action:none;user-select:none;
-    border-radius:10px;overflow:hidden;background:#000}
+    border-radius:10px;overflow:hidden;background:#000;max-width:100%}
   .crop-stage img{display:block;max-width:100%;pointer-events:none}
   .crop-sel{position:absolute;border:2px solid var(--accent);box-shadow:0 0 0 9999px rgba(0,0,0,.55);
     cursor:move}
-  .crop-handle{position:absolute;right:-9px;bottom:-9px;width:20px;height:20px;border-radius:50%;
-    background:var(--accent);border:2px solid #04140a;cursor:nwse-resize}
-  .crop-actions{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  /* rule-of-thirds guides */
+  .crop-sel::before,.crop-sel::after{content:"";position:absolute;pointer-events:none;
+    background:linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,.35))}
+  .crop-sel::before{left:33.33%;right:33.33%;top:0;bottom:0;
+    border-left:1px solid rgba(255,255,255,.35);border-right:1px solid rgba(255,255,255,.35);background:none}
+  .crop-sel::after{top:33.33%;bottom:33.33%;left:0;right:0;
+    border-top:1px solid rgba(255,255,255,.35);border-bottom:1px solid rgba(255,255,255,.35);background:none}
+  .crop-handle{position:absolute;width:22px;height:22px;border-radius:50%;
+    background:var(--accent);border:2px solid #04140a;box-shadow:0 2px 6px rgba(0,0,0,.5);z-index:2}
+  .crop-handle[data-c="tl"]{left:-11px;top:-11px;cursor:nwse-resize}
+  .crop-handle[data-c="tr"]{right:-11px;top:-11px;cursor:nesw-resize}
+  .crop-handle[data-c="bl"]{left:-11px;bottom:-11px;cursor:nesw-resize}
+  .crop-handle[data-c="br"]{right:-11px;bottom:-11px;cursor:nwse-resize}
+  .crop-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .crop-hint{font-size:.72rem;color:var(--muted);margin-left:auto}
   .thumb{width:64px;height:64px;border-radius:10px;object-fit:cover;background:#fff;flex-shrink:0}
+  .drop-preview{display:none;align-items:center;gap:12px;justify-content:center}
+  .drop-preview img{width:52px;height:52px;border-radius:8px;object-fit:cover;background:#fff}
   /* flags */
   .flags{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap}
   .chk{display:flex;align-items:center;gap:8px;font-size:.88rem;color:var(--text);cursor:pointer;
@@ -129,17 +145,25 @@
     <div id="idStatus" class="hint" style="margin-top:6px;min-height:0"></div>
 
     <label>Foto do produto (print do Mercado Livre)</label>
-    <div class="drop" id="drop">📷 Clique ou arraste o print aqui</div>
+    <div class="drop" id="drop">
+      <span id="dropText">📷 Clique, arraste ou <b>cole (Ctrl/Cmd+V)</b> o print<small>Recorta a parte do produto e otimiza o peso automaticamente</small></span>
+      <div class="drop-preview" id="dropPreview"><img id="dropThumb" alt=""><span>Foto escolhida · clique pra trocar</span></div>
+    </div>
     <input type="file" id="prodFile" accept="image/*" hidden>
     <div class="cropper" id="cropper">
-      <label>Ajuste o recorte (arraste pra mover, use a bolinha pra redimensionar)</label>
+      <label>Recorte o produto — arraste pra mover, cantos pra redimensionar, roda do mouse pra dar zoom</label>
       <div class="crop-stage" id="stage">
         <img id="cropImg" alt="">
-        <div class="crop-sel" id="sel"><div class="crop-handle" id="handle"></div></div>
+        <div class="crop-sel" id="sel">
+          <div class="crop-handle" data-c="tl"></div><div class="crop-handle" data-c="tr"></div>
+          <div class="crop-handle" data-c="bl"></div><div class="crop-handle" data-c="br"></div>
+        </div>
       </div>
       <div class="crop-actions">
         <button class="btn sm" id="cropOk">✓ Usar recorte</button>
+        <button class="btn ghost sm" id="cropFull">⤢ Imagem inteira</button>
         <button class="btn ghost sm" id="cropCancel">Cancelar</button>
+        <span class="crop-hint">Enter = usar · Esc = cancelar</span>
       </div>
     </div>
     <div id="prodForm" style="display:none">
@@ -226,21 +250,38 @@ function cropToSquare(file,size,cb){ // simple center-crop (used for avatar)
     cb(c.toDataURL("image/jpeg",.85));});
 }
 
+/* ---------- image encoding (webp c/ fallback jpeg) + tamanho ---------- */
+let _webp=null;
+function webpOK(){if(_webp!==null)return _webp;try{const c=document.createElement("canvas");c.width=c.height=1;
+  const u=c.toDataURL("image/webp")||"";_webp=u.indexOf("image/webp")>-1;}catch(e){_webp=false;}return _webp;}
+function encodeImage(canvas){return webpOK()?canvas.toDataURL("image/webp",.82):canvas.toDataURL("image/jpeg",.8);}
+function kb(d){const i=d.indexOf(",");return Math.round((d.length-i-1)*0.75/1024);}
+function showDropPreview(d){document.getElementById("dropThumb").src=d;
+  document.getElementById("dropText").style.display="none";document.getElementById("dropPreview").style.display="flex";}
+function resetDropPreview(){document.getElementById("dropText").style.display="block";
+  document.getElementById("dropPreview").style.display="none";}
+function setPendingImage(d,note){pendingImg=d;
+  document.getElementById("prodThumb").src=d;
+  document.getElementById("thumbNote").textContent=(note||"Foto pronta")+" · ~"+kb(d)+" KB";
+  showDropPreview(d);document.getElementById("prodForm").style.display="block";}
+
 /* ---------- cropper (product) ---------- */
 let cropSrc=null,dispScale=1,sel={x:0,y:0,s:0},stageW=0,stageH=0;
 const stage=document.getElementById("stage"),cropImgEl=document.getElementById("cropImg"),
-      selEl=document.getElementById("sel"),handleEl=document.getElementById("handle");
+      selEl=document.getElementById("sel"),handles=[...document.querySelectorAll(".crop-handle")];
+function cropperOpen(){return document.getElementById("cropper").style.display==="block";}
 function openCropper(file){
   readImage(file,im=>{
     cropSrc=im;
-    const maxW=Math.min(320,document.querySelector(".panel").clientWidth-36);
+    const maxW=Math.min(340,document.querySelector(".panel").clientWidth-36);
     dispScale=Math.min(maxW/im.width,360/im.height,1);
     stageW=Math.round(im.width*dispScale);stageH=Math.round(im.height*dispScale);
     cropImgEl.src=im.src;cropImgEl.style.width=stageW+"px";cropImgEl.style.height=stageH+"px";
     stage.style.width=stageW+"px";stage.style.height=stageH+"px";
-    const s=Math.min(stageW,stageH);sel={x:(stageW-s)/2,y:(stageH-s)/2,s:s};
+    const s=Math.round(Math.min(stageW,stageH)*.92);sel={x:(stageW-s)/2,y:(stageH-s)/2,s:s};
     drawSel();document.getElementById("cropper").style.display="block";
     document.getElementById("prodForm").style.display="none";
+    document.getElementById("cropper").scrollIntoView({behavior:"smooth",block:"nearest"});
   });
 }
 function drawSel(){selEl.style.left=sel.x+"px";selEl.style.top=sel.y+"px";
@@ -248,37 +289,56 @@ function drawSel(){selEl.style.left=sel.x+"px";selEl.style.top=sel.y+"px";
 function clampSel(){sel.s=Math.max(40,Math.min(sel.s,stageW,stageH));
   sel.x=Math.max(0,Math.min(sel.x,stageW-sel.s));sel.y=Math.max(0,Math.min(sel.y,stageH-sel.s));}
 let drag=null;
-function pt(e){const r=stage.getBoundingClientRect();const t=e.touches?e.touches[0]:e;
-  return{x:t.clientX-r.left,y:t.clientY-r.top};}
-selEl.addEventListener("pointerdown",e=>{e.preventDefault();
-  drag={mode:"move",p:pt(e),ox:sel.x,oy:sel.y};selEl.setPointerCapture(e.pointerId);});
-handleEl.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();
-  drag={mode:"resize",p:pt(e),os:sel.s};handleEl.setPointerCapture(e.pointerId);});
+function pt(e){const r=stage.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+selEl.addEventListener("pointerdown",e=>{if(e.target.classList.contains("crop-handle"))return;
+  e.preventDefault();drag={mode:"move",p:pt(e),ox:sel.x,oy:sel.y};selEl.setPointerCapture(e.pointerId);});
+handles.forEach(h=>h.addEventListener("pointerdown",e=>{e.preventDefault();e.stopPropagation();
+  const c=h.getAttribute("data-c");let ax,ay;
+  if(c==="br"){ax=sel.x;ay=sel.y;}else if(c==="tl"){ax=sel.x+sel.s;ay=sel.y+sel.s;}
+  else if(c==="tr"){ax=sel.x;ay=sel.y+sel.s;}else{ax=sel.x+sel.s;ay=sel.y;}
+  drag={mode:"resize",corner:c,ax:ax,ay:ay};h.setPointerCapture(e.pointerId);}));
 window.addEventListener("pointermove",e=>{if(!drag)return;const p=pt(e);
   if(drag.mode==="move"){sel.x=drag.ox+(p.x-drag.p.x);sel.y=drag.oy+(p.y-drag.p.y);}
-  else{const d=Math.max(p.x-drag.p.x,p.y-drag.p.y);sel.s=drag.os+d;}
+  else{const c=drag.corner,ax=drag.ax,ay=drag.ay;let s;
+    if(c==="br")s=Math.max(p.x-ax,p.y-ay);else if(c==="tl")s=Math.max(ax-p.x,ay-p.y);
+    else if(c==="tr")s=Math.max(p.x-ax,ay-p.y);else s=Math.max(ax-p.x,p.y-ay);
+    s=Math.max(40,Math.min(s,stageW,stageH));
+    if(c==="br"){sel.x=ax;sel.y=ay;}else if(c==="tl"){sel.x=ax-s;sel.y=ay-s;}
+    else if(c==="tr"){sel.x=ax;sel.y=ay-s;}else{sel.x=ax-s;sel.y=ay;}sel.s=s;}
   clampSel();drawSel();});
 window.addEventListener("pointerup",()=>{drag=null;});
-document.getElementById("cropOk").addEventListener("click",()=>{
-  const sc=1/dispScale,out=560,c=document.createElement("canvas");c.width=c.height=out;
+stage.addEventListener("wheel",e=>{if(!cropperOpen())return;e.preventDefault();
+  const cx=sel.x+sel.s/2,cy=sel.y+sel.s/2,f=e.deltaY<0?1.06:0.94;
+  sel.s=Math.max(40,Math.min(sel.s*f,stageW,stageH));sel.x=cx-sel.s/2;sel.y=cy-sel.s/2;
+  clampSel();drawSel();},{passive:false});
+function doCrop(){const sc=1/dispScale,out=560,c=document.createElement("canvas");c.width=c.height=out;
   const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,out,out);
   x.drawImage(cropSrc,sel.x*sc,sel.y*sc,sel.s*sc,sel.s*sc,0,0,out,out);
-  pendingImg=c.toDataURL("image/jpeg",.8);
-  document.getElementById("prodThumb").src=pendingImg;
-  document.getElementById("thumbNote").textContent="Recorte pronto ✓";
-  document.getElementById("cropper").style.display="none";
-  document.getElementById("prodForm").style.display="block";
-});
-document.getElementById("cropCancel").addEventListener("click",()=>{
-  document.getElementById("cropper").style.display="none";pendingImg=null;});
+  setPendingImage(encodeImage(c),"Recorte pronto");document.getElementById("cropper").style.display="none";}
+function cropFullImg(){const out=560,c=document.createElement("canvas");c.width=c.height=out;
+  const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,out,out);
+  const m=Math.max(cropSrc.width,cropSrc.height),w=cropSrc.width/m*out,h=cropSrc.height/m*out;
+  x.drawImage(cropSrc,(out-w)/2,(out-h)/2,w,h);
+  setPendingImage(encodeImage(c),"Imagem inteira");document.getElementById("cropper").style.display="none";}
+function cancelCrop(){document.getElementById("cropper").style.display="none";
+  if(pendingImg)document.getElementById("prodForm").style.display="block";}
+document.getElementById("cropOk").addEventListener("click",doCrop);
+document.getElementById("cropFull").addEventListener("click",cropFullImg);
+document.getElementById("cropCancel").addEventListener("click",cancelCrop);
+document.addEventListener("keydown",e=>{if(!cropperOpen())return;
+  if(e.key==="Enter"){e.preventDefault();doCrop();}else if(e.key==="Escape"){e.preventDefault();cancelCrop();}});
 
-/* ---------- dropzone ---------- */
+/* ---------- dropzone + colar (Ctrl/Cmd+V) ---------- */
 const drop=document.getElementById("drop"),prodFile=document.getElementById("prodFile");
 drop.addEventListener("click",()=>prodFile.click());
-prodFile.addEventListener("change",e=>{if(e.target.files[0])openCropper(e.target.files[0]);});
+prodFile.addEventListener("change",e=>{if(e.target.files[0]){openCropper(e.target.files[0]);prodFile.value="";}});
 ["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over");}));
-["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over");}));
-drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))openCropper(f);});
+drop.addEventListener("dragleave",e=>{e.preventDefault();drop.classList.remove("over");});
+drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("over");
+  const f=e.dataTransfer.files[0];if(f&&f.type.startsWith("image/"))openCropper(f);});
+document.addEventListener("paste",e=>{const items=e.clipboardData&&e.clipboardData.items;if(!items)return;
+  for(const it of items){if(it.type&&it.type.startsWith("image/")){const f=it.getAsFile();
+    if(f){e.preventDefault();openCropper(f);toast("Print colado ✓");break;}}}});
 
 /* ---------- add product ---------- */
 document.getElementById("addBtn").addEventListener("click",()=>{
@@ -297,6 +357,7 @@ document.getElementById("addBtn").addEventListener("click",()=>{
   document.getElementById("pHype").checked=false;document.getElementById("pTop").checked=false;
   document.getElementById("prodForm").style.display="none";pendingImg=null;
   document.getElementById("prodThumb").src="";
+  resetDropPreview();
   document.getElementById("copyOpts").innerHTML="";
   const st=document.getElementById("idStatus");st.className="hint";st.innerHTML="";
 });
@@ -619,7 +680,7 @@ async function baixarImagem(imgUrl){
       const m=Math.min(im.width,im.height),out=560,c=document.createElement("canvas");c.width=c.height=out;
       const x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,out,out);
       x.drawImage(im,(im.width-m)/2,(im.height-m)/2,m,m,0,0,out,out);
-      return c.toDataURL("image/jpeg",.8);
+      return encodeImage(c);
     }catch(e){}
   }
   return null;
@@ -646,9 +707,7 @@ document.getElementById("idBtn").addEventListener("click",async()=>{
     if(image){
       setStatus('✓ Produto identificado. <span class="spin"></span>Baixando a foto…',"ok");
       const dataUrl=await baixarImagem(image);
-      if(dataUrl){ pendingImg=dataUrl;
-        document.getElementById("prodThumb").src=dataUrl;
-        document.getElementById("thumbNote").textContent="Foto do produto puxada do ML ✓";
+      if(dataUrl){ setPendingImage(dataUrl,"Foto do ML");
         setStatus("✓ Nome, foto e copy prontos! Revise, marque 🔥/🏆 e adicione.","ok");
       } else {
         setStatus("✓ Nome e copy prontos. A foto não veio — jogue o print na área acima.","ok");
