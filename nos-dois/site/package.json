@@ -1,6 +1,0 @@
-{
-  "name": "nos-dois",
-  "private": true,
-  "description": "Nós Dois: app web para casais (Vercel + Upstash Redis)",
-  "engines": { "node": ">=18" }
-}
