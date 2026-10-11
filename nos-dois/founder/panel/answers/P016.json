@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "Eu baixo esse tipo de app, uso uma semana e esqueço. E o que me serviria, o placar e as tarefas, já é grátis, então não vejo por que pagar o Premium.",
+  "objection": "A pergunta do dia me soa como coisa de casal em crise, e a área Família só faz sentido quando eu engravidar, o que ainda deve levar uns dois anos. Hoje eu estaria pagando por algo que não uso.",
+  "would_change_my_mind": "Engravidar. Se a gente já estivesse esperando um bebê, a gestação semana a semana para os dois poderia me fazer assinar.",
+  "price_too_cheap": 2,
+  "price_cheap": 5,
+  "price_expensive": 12,
+  "price_too_expensive": 20
+}

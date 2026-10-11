@@ -1,0 +1,11 @@
+{
+  "name": "Nós Dois",
+  "short_name": "Nós Dois",
+  "description": "A casa, as contas e o bebê divididos à vista dos dois.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF3F2",
+  "theme_color": "#A62F5E",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

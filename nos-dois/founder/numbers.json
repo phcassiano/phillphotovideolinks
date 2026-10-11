@@ -1,0 +1,29 @@
+{
+  "business": "Nós Dois (valores em R$; 'dia' = mês, ver cfo-sources.md)",
+  "unit": "casal pagante-mês",
+  "price": 7.46,
+  "variable": [
+    {"label": "Taxa da loja (15% de R$ 7,46)", "cost": 1.12},
+    {"label": "Imposto Simples Nacional, Anexo III com Fator R (6%)", "cost": 0.45},
+    {"label": "Servidor e banco de dados por casal (estimativa)", "cost": 0.20}
+  ],
+  "fixed_monthly": [
+    {"label": "Pró-labore do fundador (1 salário mínimo 2026)", "cost": 1621},
+    {"label": "Contador (estimativa)", "cost": 400},
+    {"label": "Supabase Pro (US$ 25 × R$ 5,50)", "cost": 138},
+    {"label": "Apple Developer (US$ 99/ano ÷ 12 × R$ 5,50)", "cost": 45},
+    {"label": "Domínio, e-mail e ferramentas (estimativa)", "cost": 60},
+    {"label": "Anúncios de teste (estimativa)", "cost": 500}
+  ],
+  "startup": [
+    {"label": "Protótipo → app de loja (freelancer, estimativa)", "cost": 12000},
+    {"label": "Abertura de empresa ME (estimativa)", "cost": 1000},
+    {"label": "Conta Google Play (US$ 25 × R$ 5,50)", "cost": 138},
+    {"label": "Logo e identidade (estimativa)", "cost": 1500},
+    {"label": "Registro de marca no INPI (estimativa)", "cost": 450},
+    {"label": "Anúncios de lançamento (estimativa)", "cost": 2000}
+  ],
+  "days_per_month": 1,
+  "plan_per_day": 800,
+  "ramp_per_day": [0, 20, 50, 90, 140, 200, 270, 350, 430, 520, 610, 700]
+}

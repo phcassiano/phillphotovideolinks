@@ -1,0 +1,154 @@
+{
+ "business": "Nós Dois, app de celular para casais brasileiros (valores de renda em reais por ano, renda familiar do casal)",
+ "seed": 710546,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 0,
+ "passes": 20,
+ "buy_rate": 0.0,
+ "by_segment": [
+  [
+   "Casal com filho de 0 a 5 anos",
+   6,
+   0.0
+  ],
+  [
+   "Casal esperando o primeiro bebê",
+   5,
+   0.0
+  ],
+  [
+   "Casal sem planos de filhos por agora",
+   3,
+   0.0
+  ],
+  [
+   "Casal planejando ter filhos nos próximos 2 anos",
+   6,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Segue perfis de maternidade/paternidade",
+   3,
+   0.0
+  ],
+  [
+   "Avesso a assinaturas",
+   3,
+   0.0
+  ],
+  [
+   "Testa apps e abandona",
+   4,
+   0.0
+  ],
+  [
+   "Planejador(a) da casa",
+   3,
+   0.0
+  ],
+  [
+   "Organiza tudo no WhatsApp",
+   5,
+   0.0
+  ],
+  [
+   "Romântico(a) do casal",
+   2,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$156,000 and up",
+   7,
+   0.0
+  ],
+  [
+   "$122,000 to $156,000",
+   7,
+   0.0
+  ],
+  [
+   "under $122,000",
+   6,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "habit",
+   9,
+   [
+    "A gente já combina tudo no WhatsApp e no Google Agenda, e com filho pequeno e sem avó por perto não sobra cabeça pra mais um app de casal. Talvez eu teste a parte grátis, mas pagar Premium não, ainda mais que a gestação semana a semana já passou pra gente.",
+    "Eu até mandaria o link pro meu marido, porque o placar mexe numa ferida real aqui em casa, mas me conheço: uso uma semana e esqueço. E com o Premium só liberando depois de 7 dias usando juntos, provavelmente a gente nem chega lá, e a versão grátis já basta pra testar."
+   ],
+   [
+    "P001",
+    "P003"
+   ]
+  ],
+  [
+   "need",
+   8,
+   [
+    "Talvez eu até mande o link pro meu marido e use o placar de graça, mas o que importa já é grátis. Gestação e nomes de bebê não servem mais pra gente, e histórico do placar eu não vou abrir toda semana, então não pago assinatura por isso.",
+    "O que eu precisaria (placar, tarefas, listas, datas) já é grátis, e se meu parceiro topar eu uso a versão gratuita. O que o Premium acrescenta é quase tudo sobre gestação, nomes de bebê e filhos, e isso não é nossa vida agora; histórico do placar e mais perguntas não valem pagar."
+   ],
+   [
+    "P002",
+    "P004"
+   ]
+  ],
+  [
+   "timing",
+   2,
+   [
+    "O placar até me interessa, porque sinto que faço mais em casa, mas isso já é grátis. O que o Premium tem de diferente é a área de gestação e bebê, e a gente só pensa em filho daqui a uns dois anos. Hoje eu não pagaria por histórico e perguntas.",
+    "A pergunta do dia e o placar com o 'valeu' são a minha cara, mas isso já vem de graça. O que eu pagaria é a área Família, e a gente ainda nem está grávido, então no primeiro mês eu uso o grátis e não assino mais uma coisa por mês."
+   ],
+   [
+    "P005",
+    "P013"
+   ]
+  ],
+  [
+   "trust",
+   1,
+   [
+    "Nunca ouvi falar desse app e não vou colocar a rotina da nossa casa, nossas respostas íntimas e depois dados de gestação num app desconhecido só porque apareceu no meu feed. E a parte que me interessaria, a de gestação, ainda não serve pra gente: o bebê é plano pra daqui a uns dois anos."
+   ],
+   [
+    "P006"
+   ]
+  ]
+ ],
+ "why_yes": [],
+ "flip": [
+  "Ver uma criadora de maternidade que eu sigo usando de verdade com o parceiro por meses, mostrando que diminuiu a briga sobre quem faz o quê com a criança.",
+  "Se a gente realmente usasse toda semana durante o teste e o premium tivesse algo forte pra família com filho pequeno, tipo rotina e divisão das tarefas da criança, não só marcos.",
+  "Se depois de algumas semanas a gente ainda estivesse usando de verdade, os dois, o pacote da gestação semana a semana para os dois e os nomes do bebê me fariam pagar o anual sem pensar muito.",
+  "Se o Premium tivesse algo para casais sem filhos que eu realmente uso, tipo divisão de contas e despesas da casa ou planejamento de viagens e metas juntos, e meu parceiro de fato usasse a versão grátis por um mês sem eu ficar cobrando.",
+  "Engravidar. Aí a parte de gestação semana a semana para os dois juntos e o histórico de quem faz o quê passariam a valer a assinatura.",
+  "Uma criadora de maternidade em quem eu confio usando de verdade com o marido e mostrando o app por dentro, e a gente já estar tentando engravidar.",
+  "Se depois de umas semanas no grátis meu parceiro realmente estivesse usando sozinho, sem eu cobrar, e a área Família trouxesse algo que o app de gravidez não tem, tipo dividir as tarefas do enxoval e da chegada do bebê entre nós dois.",
+  "Se depois do bebê nascer o histórico e a área Família virassem a central da rotina do recém-nascido para os dois (mamadas, fraldas, sono, vacinas, quem faz o quê de madrugada) e meu parceiro estivesse realmente usando sozinho, sem eu cobrar.",
+  "Se a gente usasse o grátis por algumas semanas e ele realmente aliviasse a carga mental da casa com o bebê, e se a área Família tivesse algo útil pra criança pequena (vacinas, consultas, rotina), aí eu pensaria no anual.",
+  "Se meu marido realmente usasse o placar sozinho por um mês e isso tirasse de mim o papel de lembrar tudo, eu talvez pagaria o anual.",
+  "Engravidar, e ver um criador de conteúdo de paternidade que eu sigo usando a área de gestação para os dois de verdade.",
+  "Se a gente decidisse ter filho, a parte de gestação semana a semana pros dois poderia justificar uns meses de assinatura.",
+  "Descobrir que estamos grávidos: aí a gestação semana a semana para os dois e os nomes do bebê virariam um ritual nosso e eu assinaria na hora.",
+  "Ficar grávida de verdade: aí a área Família com a gestação semana a semana para os dois poderia valer a assinatura, se ele estivesse usando.",
+  "Se a área Família tivesse algo que o app grátis não faz pra nós dois juntos, tipo um diário ou álbum da gestação que guarda as datas e as respostas do casal pro bebê ver depois.",
+  "Engravidar. Se a gente já estivesse esperando um bebê, a gestação semana a semana para os dois poderia me fazer assinar.",
+  "Se o histórico do placar e as perguntas realmente diminuíssem as discussões sobre a casa depois de usar o grátis por um tempo, e eu soubesse quem é a empresa e onde ficam os dados.",
+  "Se depois de um mês no grátis a gente ainda estivesse usando de verdade, os dois, e eu quisesse ver o histórico do placar pra mostrar pra ele que não é impressão minha.",
+  "Se a gente realmente usasse o placar toda semana por uns dois meses e o Premium trouxesse algo prático pra rotina com criança pequena, tipo dividir automaticamente as tarefas do filho e a agenda da escola/pediatra.",
+  "Se a área Família fosse muito melhor que os apps de gestação grátis, de um jeito que nós dois usássemos todo dia sem esforço, eu pagaria pelo menos o primeiro mês."
+ ],
+ "purchases_first_month_per_buyer": null,
+ "price_answers": 20
+}

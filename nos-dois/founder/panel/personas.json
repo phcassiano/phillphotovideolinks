@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Jade",
+  "age": 27,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 176000,
+  "behaviour": "Segue perfis de maternidade/paternidade",
+  "behaviour_how": "Consome conteúdo de gestação e criação no Instagram e confia em indicações de criadores.",
+  "objection": "A gente já resolve isso no WhatsApp",
+  "habit": "vocês moram longe dos avós e não têm muita ajuda"
+ },
+ {
+  "id": "P002",
+  "name": "Hana",
+  "age": 39,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 122000,
+  "behaviour": "Avesso a assinaturas",
+  "behaviour_how": "Cancela assinaturas que não usa toda semana; só paga app se for muito útil.",
+  "objection": "Mais uma assinatura todo mês?",
+  "habit": "vocês dois chegam cansados do trabalho por volta das 19h"
+ },
+ {
+  "id": "P003",
+  "name": "Isla",
+  "age": 33,
+  "segment": "Casal esperando o primeiro bebê",
+  "income": 133000,
+  "behaviour": "Testa apps e abandona",
+  "behaviour_how": "Baixa apps da moda, usa uma semana e esquece.",
+  "objection": "Vou usar uma semana e esquecer",
+  "habit": "você divide as tarefas da casa mas sente que faz mais do que o outro"
+ },
+ {
+  "id": "P004",
+  "name": "Sana",
+  "age": 39,
+  "segment": "Casal sem planos de filhos por agora",
+  "income": 153000,
+  "behaviour": "Planejador(a) da casa",
+  "behaviour_how": "Usa planilha ou app de tarefas e já tentou fazer o parceiro usar junto.",
+  "objection": "A gente já resolve isso no WhatsApp",
+  "habit": "vocês dois chegam cansados do trabalho por volta das 19h"
+ },
+ {
+  "id": "P005",
+  "name": "Farah",
+  "age": 25,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 67000,
+  "behaviour": "Organiza tudo no WhatsApp",
+  "behaviour_how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "você divide as tarefas da casa mas sente que faz mais do que o outro"
+ },
+ {
+  "id": "P006",
+  "name": "Emma",
+  "age": 34,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 156000,
+  "behaviour": "Segue perfis de maternidade/paternidade",
+  "behaviour_how": "Consome conteúdo de gestação e criação no Instagram e confia em indicações de criadores.",
+  "objection": "Não quero meus dados de família num app desconhecido",
+  "habit": "você passa uns 20 minutos no Instagram antes de dormir"
+ },
+ {
+  "id": "P007",
+  "name": "Finn",
+  "age": 36,
+  "segment": "Casal esperando o primeiro bebê",
+  "income": 145000,
+  "behaviour": "Planejador(a) da casa",
+  "behaviour_how": "Usa planilha ou app de tarefas e já tentou fazer o parceiro usar junto.",
+  "objection": "Já uso um app de gravidez grátis",
+  "habit": "o fim de semana é dividido entre família, mercado e descanso"
+ },
+ {
+  "id": "P008",
+  "name": "Ravi",
+  "age": 26,
+  "segment": "Casal esperando o primeiro bebê",
+  "income": 142000,
+  "behaviour": "Planejador(a) da casa",
+  "behaviour_how": "Usa planilha ou app de tarefas e já tentou fazer o parceiro usar junto.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "vocês moram longe dos avós e não têm muita ajuda"
+ },
+ {
+  "id": "P009",
+  "name": "Tess",
+  "age": 32,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 183000,
+  "behaviour": "Organiza tudo no WhatsApp",
+  "behaviour_how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app.",
+  "objection": "A gente já resolve isso no WhatsApp",
+  "habit": "o fim de semana é dividido entre família, mercado e descanso"
+ },
+ {
+  "id": "P010",
+  "name": "Alma",
+  "age": 36,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 170000,
+  "behaviour": "Organiza tudo no WhatsApp",
+  "behaviour_how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "você divide as tarefas da casa mas sente que faz mais do que o outro"
+ },
+ {
+  "id": "P011",
+  "name": "Hugo",
+  "age": 33,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 83000,
+  "behaviour": "Segue perfis de maternidade/paternidade",
+  "behaviour_how": "Consome conteúdo de gestação e criação no Instagram e confia em indicações de criadores.",
+  "objection": "A gente já resolve isso no WhatsApp",
+  "habit": "o fim de semana é dividido entre família, mercado e descanso"
+ },
+ {
+  "id": "P012",
+  "name": "Malik",
+  "age": 28,
+  "segment": "Casal sem planos de filhos por agora",
+  "income": 194000,
+  "behaviour": "Avesso a assinaturas",
+  "behaviour_how": "Cancela assinaturas que não usa toda semana; só paga app se for muito útil.",
+  "objection": "A gente já resolve isso no WhatsApp",
+  "habit": "vocês dois chegam cansados do trabalho por volta das 19h"
+ },
+ {
+  "id": "P013",
+  "name": "Seth",
+  "age": 36,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 143000,
+  "behaviour": "Romântico(a) do casal",
+  "behaviour_how": "Gosta de rituais a dois, guarda datas, faz surpresas.",
+  "objection": "Mais uma assinatura todo mês?",
+  "habit": "você passa uns 20 minutos no Instagram antes de dormir"
+ },
+ {
+  "id": "P014",
+  "name": "Noor",
+  "age": 37,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 156000,
+  "behaviour": "Testa apps e abandona",
+  "behaviour_how": "Baixa apps da moda, usa uma semana e esquece.",
+  "objection": "Meu parceiro(a) não vai usar, e sozinho(a) não tem graça",
+  "habit": "vocês moram longe dos avós e não têm muita ajuda"
+ },
+ {
+  "id": "P015",
+  "name": "Owen",
+  "age": 38,
+  "segment": "Casal esperando o primeiro bebê",
+  "income": 151000,
+  "behaviour": "Romântico(a) do casal",
+  "behaviour_how": "Gosta de rituais a dois, guarda datas, faz surpresas.",
+  "objection": "Já uso um app de gravidez grátis",
+  "habit": "o fim de semana é dividido entre família, mercado e descanso"
+ },
+ {
+  "id": "P016",
+  "name": "Lena",
+  "age": 34,
+  "segment": "Casal planejando ter filhos nos próximos 2 anos",
+  "income": 111000,
+  "behaviour": "Testa apps e abandona",
+  "behaviour_how": "Baixa apps da moda, usa uma semana e esquece.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "o fim de semana é dividido entre família, mercado e descanso"
+ },
+ {
+  "id": "P017",
+  "name": "Emil",
+  "age": 40,
+  "segment": "Casal sem planos de filhos por agora",
+  "income": 170000,
+  "behaviour": "Organiza tudo no WhatsApp",
+  "behaviour_how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app.",
+  "objection": "Não quero meus dados de família num app desconhecido",
+  "habit": "vocês moram longe dos avós e não têm muita ajuda"
+ },
+ {
+  "id": "P018",
+  "name": "Beatriz",
+  "age": 38,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 70000,
+  "behaviour": "Organiza tudo no WhatsApp",
+  "behaviour_how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app.",
+  "objection": "Vou usar uma semana e esquecer",
+  "habit": "você divide as tarefas da casa mas sente que faz mais do que o outro"
+ },
+ {
+  "id": "P019",
+  "name": "Chloe",
+  "age": 30,
+  "segment": "Casal com filho de 0 a 5 anos",
+  "income": 118000,
+  "behaviour": "Avesso a assinaturas",
+  "behaviour_how": "Cancela assinaturas que não usa toda semana; só paga app se for muito útil.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "você passa uns 20 minutos no Instagram antes de dormir"
+ },
+ {
+  "id": "P020",
+  "name": "Quinn",
+  "age": 40,
+  "segment": "Casal esperando o primeiro bebê",
+  "income": 87000,
+  "behaviour": "Testa apps e abandona",
+  "behaviour_how": "Baixa apps da moda, usa uma semana e esquece.",
+  "objection": "Pergunta do dia parece coisa de casal em crise",
+  "habit": "você passa uns 20 minutos no Instagram antes de dormir"
+ }
+]

@@ -1,0 +1,96 @@
+{
+ "n": 20,
+ "seed": 710546,
+ "customer": {
+  "business": "Nós Dois, app de celular para casais brasileiros (valores de renda em reais por ano, renda familiar do casal)",
+  "target": "Casais brasileiros de 25 a 40 anos que moram juntos, usam o celular para tudo e estão planejando ter filhos, esperando um bebê ou já têm filhos pequenos",
+  "where": "Brasil, capitais e cidades médias",
+  "age": [
+   25,
+   40
+  ],
+  "segments": [
+   {
+    "name": "Casal planejando ter filhos nos próximos 2 anos",
+    "share": 0.3,
+    "income": [
+     60000,
+     180000
+    ]
+   },
+   {
+    "name": "Casal esperando o primeiro bebê",
+    "share": 0.25,
+    "income": [
+     60000,
+     200000
+    ]
+   },
+   {
+    "name": "Casal com filho de 0 a 5 anos",
+    "share": 0.3,
+    "income": [
+     50000,
+     220000
+    ]
+   },
+   {
+    "name": "Casal sem planos de filhos por agora",
+    "share": 0.15,
+    "income": [
+     50000,
+     200000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "Organiza tudo no WhatsApp",
+    "share": 0.25,
+    "how": "O casal resolve tudo na conversa do WhatsApp e no Google Agenda; não vê por que baixar outro app."
+   },
+   {
+    "name": "Testa apps e abandona",
+    "share": 0.2,
+    "how": "Baixa apps da moda, usa uma semana e esquece."
+   },
+   {
+    "name": "Planejador(a) da casa",
+    "share": 0.15,
+    "how": "Usa planilha ou app de tarefas e já tentou fazer o parceiro usar junto."
+   },
+   {
+    "name": "Segue perfis de maternidade/paternidade",
+    "share": 0.15,
+    "how": "Consome conteúdo de gestação e criação no Instagram e confia em indicações de criadores."
+   },
+   {
+    "name": "Avesso a assinaturas",
+    "share": 0.15,
+    "how": "Cancela assinaturas que não usa toda semana; só paga app se for muito útil."
+   },
+   {
+    "name": "Romântico(a) do casal",
+    "share": 0.1,
+    "how": "Gosta de rituais a dois, guarda datas, faz surpresas."
+   }
+  ],
+  "objections": [
+   "Meu parceiro(a) não vai usar, e sozinho(a) não tem graça",
+   "A gente já resolve isso no WhatsApp",
+   "Mais uma assinatura todo mês?",
+   "Já uso um app de gravidez grátis",
+   "Pergunta do dia parece coisa de casal em crise",
+   "Não quero meus dados de família num app desconhecido",
+   "Vou usar uma semana e esquecer"
+  ],
+  "habits": [
+   "vocês dois chegam cansados do trabalho por volta das 19h",
+   "você divide as tarefas da casa mas sente que faz mais do que o outro",
+   "o fim de semana é dividido entre família, mercado e descanso",
+   "você passa uns 20 minutos no Instagram antes de dormir",
+   "vocês moram longe dos avós e não têm muita ajuda"
+  ]
+ },
+ "pitch": "Nós Dois, app para casais brasileiros que querem dividir a casa de forma justa sem virar briga.\nVocê manda um link pelo WhatsApp e a outra pessoa entra e responde na hora, sem instalar nada. Lembretes e o resumo da semana também vão pelo WhatsApp, e as datas vão direto para o Google Agenda.\nPlacar justo da casa: quem fez o quê na semana, com um botão de \"valeu\" para cada tarefa feita. Mais uma pergunta leve de 2 minutos por dia (o tom vocês escolhem: leve ou profunda), que só mostra a resposta do outro depois que você responde.\nGrátis para sempre: placar, tarefas, listas, datas e a pergunta do dia.\nPremium por casal (uma assinatura para os dois): R$ 79,90 por ano ou R$ 9,90 por mês. Inclui histórico do placar, todas as perguntas por tema e a área Família (gestação semana a semana para os dois, nomes do bebê, marcos dos filhos). Os 30 primeiros dias de Premium só começam quando os dois tiverem usado juntos por 7 dias; se a outra pessoa não entrar, vocês não pagam nada.\nSem anúncios. Os dados de vocês não são vendidos nem compartilhados."
+}
