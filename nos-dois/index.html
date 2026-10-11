@@ -461,7 +461,7 @@ async function pull(){
     if(r.changed){ const fresh = {...blank(), ...r.data}; cloudVer = r.v;
       if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; }
       lsSet(CLOUD_CACHE, JSON.stringify(fresh)); }
-    COLS.forEach(c=>loaded.add(c)); schedule();
+    const first = !loaded.has("meta"); COLS.forEach(c=>loaded.add(c)); if(r.changed || first) scheduleBg();
   }catch(e){ if(e.code==="auth") cloudLost(); }
 }
 let codes = null, codesLoading = false, codesFailAt = 0;
@@ -471,7 +471,7 @@ function loadCodes(regen){
   api({op:"codes", id:cloud.id, key:cloud.key, regen:regen||undefined})
     .then(r => { codes = r.codes; if(regen) toast("Código novo gerado. O antigo parou de funcionar."); })
     .catch(e => { codesFailAt = Date.now(); if(e.code==="auth") cloudLost(); })
-    .finally(() => { codesLoading = false; schedule(); });
+    .finally(() => { codesLoading = false; scheduleBg(); });
 }
 const siteUrl = () => `${location.origin}${location.pathname}`;
 const codeInvite = slot => `Oi! Criei o nosso espaço no Nós Dois. Abra o app (ou ${siteUrl()}), toque em "Tenho um código" e digite: ${fmtCode(codes && codes[slot])}`;
@@ -530,7 +530,7 @@ async function boot(){
       db.collection(c).onSnapshot(snap => {
         const o = {}; snap.docs.forEach(x => { if(x.exists) o[x.id] = x.data(); });
         if(mode==="demo"){ if(savedReal) savedReal.S = {...savedReal.S, [c]:o}; return; }
-        S[c] = o; loaded.add(c); schedule();
+        S[c] = o; const first = !loaded.has(c); loaded.add(c); first ? schedule() : scheduleBg();
       }, err => { loaded.add(c); if(err && err.code!=="revoked") toast("A sincronização parou. Recarregue a página."); schedule(); });
     });
   } else if(/^https?:/.test(location.protocol)){
@@ -646,6 +646,14 @@ function doneThisWeek(){
 
 /* ===================== Render ===================== */
 let pending = false;
+// Atualizações que chegam do outro celular não redesenham a tela enquanto alguém preenche um campo
+// (redesenhar fecha o calendário do Android e o teclado). Elas aplicam quando o campo perde o foco.
+let bgPending = false;
+function isEditing(){ const ae = document.activeElement; if(!ae) return false;
+  const inForm = app.contains(ae) || (sheetEl && sheetEl.contains(ae));
+  return inForm && (ae.tagName==="TEXTAREA" || ae.tagName==="SELECT" || (ae.tagName==="INPUT" && !/^(checkbox|radio|button|submit)$/.test(ae.type))); }
+function scheduleBg(){ if(isEditing()){ bgPending = true; return; } schedule(); }
+document.addEventListener("focusout", () => setTimeout(() => { if(bgPending && !isEditing()){ bgPending = false; schedule(); } }, 120));
 function schedule(){ if(pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); }
 const clearIds = new Set();
 const app = document.getElementById("app");
