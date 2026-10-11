@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FBF3F2">
+<meta name="description" content="A casa, as contas e o bebê divididos à vista dos dois. Pergunta do dia, placar da casa, contas e rotina do bebê para casais.">
+<meta property="og:title" content="Nós Dois">
+<meta property="og:description" content="A casa é dos dois. A carga também.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nós Dois">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Nós Dois</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400;1,6..72,500&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: coluna única de app de celular (máx. 460px), cartões opacos sobre um fundo de aurora suave, barra de abas fixa embaixo. */
+:root{
+  --bg:#FBF3F2; --glow1:#FFE2D2; --glow2:#EDDDF8;
+  --surface:#FFFFFF; --surface-2:#F7EDEF; --line:#EBDCE1;
+  --fg:#2B1820; --muted:#6B5560; --faint:#9A8590;
+  --accent:#A62F5E; --accent-soft:#F7DDE7;
+  --ink:#2B1820; --ink-fg:#FFFFFF;
+  --a:#B8336A; --b:#6A4DBE;
+  --hero1:#FFE6DA; --hero2:#F1E0F7;
+  --ok:#2E7A58; --ok-soft:#DDF0E6;
+  --warn:#9C5A12; --warn-soft:#FBEBD5;
+  --shadow:0 1px 2px rgba(60,20,35,.06),0 8px 24px rgba(60,20,35,.07);
+  --display:"Newsreader",Georgia,"Times New Roman",serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:20px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1A1116; --glow1:#3A1E25; --glow2:#2A1E3D;
+  --surface:#25191F; --surface-2:#2F2128; --line:#3E2D35;
+  --fg:#F6E8EE; --muted:#C2AAB5; --faint:#8F7882;
+  --accent:#F27DA9; --accent-soft:#4A2433;
+  --ink:#F6E8EE; --ink-fg:#22141A;
+  --a:#F27DA9; --b:#A893F2;
+  --hero1:#3A2028; --hero2:#2E2140;
+  --ok:#7FD3A9; --ok-soft:#1E3A2D;
+  --warn:#F0B36B; --warn-soft:#3D2A14;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1A1116; --glow1:#3A1E25; --glow2:#2A1E3D;
+  --surface:#25191F; --surface-2:#2F2128; --line:#3E2D35;
+  --fg:#F6E8EE; --muted:#C2AAB5; --faint:#8F7882;
+  --accent:#F27DA9; --accent-soft:#4A2433;
+  --ink:#F6E8EE; --ink-fg:#22141A;
+  --a:#F27DA9; --b:#A893F2;
+  --hero1:#3A2028; --hero2:#2E2140;
+  --ok:#7FD3A9; --ok-soft:#1E3A2D;
+  --warn:#F0B36B; --warn-soft:#3D2A14;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(60% 40% at 90% 0%,var(--glow1),transparent 70%),radial-gradient(55% 45% at 0% 30%,var(--glow2),transparent 70%)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:10px}
+.app{max-width:460px;margin:0 auto;padding-inline:16px;padding-block:14px 120px}
+h1,h2,h3{font-family:var(--display);font-weight:500;margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:32px;line-height:1.1}
+h2{font-size:22px;line-height:1.2}
+h3{font-size:18px;line-height:1.25}
+em.acc{font-style:italic;color:var(--accent)}
+p{margin:0}
+.eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.num{font-variant-numeric:tabular-nums}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.grow{flex:1;min-width:0}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-block:6px 18px}
+.top .sub{margin-top:4px;color:var(--muted);font-size:14px}
+.iconbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;flex:none}
+.iconbtn svg{width:20px;height:20px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.card.flat{box-shadow:none}
+.hero{background:linear-gradient(135deg,var(--hero1),var(--hero2));border:1px solid var(--line);border-radius:24px;padding:18px;box-shadow:var(--shadow)}
+.big{font-family:var(--display);font-size:40px;line-height:1;letter-spacing:-.02em}
+.linkrow{display:flex;align-items:center;gap:4px;font-weight:600;font-size:14px;background:none;border:0;padding:0;color:var(--fg)}
+.linkrow svg{width:16px;height:16px}
+.btn{border:0;border-radius:999px;padding:12px 20px;font-weight:600;background:var(--ink);color:var(--ink-fg);display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px}
+.btn.block{width:100%}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btn.soft{background:var(--accent-soft);color:var(--accent)}
+.btn.sm{padding:8px 14px;min-height:36px;font-size:14px}
+.btn.danger{background:transparent;color:#B42343;border:1px solid currentColor}
+.btn svg{width:18px;height:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0;box-shadow:var(--shadow)}
+.tile .ic{display:flex;justify-content:space-between;color:var(--muted)}
+.tile .ic svg{width:18px;height:18px}
+.tile b{font-size:16px;line-height:1.25}
+.tile.wide{grid-column:1/-1}
+.pair{display:flex;align-items:center}
+.av{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:16px;border:3px solid var(--surface);flex:none}
+.av.a{background:var(--a)} .av.b{background:var(--b)}
+.av.sm{width:26px;height:26px;font-size:11px;border-width:2px}
+.av.xs{width:20px;height:20px;font-size:10px;border-width:0}
+.pair .heart{width:24px;height:24px;margin-inline:-8px;z-index:1;border-radius:50%;background:var(--surface);display:grid;place-items:center;color:var(--accent)}
+.pair .heart svg{width:14px;height:14px;fill:currentColor;stroke:none}
+.pair.sm .heart{width:18px;height:18px;margin-inline:-6px}
+.pair.sm .heart svg{width:10px;height:10px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.chip svg{width:16px;height:16px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted)}
+.tag.acc{background:var(--accent-soft);color:var(--accent)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.bar{height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.bar .fa{background:var(--a)} .bar .fb{background:var(--b)} .bar .fx{background:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat b{font-family:var(--display);font-size:26px;font-weight:500;display:block;line-height:1.1}
+.stat span{font-size:12.5px;color:var(--muted)}
+.section{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+.section > .row h2{flex:1}
+.task{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.task:first-of-type{border-top:0}
+.chk{width:26px;height:26px;border-radius:50%;border:2px solid var(--faint);background:transparent;flex:none;display:grid;place-items:center;margin-top:1px;padding:0}
+.chk svg{width:14px;height:14px;stroke-width:3;opacity:0}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.chk.on svg{opacity:1}
+.chk.sq{border-radius:8px}
+.task .t{font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.task.done .t{text-decoration:line-through;color:var(--muted);font-weight:500}
+.task .m{font-size:13px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center}
+.task .m svg{width:13px;height:13px}
+.taskbody{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left}
+.fab{position:fixed;right:max(16px,calc(50% - 214px));bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:5;box-shadow:0 6px 18px rgba(40,10,20,.25)}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:8px 12px calc(10px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center;pointer-events:none}
+.tabbar nav{pointer-events:auto;max-width:436px;width:100%;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:6px;box-shadow:var(--shadow)}
+.tab{background:none;border:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;border-radius:18px;font-size:12px;font-weight:500;color:var(--muted)}
+.tab svg{width:22px;height:22px}
+.tab[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:700}
+.field{display:flex;flex-direction:column;gap:6px}
+.field > span{font-size:13px;font-weight:600;color:var(--muted)}
+input[type=text],input[type=date],input[type=number],input[type=url],textarea,select{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:14px;padding:12px 14px;min-height:46px;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);background:var(--surface)}
+textarea{resize:vertical;min-height:96px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{position:relative}
+.seg input{position:absolute;opacity:0;inset:0}
+.seg span{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:500;background:var(--surface)}
+.seg input:checked + span{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
+.seg input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.answer{background:var(--surface-2);border-radius:14px;padding:12px 14px;overflow-wrap:anywhere;white-space:pre-wrap}
+.locked{display:flex;gap:10px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:14px;padding:12px 14px;font-weight:500}
+.hist{padding:14px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.hist:first-child{border-top:0}
+.hist .q{font-weight:600}
+.hist .who{font-weight:600}
+.sheetwrap{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.scrim{position:absolute;inset:0;background:rgba(20,8,14,.45);border:0}
+.sheet{position:relative;width:100%;max-width:480px;max-height:88vh;overflow:auto;background:var(--surface);border-radius:26px 26px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px;animation:up .22s ease-out}
+.grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:0 auto 4px}
+@keyframes up{from{transform:translateY(30px);opacity:.4}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){.sheet{animation:none}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--ink-fg);padding:10px 16px;border-radius:12px;font-size:14px;max-width:calc(100% - 32px);text-align:center}
+.banner{display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--warn-soft);color:var(--warn);border-radius:14px;padding:10px 12px;font-size:13.5px;font-weight:500;margin-bottom:12px}
+.empty{text-align:center;padding:22px 12px;color:var(--muted);display:flex;flex-direction:column;gap:10px;align-items:center}
+.idea .acts{display:flex;gap:8px;margin-top:12px}
+.kid{display:flex;gap:12px;align-items:center;width:100%;background:none;border:0;padding:0;text-align:left}
+.kid .ini{width:46px;height:46px;border-radius:16px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--display);font-size:22px;flex:none}
+.listcard{display:flex;flex-direction:column;gap:8px;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:var(--shadow);min-width:0}
+.namerow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.namerow:first-child{border-top:0}
+.namerow .n{font-family:var(--display);font-size:19px;flex:1;min-width:0;overflow-wrap:anywhere}
+.hbtn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--faint);padding:0}
+.hbtn svg{width:16px;height:16px}
+.hbtn.on.a{color:var(--a);border-color:var(--a)} .hbtn.on.b{color:var(--b);border-color:var(--b)}
+.hbtn.on svg{fill:currentColor}
+.hbtn[disabled]{cursor:default}
+.splash{min-height:70vh;display:grid;place-items:center;text-align:center}
+.who-pick{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.who-pick button{display:flex;flex-direction:column;align-items:center;gap:10px;padding:20px 10px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:16px}
+.who-pick .av{width:58px;height:58px;font-size:22px}
+.inline{display:flex;gap:8px}
+.inline input{flex:1;min-width:0}
+.hr{height:1px;background:var(--line);margin-block:4px}
+.week{display:flex;align-items:baseline;gap:6px}
+a.btn{text-decoration:none}
+.logbtns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.logbtns button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 4px;border-radius:16px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13px}
+.logbtns svg{width:22px;height:22px;color:var(--accent)}
+.steps .task .t{font-weight:600}
+details summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);list-style:none}
+details summary::-webkit-details-marker{display:none}
+@media (max-width:360px){.big{font-size:34px} h1{font-size:28px}}
+</style>
+
+<div class="app" id="app"><div class="splash"><div class="stack" style="align-items:center"><h1>Nós <em class="acc">Dois</em></h1><p class="muted">Abrindo o espaço de vocês…</p></div></div></div>
+<div id="sheet" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/* ===================== Conteúdo ===================== */
+const QUESTIONS = [
+  ["Nós","Em que momento você percebeu que estava se apaixonando por mim?"],
+  ["Memórias","Qual é a sua lembrança favorita do nosso primeiro encontro?"],
+  ["Futuro","Que casa você imagina para a gente daqui a dez anos?"],
+  ["Família","O que você mais quer passar para os nossos filhos, os que temos ou os que imaginamos?"],
+  ["Dia a dia","Como posso te ajudar mais nesta semana?"],
+  ["Divertidas","Se a gente fosse um casal de filme, qual seria?"],
+  ["Nós","O que eu faço que faz você se sentir mais amado(a)?"],
+  ["Memórias","Qual viagem nossa você repetiria amanhã?"],
+  ["Futuro","Que lugar do mundo você quer conhecer comigo?"],
+  ["Família","Qual lembrança da sua infância você gostaria de repetir com a nossa família?"],
+  ["Dia a dia","O que te deixa mais leve depois de um dia de trabalho?"],
+  ["Divertidas","Qual seria o nome da nossa banda?"],
+  ["Nós","Qual pequeno hábito meu você acha mais fofo?"],
+  ["Memórias","Que foto nossa você colocaria num quadro na sala?"],
+  ["Futuro","O que você quer que as pessoas digam sobre nós daqui a dez anos?"],
+  ["Família","O que da criação que você recebeu você faria diferente?"],
+  ["Dia a dia","Qual tarefa da casa você mais gostaria que eu assumisse?"],
+  ["Divertidas","Que superpoder você me daria, e por quê?"],
+  ["Nós","Em que momento você mais sentiu orgulho de nós dois?"],
+  ["Memórias","O que você pensou de mim na primeira vez que me viu?"],
+  ["Futuro","Que tradição você quer criar para a nossa família?"],
+  ["Família","Como você imagina a rotina da casa com uma criança pequena?"],
+  ["Dia a dia","Qual foi a melhor parte da sua semana?"],
+  ["Divertidas","Se a gente abrisse um restaurante, qual seria o prato principal?"],
+  ["Nós","O que você acha que a gente faz melhor como casal?"],
+  ["Memórias","Qual foi a nossa maior aventura até agora?"],
+  ["Futuro","Como você imagina um domingo nosso quando tivermos 70 anos?"],
+  ["Família","Que valor é inegociável para você na criação dos filhos?"],
+  ["Dia a dia","Tem algo te preocupando que você ainda não me contou?"],
+  ["Divertidas","Que bicho de estimação combina com a gente?"],
+  ["Nós","Qual música te lembra de mim?"],
+  ["Memórias","Que dia comum com a gente você lembra com carinho?"],
+  ["Futuro","Qual sonho seu eu posso ajudar a realizar este ano?"],
+  ["Família","Qual nome você sempre gostou e nunca falou em voz alta?"],
+  ["Dia a dia","Que mania minha te tira do sério, com carinho?"],
+  ["Divertidas","Qual seria o título da nossa biografia?"],
+  ["Nós","Como você gosta de receber carinho depois de um dia difícil?"],
+  ["Memórias","Qual foi o melhor presente que já te dei?"],
+  ["Futuro","Se a gente pudesse tirar um ano sabático, o que faria?"],
+  ["Família","Como a gente pode cuidar do casal quando a rotina com filhos apertar?"],
+  ["Dia a dia","Qual é o seu jeito favorito de descansar comigo?"],
+  ["Divertidas","Qual série a gente deveria maratonar a seguir?"],
+  ["Nós","Que elogio meu você nunca esqueceu?"],
+  ["Memórias","Qual comida te lembra uma fase boa nossa?"],
+  ["Futuro","O que você quer aprender junto comigo?"],
+  ["Família","Que tipo de pai ou mãe você acha que eu sou, ou vou ser?"],
+  ["Dia a dia","O que você gostaria de mudar na nossa rotina?"],
+  ["Divertidas","Se pudéssemos jantar com qualquer pessoa da história, quem você chamaria?"],
+  ["Nós","O que você gostaria que a gente fizesse mais vezes?"],
+  ["Memórias","Qual é a coisa mais engraçada que já aconteceu com a gente?"],
+  ["Família","Que viagem você sonha fazer em família?"],
+  ["Família","Como você quer que a gente divida as noites mal dormidas?"],
+  ["Futuro","Onde você quer que a gente esteja daqui a cinco anos?"]
+];
+const THEMES = ["Nós","Memórias","Futuro","Família","Dia a dia","Divertidas"];
+
+const IDEA_CATS = {
+  movimento:{label:"Movimento",icon:"leaf"},
+  tranquilo:{label:"Tranquilo",icon:"cup"},
+  casa:{label:"Em casa",icon:"home"},
+  escapada:{label:"Escapada",icon:"plane"},
+  criancas:{label:"Com as crianças",icon:"family"}
+};
+const IDEAS = [
+  ["i36","casa","As 36 perguntas","Uma série de perguntas criada pelo psicólogo Arthur Aron para aproximar duas pessoas. Separem uma hora, deixem o celular em outro cômodo e revezem as respostas. Terminem com quatro minutos olhando nos olhos um do outro."],
+  ["imapa","casa","O mapa dos próximos cinco anos","Cada um anota o que quer para trabalho, casa, viagens e família. Depois comparem e juntem tudo num mapa só, com uma coisa para começar ainda este mês."],
+  ["icoz","casa","Noite de cozinha a dois","Escolham uma receita que nenhum dos dois sabe fazer, dividam as funções e jantem com a mesa posta, sem tela."],
+  ["icine","casa","Cinema com cardápio","Um escolhe o filme e o outro monta um lanche que combine com ele. Revezem na próxima vez."],
+  ["iconh","tranquilo","Como a gente se conheceu, contado pelo outro","Cada um conta a história de como vocês se conheceram do ponto de vista do outro. É divertido descobrir o que cada um reparou."],
+  ["icafe","tranquilo","Café da manhã fora","Acordem cedo num sábado e tomem café numa padaria que vocês ainda não conhecem."],
+  ["icaixa","tranquilo","Caixa de memórias","Juntem fotos, ingressos e bilhetes antigos numa caixa. Escolham juntos o que entra e contem a história de cada item."],
+  ["ipiq","tranquilo","Piquenique no parque","Levem uma canga, frutas e um livro para ler em voz alta, um capítulo cada."],
+  ["itrilha","movimento","Trilha curta com vista","Escolham uma trilha de até duas horas e levem um lanche para comer lá em cima."],
+  ["idanca","movimento","Aula experimental de dança","Forró, samba de gafieira ou salsa: uma aula para rir dos próprios passos."],
+  ["ibike","movimento","Pedalar até um lugar novo","Tracem uma rota de bicicleta até um bairro ou mirante que nenhum dos dois conhece."],
+  ["isemrot","escapada","Fim de semana sem roteiro","Escolham uma cidade a até três horas de casa e decidam tudo na hora: onde comer, onde dormir, o que ver."],
+  ["iprim","escapada","De volta ao primeiro encontro","Voltem ao lugar onde tudo começou, ou ao mais parecido que existir hoje, e contem o que mudou desde então."],
+  ["ipous","escapada","Pousada perto da natureza","Uma noite fora, celular no modo avião e nenhuma tarefa da casa por perto."],
+  ["iacamp","criancas","Acampamento na sala","Montem uma cabana com lençóis, lanternas e histórias. Quando as crianças dormirem, a noite continua só de vocês dois."],
+  ["ifeira","criancas","Feira com missão","Cada criança escolhe uma fruta que a família nunca provou para experimentar durante a semana."],
+  ["ijogo","criancas","Noite de jogo em família","Um jogo de tabuleiro, pipoca e uma regra: quem perde escolhe a sobremesa de amanhã."],
+  ["irede","criancas","Uma noite por mês só de vocês","Combinem com avós, tios ou uma babá de confiança uma noite por mês só para o casal. Já deixem a próxima marcada."]
+];
+
+const TALKS = [
+  ["quantos","Quantos filhos queremos ter?"],
+  ["quando","Quando seria um bom momento para nós?"],
+  ["caminho","Gestação, adoção ou tratamento: o que consideramos?"],
+  ["saude","Consultas e exames antes de tentar"],
+  ["financas","Quanto queremos guardar antes?"],
+  ["trabalho","Licenças e rotina de trabalho de cada um"],
+  ["casa","A casa atual comporta mais uma pessoa?"],
+  ["criacao","Valores e estilo de criação"],
+  ["rede","Com quem podemos contar no dia a dia?"],
+  ["divisao","Como vamos dividir os cuidados?"]
+];
+
+const FRUITS = {4:"uma semente de papoula",5:"uma semente de gergelim",6:"uma lentilha",7:"um mirtilo",8:"uma framboesa",9:"uma cereja",10:"um morango",11:"um figo",12:"um limão",13:"uma ameixa",14:"um pêssego",15:"uma maçã",16:"um abacate",17:"uma romã",18:"um pimentão",19:"uma manga",20:"uma banana",21:"uma cenoura",22:"um mamão papaia",23:"uma toranja",24:"uma espiga de milho",25:"uma couve-flor",26:"um pé de alface",27:"um repolho",28:"uma berinjela",29:"uma abóbora pequena",30:"um pepino japonês grande",31:"um coco",32:"uma jaca pequena",33:"um abacaxi",34:"um melão",35:"um mamão formosa",36:"uma alface romana",37:"uma acelga",38:"uma abóbora-moranga",39:"uma melancia pequena",40:"uma melancia"};
+
+const TEMPLATES = {
+  mercado:{title:"Mercado",items:["Arroz","Feijão","Café","Leite","Frutas da semana","Pão","Ovos"]},
+  viagem:{title:"Mala da viagem",items:["Documentos","Carregadores","Remédios","Roupa de banho","Protetor solar"]},
+  enxoval:{title:"Enxoval do bebê",items:["Bodies RN e P (8)","Mijões (6)","Macacões (6)","Meias (6 pares)","Mantas e cueiros (4)","Fraldas RN e P","Lenços umedecidos","Pomada para assaduras","Banheira","Toalhas com capuz (3)","Berço e colchão","Bebê conforto","Carrinho","Bolsa da maternidade"]}
+};
+
+const TASK_CATS = ["Casa","Compras","Filhos","Contas","Outros"];
+const DATE_TYPES = {encontro:"Encontro a dois",aniversario:"Aniversário",consulta:"Consulta",outro:"Outro"};
+const STAGES = {planejando:"Queremos ter filhos",esperando:"Estamos esperando um bebê",temos:"Já temos filhos",nao:"Não está nos planos agora"};
+
+/* ===================== Ícones ===================== */
+const ICONS = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  chat:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="m8 12.2 2.8 2.8L16 9.5"/>',
+  tick:'<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  family:'<circle cx="8" cy="7" r="3"/><circle cx="16.5" cy="9.5" r="2.3"/><path d="M2.5 20c0-3.3 2.5-6 5.5-6s5.5 2.7 5.5 6M13.5 20c.3-2.6 1.6-4.3 3-4.3s2.8 1.7 3.2 4.3"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  gear:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  cal:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  gift:'<rect x="4" y="10" width="16" height="10" rx="1.5"/><path d="M3 10h18M12 10v10M12 10c-1.5-4-6-4.5-6-2s4 2 6 2c2 0 6 .5 6-2s-4.5-2-6 2"/>',
+  heart:'<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>',
+  spark:'<path d="M12 3c.6 4.4 2.6 6.4 7 7-4.4.6-6.4 2.6-7 7-.6-4.4-2.6-6.4-7-7 4.4-.6 6.4-2.6 7-7z"/>',
+  pencil:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  chev:'<path d="m9 6 6 6-6 6"/>',
+  lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+  repeat:'<path d="M4 11a7 7 0 0 1 12.5-4.3L19 9M20 13a7 7 0 0 1-12.5 4.3L5 15M19 4v5h-5M5 20v-5h5"/>',
+  leaf:'<path d="M5 19C5 11 10 5 20 5c0 10-6 15-14 14M5 19l8-8"/>',
+  cup:'<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8.5 3.5v2.5M12 3.5v2.5"/>',
+  plane:'<path d="M2.5 13.5 21 6l-3 13-5.5-4-3 3v-4.5L18 7"/>',
+  baby:'<circle cx="12" cy="12" r="8.5"/><path d="M9 10.5h.01M15 10.5h.01M9.5 14.5c1.4 1.3 3.6 1.3 5 0M12 3.5c-1 1.2-1 2.6 0 3.5"/>',
+  trash:'<path d="M5 7h14M10 7V4.5h4V7M7 7l1 13h8l1-13"/>',
+  moon:'<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
+  bottle:'<path d="M10 3h4v3l1.5 2v11a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2V8L10 6z"/><path d="M8.5 12h7"/>',
+  drop:'<path d="M12 3.5s6 6.2 6 10.5a6 6 0 0 1-12 0c0-4.3 6-10.5 6-10.5z"/>',
+  zz:'<path d="M5 8h5l-5 6h5M13 5h6l-6 8h6"/>',
+  pill:'<rect x="3.5" y="9" width="17" height="6" rx="3" transform="rotate(-35 12 12)"/><path d="m10 8 4.5 7"/>',
+  coin:'<circle cx="12" cy="12" r="8.5"/><path d="M14.6 9.6c-.5-.9-1.4-1.4-2.6-1.4-1.4 0-2.5.8-2.5 1.9s1.1 1.6 2.5 1.9 2.5.8 2.5 1.9-1.1 1.9-2.5 1.9c-1.2 0-2.1-.5-2.6-1.4M12 6.5v1.7M12 15.8v1.7"/>',
+  shield:'<path d="M12 3 5 6v6c0 4.2 3 7.2 7 9 4-1.8 7-4.8 7-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  star:'<path d="m12 4 2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.3l-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z"/>'
+};
+const ic = (n, cls="") => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||""}</svg>`;
+
+/* ===================== Utilidades ===================== */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const isoOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = () => isoOf(new Date());
+const dayNum = s => { const [y,m,d] = s.split("-").map(Number); return Date.UTC(y,m-1,d)/864e5; };
+const isoN = n => { const d = new Date(n*864e5); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; };
+const addDays = (s,k) => isoN(dayNum(s)+k);
+const addMonths = (s,k) => { const [y,m,d] = s.split("-").map(Number); const last = new Date(y, m-1+k+1, 0).getDate(); const t = new Date(y, m-1+k, Math.min(d,last)); return isoOf(t); };
+const diff = (a,b) => dayNum(b) - dayNum(a);
+const fmt = (s, o={day:"numeric",month:"short",year:"numeric"}) => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("pt-BR",o); };
+const fmtShort = s => fmt(s,{weekday:"short",day:"numeric",month:"short"});
+const nf = n => Number(n).toLocaleString("pt-BR");
+const money = n => Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL",maximumFractionDigits:0});
+const pl = (n, one, many) => `${nf(n)} ${n===1?one:many}`;
+const uid = () => Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-5);
+function ymd(from, to){
+  const [y1,m1,d1]=from.split("-").map(Number), [y2,m2,d2]=to.split("-").map(Number);
+  let y=y2-y1, m=m2-m1, d=d2-d1;
+  if(d<0){ m--; d += new Date(y2, m2-1, 0).getDate(); }
+  if(m<0){ y--; m+=12; }
+  return {y,m,d};
+}
+function joinParts(parts){ parts = parts.filter(Boolean); if(parts.length<2) return parts[0]||""; return parts.slice(0,-1).join(", ")+" e "+parts.at(-1); }
+function ageText(birth){
+  const t = today(); if(diff(birth,t) < 0) return "ainda não nasceu";
+  const {y,m,d} = ymd(birth,t);
+  if(y>=3) return joinParts([pl(y,"ano","anos"), m?pl(m,"mês","meses"):""]);
+  if(y>=1) return joinParts([pl(y,"ano","anos"), m?pl(m,"mês","meses"):""]);
+  if(m>=1) return joinParts([pl(m,"mês","meses"), d?pl(d,"dia","dias"):""]);
+  return pl(d,"dia","dias");
+}
+function nextYearly(s){
+  const t = today(); const [oy,mm,dd] = s.split("-").map(Number); const ty = Number(t.slice(0,4));
+  const mk = y => { const last = new Date(y,mm,0).getDate(); return `${y}-${pad(mm)}-${pad(Math.min(dd,last))}`; };
+  let y = ty, n = mk(y); if(diff(t,n) < 0){ y++; n = mk(y); }
+  return {date:n, inDays:diff(t,n), turns:y-oy};
+}
+function inDaysText(n){ if(n===0) return "Hoje"; if(n===1) return "Amanhã"; if(n<0) return `Há ${pl(-n,"dia","dias")}`; return `Em ${pl(n,"dia","dias")}`; }
+function weekStart(){ const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)); return isoOf(d); }
+function deepMerge(a,b){ const o = Array.isArray(a)?[...a]:{...a}; for(const k in b){ const v=b[k]; o[k] = (v && typeof v==="object" && !Array.isArray(v) && a && typeof a[k]==="object" && a[k] && !Array.isArray(a[k])) ? deepMerge(a[k],v) : v; } return o; }
+const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+const ARTIFACT_URL = "https://claude.ai/artifact/C1zfUg9TcfSupjdprCTNUp";
+const appUrl = () => {
+  const real = savedReal ? savedReal.mode : mode;
+  if(real==="cloud" && cloud) return `${location.origin}${location.pathname}#entrar-${cloud.id}-${cloud.key}`;
+  if(real==="local" && /^https?:/.test(location.protocol)) return location.href.split("#")[0];
+  return ARTIFACT_URL;
+};
+const wa = text => "https://wa.me/?text=" + encodeURIComponent(text);
+const waBtn = (text, label, cls="btn sm soft") => `<a class="${cls}" href="${wa(text)}" target="_blank" rel="noopener">${ic("chat")} ${label}</a>`;
+function gcalUrl(e){ const d = e.date.replace(/-/g,""), n = addDays(e.date,1).replace(/-/g,""); let u = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(e.title)}&dates=${d}/${n}&details=${encodeURIComponent("Criado no Nós Dois")}`; if(e.yearly) u += "&recur=" + encodeURIComponent("RRULE:FREQ=YEARLY"); return u; }
+const hhmm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const lsSet = (k,v) => { try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} };
+
+/* ===================== Estado e sincronização ===================== */
+const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills"];
+const blank = () => Object.fromEntries(COLS.map(c=>[c,{}]));
+let S = blank();
+let mode = "loading";          // loading | db | local | demo
+let db = null, user = null, myId = null, readOnly = false;
+const loaded = new Set();
+let me = lsGet("nd-me");        // 'a' | 'b'
+let view = "home", openList = null, ideaCat = "todas", taskFilter = "todas", histTheme = "Todos", editingAnswer = false;
+let savedReal = null;          // estado guardado ao entrar na demonstração
+
+const LOCAL_KEY = "nd-data-v1";
+function loadLocal(){ try{ const raw = lsGet(LOCAL_KEY); if(raw){ const o = JSON.parse(raw); S = {...blank(), ...o}; } }catch(e){} COLS.forEach(c=>loaded.add(c)); }
+function saveLocal(){ if(mode==="local") lsSet(LOCAL_KEY, JSON.stringify(S)); }
+
+const queues = {}; let inflight = 0;
+function enqueue(key, fn){ inflight++; queues[key] = (queues[key]||Promise.resolve()).then(fn).catch(onWriteError).finally(()=>{ inflight--; }); }
+
+/* ----- Nuvem própria (site no Vercel): /api/space ----- */
+const CLOUD_KEY = "nd-cloud-v1";
+let cloud = null, cloudVer = 0, pollT = null, spacePromise = null;
+async function api(body){
+  let r; try{ r = await fetch("/api/space", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)}); }
+  catch(e){ const er = new Error("offline"); er.code = "unavailable"; throw er; }
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ const er = new Error(j.error || "erro"); er.code = (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : "unavailable"; throw er; }
+  return j;
+}
+function ensureSpace(){
+  if(cloud) return Promise.resolve(cloud);
+  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); startPoll(); schedule(); return cloud; })
+    .catch(e => { spacePromise = null; throw e; });
+  return spacePromise;
+}
+function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
+function cloudLost(){ lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+async function pull(){
+  if(!cloud || inflight > 0) return;
+  try{
+    const r = await api({op:"get", id:cloud.id, key:cloud.key, since:cloudVer});
+    if(inflight > 0) return;
+    if(r.changed){ const fresh = {...blank(), ...r.data}; cloudVer = r.v;
+      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; } }
+    COLS.forEach(c=>loaded.add(c)); schedule();
+  }catch(e){ if(e.code==="auth") cloudLost(); }
+}
+function startPoll(){ if(pollT) return; pollT = setInterval(()=>{ if(document.visibilityState==="visible") pull(); }, 4000);
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pull(); }); }
+function onWriteError(e){
+  const code = e && e.code;
+  if(code==="invalid_argument"){ readOnly = true; toast("Você só pode ver este espaço. Peça para ser adicionado(a) como Colaborador(a)."); }
+  else if(code==="quota_exceeded"){ toast("O espaço de vocês está cheio. Apaguem itens antigos para continuar."); }
+  else if(code==="unavailable"){ toast("Sem conexão agora. Tente de novo em instantes."); }
+  else if(code==="auth"){ cloudLost(); }
+  else { toast("Não foi possível salvar. Tente de novo."); }
+}
+function put(c, id, data){
+  if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
+  S[c] = {...S[c], [id]:data}; schedule();
+  if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).set(data));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}));
+  else saveLocal();
+}
+function patch(c, id, part){
+  if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
+  const cur = S[c][id]; const merged = deepMerge(cur||{}, part);
+  S[c] = {...S[c], [id]:merged}; schedule();
+  if(mode==="db") enqueue(c+"/"+id, () => cur ? db.collection(c).doc(id).update(part) : db.collection(c).doc(id).set(merged));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}));
+  else saveLocal();
+}
+function del(c, id){
+  if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
+  const o = {...S[c]}; delete o[id]; S[c] = o; schedule();
+  if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).delete());
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"del", col:c, doc:id}));
+  else saveLocal();
+}
+
+async function boot(){
+  let d = null;
+  try{ if(window.claude && typeof window.claude.use === "function") d = await window.claude.use("db"); }catch(e){ d = null; }
+  if(d){
+    db = d; mode = "db";
+    try{ user = await window.claude.use("user"); myId = user ? await user.id() : null; }catch(e){}
+    try{ if(user){ const can = await user.can("data.write"); if(can===false) readOnly = true; } }catch(e){}
+    COLS.forEach(c => {
+      db.collection(c).onSnapshot(snap => {
+        const o = {}; snap.docs.forEach(x => { if(x.exists) o[x.id] = x.data(); });
+        if(mode==="demo"){ if(savedReal) savedReal.S = {...savedReal.S, [c]:o}; return; }
+        S[c] = o; loaded.add(c); schedule();
+      }, err => { loaded.add(c); if(err && err.code!=="revoked") toast("A sincronização parou. Recarregue a página."); schedule(); });
+    });
+  } else if(/^https?:/.test(location.protocol)){
+    const m = location.hash.match(/^#entrar-([a-f0-9]{8,32})-([a-f0-9]{16,64})$/);
+    if(m){ lsSet(CLOUD_KEY, JSON.stringify({id:m[1], key:m[2]})); lsSet("nd-me", null); me = null; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
+    let avail = false; try{ avail = !!(await api({op:"ping"})).storage; }catch(e){}
+    if(avail){
+      mode = "cloud";
+      try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
+      if(cloud){ await pull(); startPoll(); } else { COLS.forEach(c=>loaded.add(c)); }
+    } else { mode = "local"; loadLocal(); }
+  } else {
+    mode = "local"; loadLocal();
+  }
+  schedule();
+}
+
+/* ===================== Derivados ===================== */
+const C = () => S.meta.couple;
+const other = s => s==="a" ? "b" : "a";
+const nameOf = s => (C() && C()[s] && C()[s].name) || (s==="a"?"Pessoa 1":"Pessoa 2");
+const initial = s => (nameOf(s).trim()[0] || "?").toUpperCase();
+const label = s => s===me ? "Você" : nameOf(s);
+const stages = () => (C() && C().stages) || [];
+const hasStage = s => stages().includes(s);
+const avatar = (s, size="") => `<span class="av ${s} ${size}" aria-hidden="true">${esc(initial(s))}</span>`;
+const pair = (sm=false) => `<span class="pair ${sm?"sm":""}" aria-label="${esc(nameOf("a"))} e ${esc(nameOf("b"))}">${avatar("a",sm?"sm":"")}<span class="heart">${ic("heart")}</span>${avatar("b",sm?"sm":"")}</span>`;
+
+const LEVE = ["Divertidas","Dia a dia","Memórias","Nós"];
+const TONES = {leve:"Leve", misto:"Misto", profunda:"Profunda"};
+function qPool(){
+  const tone = (C() && C().tone) || "leve"; const fam = hasStage("planejando")||hasStage("esperando")||hasStage("temos");
+  if(tone==="profunda") return QUESTIONS.filter(q=>!["Divertidas","Dia a dia"].includes(q[0]));
+  if(tone==="leve") return QUESTIONS.filter(q=>LEVE.includes(q[0]) || (fam && q[0]==="Família"));
+  return QUESTIONS;
+}
+function qIndexFor(date, L){ const g=(a,b)=>b?g(b,a%b):a; const m=[13,11,7,17,19].find(x=>g(x,L)===1)||1; return ((dayNum(date)*m + 5) % L + L) % L; }
+function questionFor(date){ const ex = S.answers[`${date}_a`] || S.answers[`${date}_b`]; if(ex && ex.q) return {theme:ex.theme||"", q:ex.q}; const pool = qPool(); const [t,q] = pool[qIndexFor(date, pool.length)]; return {theme:t, q}; }
+const ans = (date, s) => S.answers[`${date}_${s}`];
+const bothDone = date => !!(ans(date,"a") && ans(date,"b"));
+function streakNow(){
+  const t = dayNum(today()); let d = bothDone(isoN(t)) ? t : t-1; let n = 0, graceAt = -99, guard = 0;
+  while(guard++ < 5000){
+    if(bothDone(isoN(d))){ n++; d--; continue; }
+    if(n>0 && n-graceAt>=7 && bothDone(isoN(d-1))){ graceAt = n; d--; continue; }
+    break;
+  }
+  return n;
+}
+function bestStreak(){
+  const days = [...new Set(Object.values(S.answers).map(a=>a.date))].filter(bothDone).map(dayNum).sort((a,b)=>a-b);
+  let best = 0, run = 0, prev = null;
+  for(const x of days){ run = (prev!==null && x-prev===1) ? run+1 : 1; best = Math.max(best, run); prev = x; }
+  return Math.max(best, streakNow());
+}
+
+function allEvents(){
+  const ev = [];
+  const c = C();
+  if(c && c.start){ const n = nextYearly(c.start); ev.push({id:"_start",title:n.turns>0?`${pl(n.turns,"ano","anos")} juntos`:"Início de nós dois",date:n.date,inDays:n.inDays,type:"aniversario",auto:true}); }
+  Object.entries(S.kids).forEach(([id,k]) => { if(k.birth && diff(k.birth,today())>=0){ const n = nextYearly(k.birth); ev.push({id:"_k"+id,title:`Aniversário de ${k.name} (${n.turns})`,date:n.date,inDays:n.inDays,type:"aniversario",auto:true}); } });
+  if(hasStage("esperando") && c && c.dueDate){ const n = diff(today(), c.dueDate); if(n>=0) ev.push({id:"_due",title:"Data prevista do bebê",date:c.dueDate,inDays:n,type:"consulta",auto:true}); }
+  { const n = nextYearly("2000-06-12"); ev.push({id:"_dn",title:"Dia dos Namorados",date:n.date,inDays:n.inDays,type:"encontro",auto:true}); }
+  Object.entries(S.dates).forEach(([id,d]) => {
+    if(d.yearly){ const n = nextYearly(d.date); ev.push({...d,id,date:n.date,inDays:n.inDays}); }
+    else ev.push({...d,id,inDays:diff(today(),d.date)});
+  });
+  return ev;
+}
+const upcoming = () => allEvents().filter(e=>e.inDays>=0).sort((a,b)=>a.inDays-b.inDays);
+function partnerJoined(){ const o = other(me); const c = C()||{}; if(c.members && c.members[o]) return true;
+  return Object.values(S.answers).some(a=>a.slot===o) || Object.values(S.tasks).some(t=>t.by===o||t.doneBy===o) || Object.values(S.logs).some(l=>l.by===o); }
+function billBalance(){ let net = 0; // > 0: b deve para a
+  Object.values(S.bills).filter(b=>!b.settled).forEach(b=>{ const share = b.split==="outro" ? b.amount : b.amount/2; net += b.paidBy==="a" ? share : -share; });
+  return Math.round(net*100)/100; }
+function balanceText(){ const n = billBalance(); if(Math.abs(n) < 0.01) return "Tudo certo entre vocês"; const debtor = n>0?"b":"a", creditor = other(debtor);
+  return `${debtor===me?"Você deve":nameOf(debtor)+" deve"} ${money2(Math.abs(n))} ${creditor===me?"para você":"para "+nameOf(creditor)}`; }
+const parseMoney = x => { let t = String(x||"").trim().replace(/[^\d.,]/g,""); if(t.includes(",")) t = t.replace(/\./g,"").replace(",","."); return parseFloat(t); };
+const money2 = n => Number(n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+function nightWho(){ const n = (C()||{}).night; if(!n || !n.base) return null; return ((dayNum(today())-dayNum(n.base))%2===0) ? n.who : other(n.who); }
+function youngKids(){ return Object.entries(S.kids).filter(([,k])=>k.birth && diff(k.birth,today())>=0 && diff(k.birth,today()) < 3*365); }
+function lastDateNight(){
+  const past = Object.values(S.dates).filter(d=>d.type==="encontro" && !d.yearly && diff(d.date,today())>=0).map(d=>d.date).sort();
+  return past.at(-1) || null;
+}
+function pregnancy(){
+  const c = C(); if(!c || !c.dueDate) return null;
+  const left = diff(today(), c.dueDate); const ga = 280 - left;
+  const w = Math.max(0, Math.floor(ga/7)), d = Math.max(0, ga%7);
+  const tri = w < 14 ? "1º trimestre" : w < 28 ? "2º trimestre" : "3º trimestre";
+  const fruit = FRUITS[Math.min(40, Math.max(4, w))];
+  return {left, w, d, tri, fruit, pct: Math.min(100, Math.max(0, ga/280*100))};
+}
+
+function bucketOf(t){
+  if(!t.due) return "semdata";
+  const n = diff(today(), t.due);
+  if(n < 0) return "atrasada"; if(n === 0) return "hoje"; if(n <= 7) return "semana"; return "depois";
+}
+function doneThisWeek(){
+  const ws = weekStart(); const out = {a:0,b:0};
+  Object.values(S.tasks).forEach(t => {
+    if(t.done && t.doneAt && t.doneAt >= ws && out[t.doneBy]!==undefined) out[t.doneBy]++;
+    (t.log||[]).forEach(l => { if(l.at >= ws && out[l.by]!==undefined) out[l.by]++; });
+  });
+  return out;
+}
+
+/* ===================== Render ===================== */
+let pending = false;
+function schedule(){ if(pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); }
+const clearIds = new Set();
+const app = document.getElementById("app");
+let lastView = null;
+function render(){
+  const keep = {}; const ae = document.activeElement;
+  app.querySelectorAll("input[id],textarea[id],select[id]").forEach(el => { if(el.type!=="checkbox" && el.type!=="radio") keep[el.id] = el.value; });
+  const focusId = ae && app.contains(ae) && ae.id ? ae.id : null;
+  let sel = null; try{ if(focusId && ae.selectionStart!=null) sel = [ae.selectionStart, ae.selectionEnd]; }catch(e){}
+  app.innerHTML = screen();
+  for(const id in keep){ if(clearIds.has(id)) continue; const el = document.getElementById(id); if(el && app.contains(el) && el.type!=="checkbox" && el.type!=="radio") el.value = keep[id]; }
+  clearIds.clear();
+  if(focusId){ const el = document.getElementById(focusId); if(el){ el.focus({preventScroll:true}); if(sel) try{ el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
+  const ac = document.getElementById("ansCount"), at = document.getElementById("ans"); if(ac && at) ac.textContent = `${at.value.length}/1000`;
+  const vk = view + (openList||"");
+  if(lastView !== null && lastView !== vk) window.scrollTo(0,0);
+  lastView = vk;
+}
+
+function screen(){
+  if(mode==="loading" || ((mode==="db"||mode==="cloud") && !loaded.has("meta"))) return `<div class="splash"><div class="stack" style="align-items:center"><h1>Nós <em class="acc">Dois</em></h1><p class="muted">Abrindo o espaço de vocês…</p></div></div>`;
+  if(!C()) return onboarding();
+  if(!me){ const ms = C().members||{}; if(myId){ if(ms.a===myId) me="a"; else if(ms.b===myId) me="b"; } }
+  if(!me) return whoPicker();
+  const views = {home, pergunta, tarefas, listas, familia, datas, ideias, desejos, ajustes, contas};
+  const body = (views[view]||home)();
+  const banner = mode==="demo" ? `<div class="banner"><span>Modo demonstração: nada é salvo.</span><button class="btn sm ghost" data-act="exitDemo">Sair</button></div>` : "";
+  return banner + body + tabbar();
+}
+
+function tabbar(){
+  const tabs = [["home","Início","home"],["pergunta","Pergunta","chat"],["tarefas","Tarefas","check"],["listas","Listas","list"],["familia","Família","family"]];
+  const map = {datas:"home",ideias:"home",desejos:"home",ajustes:"home",contas:"home"};
+  const cur = map[view] || view;
+  return `<div class="tabbar"><nav aria-label="Seções">${tabs.map(([v,l,i])=>`<button class="tab" data-act="go" data-v="${v}" ${cur===v?'aria-current="page"':""}>${ic(i)}<span>${l}</span></button>`).join("")}</nav></div>`;
+}
+const backBtn = (to="home") => `<button class="iconbtn" data-act="go" data-v="${to}" aria-label="Voltar">${ic("back")}</button>`;
+
+/* ----- Boas-vindas ----- */
+function onboarding(){
+  return `<div class="stack" style="gap:20px;padding-top:12px">
+    <div class="stack" style="gap:8px">
+      <h1>Cada dia <em class="acc">juntos</em> conta</h1>
+      <p class="muted">Pergunta do dia, tarefas divididas, listas, datas e um espaço para a família que vocês têm ou sonham ter.</p>
+    </div>
+    <form class="card stack" data-form="setup">
+      <label class="field"><span>Seu nome</span><input type="text" id="sA" name="a" required maxlength="40" placeholder="Ex.: Lucas" autocomplete="given-name"></label>
+      <label class="field"><span>Nome de quem você ama</span><input type="text" id="sB" name="b" required maxlength="40" placeholder="Ex.: Bia"></label>
+      <label class="field"><span>Desde quando vocês estão juntos?</span><input type="date" id="sStart" name="start" required max="${today()}"></label>
+      <div class="field"><span>Filhos fazem parte da história de vocês?</span>
+        <div class="seg">${Object.entries(STAGES).map(([k,v])=>`<label><input type="checkbox" name="st_${k}" id="st_${k}"><span>${v}</span></label>`).join("")}</div>
+        <span class="small muted" style="font-weight:400">Podem marcar mais de uma opção e mudar depois.</span>
+      </div>
+      <button class="btn block" type="submit">Criar o nosso espaço</button>
+    </form>
+    <button class="btn ghost block" data-act="demo">Ver uma demonstração antes</button>
+    <p class="small muted row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>Sem anúncios. O que vocês escrevem fica só no espaço de vocês, não é vendido nem compartilhado, e pode ser apagado a qualquer momento em Ajustes.</span></p>
+    ${mode==="cloud" ? `<p class="small muted">Depois, mande o link de convite pelo WhatsApp: vocês dois veem e editam tudo, cada um no seu celular.</p>` : mode==="local" ? `<p class="small muted">Neste modo os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
+  </div>`;
+}
+function whoPicker(){
+  return `<div class="stack" style="gap:20px;padding-top:30px">
+    <div class="stack" style="gap:6px"><h1>Quem está <em class="acc">aqui?</em></h1><p class="muted">Assim o app sabe qual resposta e quais tarefas são suas. Dá para trocar depois em Ajustes.</p></div>
+    <div class="who-pick">${["a","b"].map(s=>`<button data-act="iam" data-s="${s}">${avatar(s)}<span>${esc(nameOf(s))}</span></button>`).join("")}</div>
+  </div>`;
+}
+
+/* ----- Início ----- */
+function home(){
+  const c = C(); const t = today();
+  const days = c.start ? diff(c.start, t) : 0; const p = c.start ? ymd(c.start, t) : {y:0,m:0,d:0};
+  const nextRound = Math.ceil((days+1)/1000)*1000;
+  const ann = c.start ? nextYearly(c.start) : null;
+  const st = streakNow();
+  const todayQ = questionFor(t); const mine = ans(t,me), theirs = ans(t,other(me));
+  let qStatus = "Respondam a pergunta de hoje para manter a sequência.";
+  if(mine && theirs) qStatus = "Vocês dois responderam hoje. Leiam as respostas.";
+  else if(theirs) qStatus = `${esc(nameOf(other(me)))} já respondeu. Responda para ver.`;
+  else if(mine) qStatus = `Falta ${esc(nameOf(other(me)))} responder.`;
+  const up = upcoming().filter(e=>!e.auto || e.id!=="_dn" || e.inDays<60);
+  const nx = up[0];
+  const open = Object.values(S.tasks).filter(x=>!x.done);
+  const myOpen = open.filter(x=>x.who===me || x.who==="ambos").length;
+  const wishes = Object.values(S.wishes).filter(w=>!w.got).length;
+  const ldn = lastDateNight(); const since = ldn ? diff(ldn, t) : null;
+  const pn = nameOf(other(me));
+  const steps = [
+    ["Convidar "+pn, partnerJoined(), mode==="demo" ? "" : waBtn(`Oi! Criei um espaço só nosso no Nós Dois: pergunta do dia, tarefas da casa divididas e nossas datas. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Convidar")],
+    ["Os dois respondem a primeira pergunta", Object.values(S.answers).some(a=>bothDone(a.date)), `<button class="btn sm ghost" data-act="go" data-v="pergunta">Responder</button>`],
+    ["Dividir a primeira tarefa", Object.values(S.tasks).some(x=>x.who===other(me)||x.who==="ambos"), `<button class="btn sm ghost" data-act="newTask">Criar</button>`],
+    ["Marcar um encontro a dois", Object.values(S.dates).some(d=>d.type==="encontro"), `<button class="btn sm ghost" data-act="go" data-v="ideias">Ideias</button>`]
+  ];
+  const stepsDone = steps.filter(x=>x[1]).length;
+  const showSteps = stepsDone < steps.length && !(c.hideSteps && c.hideSteps[me]);
+  const bal = billBalance(); const nBills = Object.values(S.bills).filter(b=>!b.settled).length;
+
+  let fam = "";
+  if(hasStage("esperando") && c.dueDate){ const pg = pregnancy(); fam = `<b>Semana ${pg.w}</b><span class="small muted">Do tamanho de ${pg.fruit}</span>`; }
+  else if(hasStage("temos") && Object.keys(S.kids).length){ const ks = Object.values(S.kids).sort((a,b)=>a.birth<b.birth?-1:1); fam = `<b>${esc(ks[0].name)}${ks.length>1?` e mais ${ks.length-1}`:""}</b><span class="small muted">${esc(ageText(ks[0].birth))}</span>`; }
+  else if(hasStage("planejando")){ const done = Object.values((S.meta.talks||{})).filter(Boolean).length; fam = `<b>${done} de ${TALKS.length} conversas</b><span class="small muted">Antes de aumentar a família</span>`; }
+  else if(hasStage("temos") || hasStage("esperando")){ fam = `<b>Completar perfil</b><span class="small muted">Adicione os dados da família</span>`; }
+
+  return `
+  <div class="top">
+    <div><div class="eyebrow">Nós</div><h1 style="margin-top:4px">${esc(nameOf("a"))} <em class="acc">&amp;</em> ${esc(nameOf("b"))}</h1></div>
+    <button class="iconbtn" data-act="go" data-v="ajustes" aria-label="Ajustes">${ic("gear")}</button>
+  </div>
+  <div class="stack" style="gap:14px">
+    <section class="hero stack" style="gap:12px" aria-label="Tempo juntos">
+      <div class="row between" style="align-items:flex-start">
+        <div class="stack" style="gap:6px">
+          <span class="eyebrow">Juntos</span>
+          <span class="big num">${pl(days,"dia","dias")}</span>
+          <span class="small muted">${esc(joinParts([p.y?pl(p.y,"ano","anos"):"", p.m?pl(p.m,"mês","meses"):"", pl(p.d,"dia","dias")]))}<br>desde ${c.start?fmt(c.start):"—"}</span>
+        </div>
+        ${pair()}
+      </div>
+      <div class="row between small" style="flex-wrap:wrap;gap:6px">
+        <span class="tag acc">${ann && ann.inDays===0 ? `Hoje: ${pl(ann.turns,"ano","anos")} juntos!` : `Faltam ${pl(nextRound-days,"dia","dias")} para os ${nf(nextRound)}`}</span>
+        <button class="linkrow" data-act="go" data-v="datas">Nossas datas ${ic("chev")}</button>
+      </div>
+    </section>
+
+    ${showSteps ? `<section class="card stack steps" aria-label="Primeira semana">
+      <div class="row between"><span class="eyebrow">Primeira semana a dois</span><span class="small muted num">${stepsDone} de ${steps.length}</span></div>
+      <div class="bar"><i class="fx" style="width:${stepsDone/steps.length*100}%"></i></div>
+      <div>${steps.map(([l,ok,b])=>`<div class="task ${ok?"done":""}"><span class="chk ${ok?"on":""}" aria-hidden="true">${ic("tick")}</span><div class="grow"><div class="t">${esc(l)}</div></div>${ok?"":b}</div>`).join("")}</div>
+      ${mode==="db" && !partnerJoined() ? `<p class="small muted">Antes de mandar o convite, compartilhe este app com ${esc(pn)} como Colaborador(a) no botão Compartilhar do Claude.</p>` : ""}
+      <button class="linkrow small muted" data-act="hideSteps">Esconder este guia</button>
+    </section>` : ""}
+
+    <section class="card stack" aria-label="Pergunta do dia">
+      <div class="row between"><span class="eyebrow">A nossa sequência</span><span class="tag">${esc(todayQ.theme)}</span></div>
+      <h2 class="num">${st ? pl(st,"dia seguido","dias seguidos") : "Comecem hoje"}</h2>
+      <p class="small muted">${qStatus}</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" data-act="go" data-v="pergunta">${mine && theirs ? "Ver as respostas" : mine ? "Ver a pergunta" : "Responder agora"}</button>${mine && !theirs && mode!=="demo" ? waBtn(`Respondi a pergunta de hoje no Nós Dois. Sua vez! ${appUrl()}`, "Cutucar", "btn ghost") : ""}</div>
+    </section>
+
+    ${since!==null && since>21 || since===null ? `<section class="card flat row" style="background:var(--accent-soft);border-color:transparent">
+      <div class="grow"><b style="color:var(--accent)">Momento a dois</b><p class="small" style="color:var(--accent)">${since===null?"Registrem o próximo encontro só de vocês.":`Já faz ${pl(since,"dia","dias")} desde o último encontro só de vocês.`}</p></div>
+      <button class="btn sm" data-act="go" data-v="ideias">Ver ideias</button></section>` : ""}
+
+    <div class="grid2">
+      <button class="tile" data-act="go" data-v="datas"><span class="ic">${ic("cal")}${ic("chev")}</span><span class="eyebrow">Próxima data</span><b>${nx?esc(nx.title):"Nenhuma ainda"}</b><span class="small muted">${nx?inDaysText(nx.inDays):"Adicione uma data"}</span></button>
+      <button class="tile" data-act="go" data-v="tarefas"><span class="ic">${ic("check")}${ic("chev")}</span><span class="eyebrow">Tarefas</span><b>${pl(open.length,"aberta","abertas")}</b><span class="small muted">${myOpen} com você</span></button>
+      <button class="tile" data-act="go" data-v="ideias"><span class="ic">${ic("spark")}${ic("chev")}</span><span class="eyebrow">Fazer juntos</span><b>${IDEAS.length} ideias</b><span class="small muted">Em casa ou numa escapada</span></button>
+      <button class="tile" data-act="go" data-v="desejos"><span class="ic">${ic("gift")}${ic("chev")}</span><span class="eyebrow">Desejos</span><b>${pl(wishes,"desejo","desejos")}</b><span class="small muted">Ideias de presente</span></button>
+      <button class="tile ${fam?"":"wide"}" data-act="go" data-v="contas"><span class="ic">${ic("coin")}${ic("chev")}</span><span class="eyebrow">Contas da casa</span><b>${Math.abs(bal)<0.01 ? "Tudo certo" : money2(Math.abs(bal))}</b><span class="small muted">${Math.abs(bal)<0.01 ? (nBills?"Nada a acertar":"Quem pagou o quê") : esc(balanceText())}</span></button>
+      ${fam ? `<button class="tile" data-act="go" data-v="familia"><span class="ic">${ic("family")}${ic("chev")}</span><span class="eyebrow">Família</span>${fam}</button>` : ""}
+    </div>
+  </div>`;
+}
+
+/* ----- Pergunta do dia ----- */
+function pergunta(){
+  const t = today(); const q = questionFor(t);
+  const mine = ans(t,me), theirs = ans(t,other(me)); const pn = nameOf(other(me));
+  const st = streakNow(), best = bestStreak();
+  const showForm = !mine || editingAnswer;
+  let partner;
+  if(theirs && mine) partner = `<div class="answer">${esc(theirs.text)}</div>`;
+  else if(theirs) partner = `<div class="locked">${ic("lock")}<span>${esc(pn)} já respondeu. Responda para ver.</span></div>`;
+  else partner = `<p class="muted">Ainda não respondeu.</p>`;
+
+  const dates = [...new Set(Object.values(S.answers).map(a=>a.date))].filter(d=>d<t).sort().reverse();
+  const hist = dates.map(d => { const a = ans(d,"a"), b = ans(d,"b"); const x = a||b; return {d, q:x.q, theme:x.theme||"", a, b}; })
+    .filter(h => histTheme==="Todos" || h.theme===histTheme);
+
+  return `
+  <div class="top"><div><h1>Pergunta <em class="acc">do dia</em></h1><p class="sub num">2 minutos por dia · ${pl(st,"dia seguido","dias seguidos")} · Melhor: ${best}</p></div></div>
+  <div class="chips" role="group" aria-label="Tom das perguntas" style="margin-bottom:12px"><span class="small muted" style="align-self:center">Tom:</span>${Object.entries(TONES).map(([k,l])=>`<button class="chip" data-act="tone" data-v="${k}" aria-pressed="${((C().tone)||"leve")===k}">${l}</button>`).join("")}</div>
+  <section class="card stack" style="gap:14px">
+    <div class="row between"><span class="eyebrow" style="color:var(--accent)">Hoje</span><span class="tag">${esc(q.theme)}</span></div>
+    <h2>${esc(q.q)}</h2>
+    ${showForm ? `<form class="stack" data-form="answer" style="gap:8px">
+        <label class="field"><span>Sua resposta</span><textarea id="ans" name="text" maxlength="1000" required placeholder="Escreva com calma…">${mine?esc(mine.text):""}</textarea></label>
+        <div class="row between"><span class="small muted">${theirs && !mine ? "A resposta aparece assim que você salvar." : "Só aparece para os dois."}</span><span class="small muted num" id="ansCount">0/1000</span></div>
+        <button class="btn block" type="submit">${mine?"Salvar alteração":"Salvar resposta"}</button>
+      </form>`
+    : `<div class="stack" style="gap:6px"><div class="row between"><span class="small" style="font-weight:600">Você</span><button class="linkrow small" data-act="editAns">${ic("pencil")} Editar</button></div><div class="answer">${esc(mine.text)}</div></div>`}
+    <div class="hr"></div>
+    <div class="stack" style="gap:6px"><span class="small" style="font-weight:600">${esc(pn)}</span>${partner}${!theirs && mode!=="demo" ? `<div>${waBtn(mine?`Respondi a pergunta de hoje no Nós Dois. Sua vez! ${appUrl()}`:`A pergunta de hoje no Nós Dois é: "${q.q}" Bora responder? ${appUrl()}`, `Chamar ${esc(pn)} no WhatsApp`)}</div>` : ""}</div>
+  </section>
+  <p class="small muted" style="margin-top:10px">A sequência conta os dias em que os dois respondem. Se um dia passar em branco, ela aguenta uma falta por semana. O tom vale para os próximos dias: a pergunta de hoje não muda.</p>
+
+  <div class="section">
+    <div class="row"><h2>Antes</h2></div>
+    <div class="chips" role="group" aria-label="Filtrar por tema">${["Todos",...THEMES].map(th=>`<button class="chip" data-act="histTheme" data-v="${esc(th)}" aria-pressed="${histTheme===th}">${esc(th)}</button>`).join("")}</div>
+    <div class="card">${hist.length ? hist.map(h=>`<div class="hist">
+        <span class="small muted">${esc(fmtShort(h.d))}${h.theme?` · ${esc(h.theme)}`:""}</span>
+        <span class="q">${esc(h.q)}</span>
+        ${["a","b"].map(s=>{ const x = s==="a"?h.a:h.b; return `<span class="small"><span class="who">${esc(label(s))}:</span> ${x?esc(x.text):`<span class="muted">não respondeu</span>`}</span>`; }).join("")}
+      </div>`).join("") : `<div class="empty"><p>As respostas dos dias anteriores aparecem aqui.</p></div>`}</div>
+  </div>`;
+}
+
+/* ----- Tarefas ----- */
+function tarefas(){
+  const all = Object.entries(S.tasks).map(([id,t])=>({...t,id}));
+  const pn = nameOf(other(me));
+  const f = x => taskFilter==="todas" ? true : taskFilter==="minhas" ? (x.who===me||x.who==="ambos") : taskFilter==="dele" ? (x.who===other(me)||x.who==="ambos") : x.who==="ambos";
+  const open = all.filter(x=>!x.done && f(x));
+  const b = {atrasada:[],hoje:[],semana:[],depois:[],semdata:[]};
+  open.forEach(x=>b[bucketOf(x)].push(x));
+  Object.values(b).forEach(arr=>arr.sort((x,y)=>(x.due||"9")<(y.due||"9")?-1:1));
+  const w = doneThisWeek(); const tot = w.a + w.b;
+  const ws = weekStart(); const thanksN = all.filter(x=>x.done && x.doneAt>=ws && x.thanks && Object.values(x.thanks).some(Boolean)).length;
+  const summary = `Resumo da semana no Nós Dois: ${nameOf("a")} fez ${w.a} e ${nameOf("b")} fez ${w.b} tarefas. Ainda faltam ${open.length}. Valeu pela parceria!`;
+  const pa = tot ? Math.round(w.a/tot*100) : 50;
+  const done = all.filter(x=>x.done && f(x)).sort((x,y)=>(y.doneAt||"")<(x.doneAt||"")?-1:1).slice(0,8);
+  const groups = [["atrasada","Atrasadas"],["hoje","Hoje"],["semana","Próximos 7 dias"],["depois","Mais para frente"],["semdata","Sem data"]];
+
+  return `
+  <div class="top"><div><h1>Tarefas <em class="acc">divididas</em></h1><p class="sub">Quem faz o quê, e até quando</p></div>${pair(true)}</div>
+  <div class="chips" role="group" aria-label="Filtrar tarefas" style="margin-bottom:14px">
+    ${[["todas","Todas"],["minhas","Minhas"],["dele",`De ${pn}`],["ambos","Dos dois"]].map(([k,l])=>`<button class="chip" data-act="taskFilter" data-v="${k}" aria-pressed="${taskFilter===k}">${esc(l)}</button>`).join("")}
+  </div>
+  <section class="hero stack" style="gap:12px">
+    <h2 class="num">${pl(open.length,"tarefa aberta","tarefas abertas")}</h2>
+    <div class="stats num">
+      <div class="stat"><b>${b.hoje.length+b.atrasada.length}</b><span>Hoje${b.atrasada.length?` (${b.atrasada.length} atrasada${b.atrasada.length>1?"s":""})`:""}</span></div>
+      <div class="stat"><b>${b.semana.length}</b><span>7 dias</span></div>
+      <div class="stat"><b>${b.depois.length+b.semdata.length}</b><span>Depois</span></div>
+    </div>
+    <div class="stack" style="gap:6px">
+      <div class="row between small"><span style="font-weight:600">Carga da casa nesta semana</span><span class="muted num">${pl(tot,"feita","feitas")}</span></div>
+      <div class="bar" role="img" aria-label="${esc(nameOf("a"))} fez ${w.a}, ${esc(nameOf("b"))} fez ${w.b}">${tot?`<i class="fa" style="width:${pa}%"></i><i class="fb" style="width:${100-pa}%"></i>`:`<i style="width:100%"></i>`}</div>
+      <div class="row between small num"><span class="row" style="gap:6px">${avatar("a","xs")} ${esc(nameOf("a"))}: ${w.a}</span><span class="row" style="gap:6px">${esc(nameOf("b"))}: ${w.b} ${avatar("b","xs")}</span></div>
+      <div class="row between small" style="flex-wrap:wrap;gap:8px"><span class="muted">${thanksN ? `${pl(thanksN,"tarefa agradecida","tarefas agradecidas")} na semana` : "Agradeça o que o outro fez em Feitas recentemente"}</span>${mode!=="demo" ? waBtn(summary, "Mandar resumo") : ""}</div>
+    </div>
+  </section>
+  ${open.length ? groups.filter(([k])=>b[k].length).map(([k,l])=>`<div class="section"><div class="row"><h3>${l}</h3><span class="small muted">${b[k].length}</span></div><div class="card" style="padding-block:4px">${b[k].map(taskRow).join("")}</div></div>`).join("")
+    : `<div class="card empty" style="margin-top:16px"><p>Nada pendente por aqui.</p><button class="btn sm" data-act="newTask">${ic("plus")} Nova tarefa</button></div>`}
+  ${done.length ? `<div class="section"><details ${done.some(x=>x.doneBy===other(me) && !(x.thanks&&x.thanks[me]))?"open":""}><summary>Feitas recentemente (${done.length})</summary><div class="card" style="padding-block:4px;margin-top:10px">${done.map(taskRow).join("")}</div></details></div>` : ""}
+  <button class="btn fab" data-act="newTask">${ic("plus")} Nova tarefa</button>`;
+}
+function taskRow(t){
+  const whoTxt = t.who==="ambos" ? "Para os dois" : t.who===me ? "Para você" : `Para ${nameOf(t.who)}`;
+  const late = !t.done && t.due && diff(today(),t.due) < 0;
+  const dueTxt = t.due ? (late ? `<span class="tag warn">${inDaysText(diff(today(),t.due))}</span>` : `<span>${esc(inDaysText(diff(today(),t.due)))}</span>`) : "";
+  return `<div class="task ${t.done?"done":""}">
+    <button class="chk ${t.done?"on":""}" data-act="toggleTask" data-id="${t.id}" aria-label="${t.done?"Reabrir":"Concluir"}: ${esc(t.title)}">${ic("tick")}</button>
+    <button class="taskbody" data-act="editTask" data-id="${t.id}">
+      <div class="t">${esc(t.title)}</div>
+      <div class="m"><span>${esc(whoTxt)}</span>${t.cat?`<span>· ${esc(t.cat)}</span>`:""}${dueTxt?`<span>·</span>${dueTxt}`:""}${t.repeat?`<span class="row" style="gap:3px">· ${ic("repeat")} ${esc({diaria:"todo dia",semanal:"toda semana",mensal:"todo mês"}[t.repeat])}</span>`:""}</div>
+    </button>
+    ${thankBit(t) || (t.who==="ambos" ? pair(true) : avatar(t.who,"sm"))}
+  </div>`;
+}
+function thankBit(t){
+  if(!t.done || !t.doneBy) return "";
+  if(t.doneBy===other(me)) return t.thanks && t.thanks[me] ? `<span class="tag ok">${ic("heart")} Valeu</span>` : `<button class="btn sm soft" data-act="thank" data-id="${t.id}" aria-label="Agradecer ${esc(nameOf(other(me)))} por: ${esc(t.title)}">${ic("heart")} Valeu</button>`;
+  if(t.doneBy===me && t.thanks && t.thanks[other(me)]) return `<span class="tag ok">${esc(nameOf(other(me)))} agradeceu</span>`;
+  return "";
+}
+function taskForm(t={}){
+  const who = t.who || me; const pn = nameOf(other(me));
+  return `
+  <label class="field"><span>O que precisa ser feito?</span><input type="text" id="tTitle" name="title" required maxlength="140" value="${esc(t.title||"")}" placeholder="Ex.: Pagar a conta de luz"></label>
+  <div class="field"><span>Quem faz</span><div class="seg">
+    ${[[me,"Eu"],[other(me),pn],["ambos","Os dois"]].map(([v,l])=>`<label><input type="radio" name="who" value="${v}" ${who===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}
+  </div></div>
+  <label class="field"><span>Até quando</span><input type="date" id="tDue" name="due" value="${esc(t.due||"")}"></label>
+  <div class="seg">${[["Hoje",today()],["Amanhã",addDays(today(),1)],["Sem data",""]].map(([l,v])=>`<button type="button" class="btn sm ghost" data-act="setDue" data-v="${v}">${l}</button>`).join("")}</div>
+  <div class="field"><span>Categoria</span><div class="seg">${TASK_CATS.map(cn=>`<label><input type="radio" name="cat" value="${cn}" ${(t.cat||"Casa")===cn?"checked":""}><span>${cn}</span></label>`).join("")}</div></div>
+  <div class="field"><span>Repetir</span><div class="seg">${[["","Não"],["diaria","Todo dia"],["semanal","Toda semana"],["mensal","Todo mês"]].map(([v,l])=>`<label><input type="radio" name="repeat" value="${v}" ${(t.repeat||"")===v?"checked":""}><span>${l}</span></label>`).join("")}</div></div>`;
+}
+
+/* ----- Listas ----- */
+function listas(){
+  if(openList && S.lists[openList]) return listDetail(openList);
+  openList = null;
+  const ls = Object.entries(S.lists).sort((a,b)=>(a[1].at||"")<(b[1].at||"")?-1:1);
+  const items = Object.values(S.items);
+  const showEnx = (hasStage("esperando")||hasStage("planejando")) && !ls.some(([,l])=>l.title===TEMPLATES.enxoval.title);
+  return `
+  <div class="top"><div><h1>Listas</h1><p class="sub">Mercado, viagens, enxoval e o que mais precisarem</p></div></div>
+  ${ls.length ? `<div class="grid2">${ls.map(([id,l])=>{ const its = items.filter(i=>i.listId===id); const dn = its.filter(i=>i.done).length;
+      return `<button class="listcard" data-act="openList" data-id="${id}"><span class="row between"><b style="font-size:16px;overflow-wrap:anywhere">${esc(l.title)}</b>${ic("chev")}</span><span class="small muted num">${its.length ? `${dn} de ${its.length} marcados` : "Vazia"}</span><span class="bar"><i class="fx" style="width:${its.length?dn/its.length*100:0}%"></i></span></button>`; }).join("")}</div>`
+    : `<div class="card empty"><p>Criem a primeira lista de vocês.</p></div>`}
+  <div class="section">
+    <h3>Começar de um modelo</h3>
+    <div class="chips">
+      <button class="chip" data-act="tpl" data-v="mercado">${ic("plus")} Mercado</button>
+      <button class="chip" data-act="tpl" data-v="viagem">${ic("plus")} Mala da viagem</button>
+      ${showEnx?`<button class="chip" data-act="tpl" data-v="enxoval">${ic("baby")} Enxoval do bebê</button>`:""}
+    </div>
+  </div>
+  <button class="btn fab" data-act="newList">${ic("plus")} Nova lista</button>`;
+}
+function listDetail(id){
+  const l = S.lists[id];
+  const its = Object.entries(S.items).filter(([,i])=>i.listId===id).sort((a,b)=>(a[1].done-b[1].done) || ((a[1].at||"")<(b[1].at||"")?-1:1));
+  const dn = its.filter(([,i])=>i.done).length;
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start"><button class="iconbtn" data-act="closeList" aria-label="Voltar para as listas">${ic("back")}</button><div><h1 style="overflow-wrap:anywhere">${esc(l.title)}</h1><p class="sub num">${dn} de ${its.length} marcados</p></div></div>
+    <button class="iconbtn" data-act="listMenu" data-id="${id}" aria-label="Opções da lista">${ic("pencil")}</button></div>
+  <form class="inline" data-form="addItem" data-id="${id}" style="margin-bottom:14px">
+    <input type="text" id="newItem_${id}" name="text" required maxlength="120" placeholder="Adicionar item" aria-label="Novo item">
+    <button class="btn" type="submit" aria-label="Adicionar">${ic("plus")}</button>
+  </form>
+  <div class="card" style="padding-block:4px">${its.length ? its.map(([iid,i])=>`<div class="task ${i.done?"done":""}">
+      <button class="chk sq ${i.done?"on":""}" data-act="toggleItem" data-id="${iid}" aria-label="${i.done?"Desmarcar":"Marcar"}: ${esc(i.text)}">${ic("tick")}</button>
+      <div class="grow"><div class="t">${esc(i.text)}</div></div>
+      <button class="hbtn" data-act="delItem" data-id="${iid}" aria-label="Remover ${esc(i.text)}">${ic("trash")}</button>
+    </div>`).join("") : `<div class="empty"><p>Lista vazia. Adicione o primeiro item acima.</p></div>`}</div>
+  ${dn ? `<button class="btn ghost block" style="margin-top:12px" data-act="clearDone" data-id="${id}">Remover ${pl(dn,"item marcado","itens marcados")}</button>` : ""}`;
+}
+
+/* ----- Família ----- */
+function familia(){
+  const c = C(); const sts = stages();
+  const parts = [];
+  if(!sts.length || (sts.length===1 && sts[0]==="nao")){
+    parts.push(`<section class="card stack"><h3>Filhos não estão nos planos agora?</h3><p class="muted">Tudo bem. Se isso mudar, ou se vocês quiserem conversar sobre o assunto, ativem uma das opções abaixo.</p>
+      <div class="seg">${["planejando","esperando","temos"].map(k=>`<button class="btn sm ghost" data-act="addStage" data-v="${k}">${STAGES[k]}</button>`).join("")}</div></section>`);
+  }
+  if(hasStage("esperando")) parts.push(pregnancySection());
+  if(hasStage("temos")) parts.push(kidsSection());
+  if(hasStage("temos") && youngKids().length) parts.push(routineSection());
+  if(hasStage("planejando")) parts.push(planningSection());
+  if(hasStage("planejando") || hasStage("esperando")) parts.push(namesSection());
+  if(hasStage("temos")){
+    const kt = Object.values(S.tasks).filter(t=>t.cat==="Filhos" && !t.done);
+    const ca = kt.filter(t=>t.who==="a").length, cb = kt.filter(t=>t.who==="b").length, cx = kt.filter(t=>t.who==="ambos").length;
+    parts.push(`<div class="section"><div class="row"><h2>Cuidados divididos</h2></div>
+      <section class="card stack">
+        <p class="small muted">Tarefas abertas na categoria Filhos: levar e buscar, consultas, vacinas, reuniões da escola.</p>
+        <div class="row num" style="gap:14px;flex-wrap:wrap"><span class="row" style="gap:6px">${avatar("a","sm")} ${ca}</span><span class="row" style="gap:6px">${avatar("b","sm")} ${cb}</span><span class="row" style="gap:6px">${pair(true)} ${cx}</span></div>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="newTask" data-cat="Filhos">${ic("plus")} Tarefa dos filhos</button><button class="btn sm ghost" data-act="go" data-v="tarefas">Ver tarefas</button></div>
+      </section></div>`);
+    const ldn = lastDateNight(); const since = ldn ? diff(ldn,today()) : null;
+    parts.push(`<div class="section"><div class="row"><h2>Momento a dois</h2></div><section class="card stack">
+      <p>${since===null ? "Vocês ainda não registraram um encontro só dos dois." : since===0 ? "Hoje é dia de encontro a dois." : `Último encontro só de vocês: há ${pl(since,"dia","dias")}.`}</p>
+      <p class="small muted">Com filhos, o casal precisa de tempo marcado na agenda. Uma noite por mês já faz diferença.</p>
+      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="newDate" data-type="encontro">${ic("cal")} Marcar encontro</button><button class="btn sm ghost" data-act="go" data-v="ideias">Ideias</button></div>
+    </section></div>`);
+  }
+  return `
+  <div class="top"><div><h1>Nossa <em class="acc">família</em></h1><p class="sub">${sts.filter(s=>s!=="nao").map(s=>STAGES[s]).join(" · ") || "Do jeito de vocês"}</p></div>
+    <button class="iconbtn" data-act="go" data-v="ajustes" aria-label="Mudar fase da família">${ic("gear")}</button></div>
+  <div class="stack" style="gap:0">${parts.join("")}</div>`;
+}
+function pregnancySection(){
+  const c = C(); const pg = pregnancy();
+  if(!pg) return `<section class="hero stack"><span class="eyebrow">Esperando um bebê</span><h2>Quando o bebê deve chegar?</h2>
+    <form class="inline" data-form="setDue"><input type="date" id="dueIn" name="due" required min="${today()}" aria-label="Data prevista do parto"><button class="btn" type="submit">Salvar</button></form>
+    <p class="small muted">Com a data prevista, o app mostra a semana da gestação e a contagem regressiva.</p></section>`;
+  const cons = upcoming().filter(e=>e.type==="consulta" && !e.auto).slice(0,3);
+  const enx = Object.entries(S.lists).find(([,l])=>l.title===TEMPLATES.enxoval.title);
+  let enxTxt = ""; if(enx){ const its = Object.values(S.items).filter(i=>i.listId===enx[0]); enxTxt = `${its.filter(i=>i.done).length} de ${its.length} itens`; }
+  return `<section class="hero stack" style="gap:12px">
+    <div class="row between"><span class="eyebrow">Esperando um bebê</span><span class="tag acc">${pg.tri}</span></div>
+    <div class="week"><span class="big num">Semana ${Math.min(pg.w,42)}</span><span class="muted num">+ ${pl(pg.d,"dia","dias")}</span></div>
+    <p>Do tamanho de <b>${pg.fruit}</b>, mais ou menos.</p>
+    <div class="bar" role="img" aria-label="${Math.round(pg.pct)}% da gestação"><i class="fx" style="width:${pg.pct}%"></i></div>
+    <div class="row between small muted num"><span>${pg.left>=0?`Faltam ${pl(pg.left,"dia","dias")}`:`Passou ${pl(-pg.left,"dia","dias")} da data`}</span><span>Previsão: ${fmt(c.dueDate)}</span></div>
+  </section>
+  <div class="grid2" style="margin-top:12px">
+    <button class="tile" data-act="newDate" data-type="consulta"><span class="ic">${ic("cal")}${ic("plus")}</span><span class="eyebrow">Consultas</span><b>${cons[0]?esc(cons[0].title):"Nenhuma marcada"}</b><span class="small muted">${cons[0]?inDaysText(cons[0].inDays):"Marcar consulta"}</span></button>
+    <button class="tile" data-act="${enx?"openList":"tpl"}" data-id="${enx?enx[0]:""}" data-v="enxoval"><span class="ic">${ic("baby")}${ic("chev")}</span><span class="eyebrow">Enxoval</span><b>${enx?enxTxt:"Criar lista"}</b><span class="small muted">${enx?"Ver lista":"Com itens sugeridos"}</span></button>
+  </div>`;
+}
+const LOG_TYPES = {mamada:["Mamada","bottle"], fralda:["Fralda","drop"], sono:["Soneca","zz"], remedio:["Remédio","pill"]};
+function routineSection(){
+  const nw = nightWho(); const t = today();
+  const logs = Object.entries(S.logs).map(([id,l])=>({...l,id})).filter(l=>l.at && isoOf(new Date(l.at))===t).sort((a,b)=>a.at<b.at?1:-1);
+  const last = k => logs.find(l=>l.type===k);
+  const count = (k,s) => logs.filter(l=>l.type===k && (!s || l.by===s)).length;
+  const ago = iso => { const m = Math.round((Date.now()-new Date(iso))/60000); return m<60 ? `há ${m} min` : `há ${Math.floor(m/60)}h${pad(m%60)}`; };
+  return `<div class="section"><div class="row"><h2>Rotina do bebê</h2></div>
+    <section class="hero stack" style="gap:10px">
+      <div class="row between"><span class="eyebrow row" style="gap:6px">${ic("moon")} Plantão desta noite</span>${nw?`<span class="tag acc">alterna todo dia</span>`:""}</div>
+      ${nw ? `<div class="row" style="gap:10px">${avatar(nw)}<div class="grow"><b style="font-size:18px">${nw===me?"Você":esc(nameOf(nw))}</b><p class="small muted">${nw===me?`Amanhã é a vez de ${esc(nameOf(other(me)))}.`:"Amanhã é a sua vez."} Quem está de plantão acorda primeiro; o outro dorme.</p></div></div>
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-act="swapNight">Trocar hoje</button></div>`
+      : `<p class="small">Combinem quem acorda à noite. O app alterna todo dia e lembra de quem é a vez.</p><div class="row" style="gap:8px;flex-wrap:wrap">${["a","b"].map(s=>`<button class="btn sm ${s===me?"":"ghost"}" data-act="startNight" data-s="${s}">Hoje: ${s===me?"eu":esc(nameOf(s))}</button>`).join("")}</div>`}
+    </section>
+    <section class="card stack">
+      <span class="eyebrow">Registrar agora</span>
+      <div class="logbtns">${Object.entries(LOG_TYPES).map(([k,[l,i]])=>`<button data-act="logBaby" data-v="${k}">${ic(i)}<span>${l}</span></button>`).join("")}</div>
+      <div class="stack" style="gap:4px">${Object.entries(LOG_TYPES).filter(([k])=>count(k)).map(([k,[l]])=>{ const x = last(k); return `<div class="row between small num"><span><b>${l}</b>: ${count(k)} hoje (${esc(nameOf("a"))} ${count(k,"a")} · ${esc(nameOf("b"))} ${count(k,"b")})</span><span class="muted">última ${hhmm(x.at)}, ${ago(x.at)}</span></div>`; }).join("") || `<p class="small muted">Toque num botão para registrar. Os dois veem na hora quem fez e há quanto tempo.</p>`}</div>
+      ${logs.length ? `<details><summary>Registros de hoje (${logs.length})</summary><div style="margin-top:8px">${logs.slice(0,12).map(l=>`<div class="namerow"><span class="grow small num">${hhmm(l.at)} · ${LOG_TYPES[l.type]?LOG_TYPES[l.type][0]:esc(l.type)} · ${esc(label(l.by))}</span><button class="hbtn" data-act="delLog" data-id="${l.id}" aria-label="Apagar registro">${ic("trash")}</button></div>`).join("")}</div></details>` : ""}
+    </section></div>`;
+}
+function kidsSection(){
+  const ks = Object.entries(S.kids).sort((a,b)=>a[1].birth<b[1].birth?-1:1);
+  return `<div class="section"><div class="row"><h2>Filhos</h2><button class="btn sm ghost" data-act="newKid">${ic("plus")} Adicionar</button></div>
+    ${ks.length ? `<div class="card stack">${ks.map(([id,k],i)=>{ const born = diff(k.birth,today())>=0; const n = born ? nextYearly(k.birth) : null;
+        const notes = Object.values(S.journal).filter(j=>j.kidId===id).length;
+        return `${i?'<div class="hr"></div>':""}<button class="kid" data-act="openKid" data-id="${id}"><span class="ini">${esc((k.name[0]||"?").toUpperCase())}</span>
+          <span class="grow"><b style="font-size:16px">${esc(k.name)}</b><br><span class="small muted">${esc(ageText(k.birth))}${n?` · aniversário ${n.inDays===0?"hoje!":inDaysText(n.inDays).toLowerCase()}`:""}</span><br><span class="small muted">${pl(notes,"marco registrado","marcos registrados")}</span></span>${ic("chev")}</button>`; }).join("")}</div>`
+      : `<div class="card empty"><p>Adicionem os filhos para acompanhar idade, aniversários e os primeiros marcos.</p><button class="btn sm" data-act="newKid">${ic("plus")} Adicionar filho(a)</button></div>`}
+  </div>`;
+}
+function planningSection(){
+  const c = C(); const talks = S.meta.talks || {}; const done = TALKS.filter(([k])=>talks[k]).length;
+  const g = c.goal || {}; const pct = g.target ? Math.min(100, (g.saved||0)/g.target*100) : 0;
+  return `<div class="section"><div class="row"><h2>Antes de aumentar a família</h2><span class="small muted num">${done}/${TALKS.length}</span></div>
+    <section class="card" style="padding-block:4px">${TALKS.map(([k,l])=>`<div class="task ${talks[k]?"done":""}"><button class="chk ${talks[k]?"on":""}" data-act="toggleTalk" data-v="${k}" aria-label="${talks[k]?"Desmarcar":"Marcar como conversado"}: ${esc(l)}">${ic("tick")}</button><div class="grow"><div class="t">${esc(l)}</div></div></div>`).join("")}</section>
+    <p class="small muted">Marquem quando já tiverem conversado sobre cada tema. Não precisa ter resposta definitiva.</p>
+  </div>
+  <div class="section"><div class="row"><h2>Reserva para o bebê</h2><button class="btn sm ghost" data-act="editGoal">${ic("pencil")} ${g.target?"Atualizar":"Definir meta"}</button></div>
+    <section class="card stack">${g.target ? `<div class="row between num"><b style="font-family:var(--display);font-size:24px;font-weight:500">${money(g.saved)}</b><span class="muted">de ${money(g.target)}</span></div><div class="bar"><i class="fx" style="width:${pct}%"></i></div><span class="small muted num">${Math.round(pct)}% guardado</span>`
+      : `<p class="muted">Definam quanto querem guardar para os primeiros meses: enxoval, consultas e a licença.</p>`}</section>
+  </div>`;
+}
+function namesSection(){
+  const ns = Object.entries(S.names).map(([id,n])=>({...n,id,match:!!(n.likes&&n.likes.a&&n.likes.b)})).sort((a,b)=>(b.match-a.match)||((a.at||"")<(b.at||"")?-1:1));
+  const matches = ns.filter(n=>n.match).length;
+  return `<div class="section"><div class="row"><h2>Nomes</h2>${matches?`<span class="tag ok">${pl(matches,"combinação","combinações")}</span>`:""}</div>
+    <section class="card stack">
+      <p class="small muted">Cada um curte os nomes de que gosta. Quando os dois curtem o mesmo, vira uma combinação.</p>
+      <form class="inline" data-form="addName"><input type="text" id="newName" name="name" required maxlength="40" placeholder="Sugerir um nome" aria-label="Sugerir um nome"><button class="btn" type="submit" aria-label="Adicionar nome">${ic("plus")}</button></form>
+      <div>${ns.length ? ns.map(n=>`<div class="namerow"><span class="n">${esc(n.name)}</span>${n.match?`<span class="tag ok">Combinou</span>`:""}
+        ${["a","b"].map(s=>`<button class="hbtn ${s} ${n.likes&&n.likes[s]?"on":""}" ${s===me?`data-act="likeName" data-id="${n.id}"`:"disabled"} aria-label="${s===me?(n.likes&&n.likes[s]?"Descurtir":"Curtir"):`${esc(nameOf(s))} ${n.likes&&n.likes[s]?"curtiu":"ainda não curtiu"}`} ${esc(n.name)}" aria-pressed="${!!(n.likes&&n.likes[s])}">${ic("heart")}</button>`).join("")}
+        <button class="hbtn" data-act="delName" data-id="${n.id}" aria-label="Remover ${esc(n.name)}">${ic("trash")}</button></div>`).join("")
+        : `<div class="empty"><p>Nenhum nome ainda.</p></div>`}</div>
+    </section></div>`;
+}
+
+/* ----- Contas da casa ----- */
+function contas(){
+  const bs = Object.entries(S.bills).map(([id,b])=>({...b,id})).sort((a,b)=>(a.at||"")<(b.at||"")?1:-1);
+  const openB = bs.filter(b=>!b.settled), past = bs.filter(b=>b.settled).slice(0,10);
+  const n = billBalance();
+  const paid = s => openB.filter(b=>b.paidBy===s).reduce((x,b)=>x+b.amount,0);
+  const row = b => `<div class="task ${b.settled?"done":""}"><span class="iconbtn" style="width:38px;height:38px;color:var(--accent)" aria-hidden="true">${ic("coin")}</span>
+    <button class="taskbody" data-act="editBill" data-id="${b.id}"><div class="t">${esc(b.title)}</div><div class="m"><span>${esc(label(b.paidBy))} pagou</span><span>· ${b.split==="outro"?(other(b.paidBy)===me?"era sua":`era de ${esc(nameOf(other(b.paidBy)))}`):"meio a meio"}</span><span>· ${esc(fmt(b.date||today(),{day:"numeric",month:"short"}))}</span></div></button>
+    <b class="num">${money2(b.amount)}</b></div>`;
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Contas <em class="acc">da casa</em></h1><p class="sub">Quem pagou o quê, sem planilha</p></div></div></div>
+  <section class="hero stack" style="gap:10px">
+    <span class="eyebrow">Saldo entre vocês</span>
+    <h2 class="num">${esc(balanceText())}</h2>
+    <div class="row between small num"><span class="row" style="gap:6px">${avatar("a","xs")} pagou ${money2(paid("a"))}</span><span class="row" style="gap:6px">pagou ${money2(paid("b"))} ${avatar("b","xs")}</span></div>
+    ${Math.abs(n)>=0.01 ? `<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="settle">Marcar como acertado</button>${mode!=="demo"?waBtn(`Contas da casa no Nós Dois: ${nameOf(n>0?"b":"a")} deve ${money2(Math.abs(n))} para ${nameOf(n>0?"a":"b")}. Pix quando der?`, "Mandar no WhatsApp"):""}</div>` : ""}
+  </section>
+  <div class="section"><h3>Em aberto</h3><div class="card" style="padding-block:4px">${openB.length ? openB.map(row).join("") : `<div class="empty"><p>Anote o que cada um pagou: mercado, luz, farmácia, presente da família.</p></div>`}</div></div>
+  ${past.length ? `<div class="section"><details><summary>Já acertadas (${past.length})</summary><div class="card" style="padding-block:4px;margin-top:10px">${past.map(row).join("")}</div></details></div>` : ""}
+  <button class="btn fab" data-act="newBill">${ic("plus")} Nova conta</button>`;
+}
+function billForm(b={}){ const pn = nameOf(other(me));
+  return `<label class="field"><span>O quê</span><input type="text" id="bTitle" name="title" required maxlength="80" value="${esc(b.title||"")}" placeholder="Ex.: Mercado da semana"></label>
+  <label class="field"><span>Valor (R$)</span><input type="text" inputmode="decimal" id="bAmount" name="amount" required value="${b.amount!=null?String(b.amount).replace(".",","):""}" placeholder="Ex.: 230,50"></label>
+  <div class="field"><span>Quem pagou</span><div class="seg">${[[me,"Eu"],[other(me),pn]].map(([v,l])=>`<label><input type="radio" name="paidBy" value="${v}" ${(b.paidBy||me)===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
+  <div class="field"><span>Como dividir</span><div class="seg"><label><input type="radio" name="split" value="meio" ${(b.split||"meio")==="meio"?"checked":""}><span>Meio a meio</span></label><label><input type="radio" name="split" value="outro" ${b.split==="outro"?"checked":""}><span>Era todo do outro</span></label></div></div>
+  <label class="field"><span>Data</span><input type="date" id="bDate" name="date" value="${esc(b.date||today())}"></label>`; }
+
+/* ----- Datas ----- */
+function datas(){
+  const up = upcoming(); const past = allEvents().filter(e=>e.inDays<0).sort((a,b)=>b.inDays-a.inDays).slice(0,10);
+  const row = e => `<div class="task"><span class="iconbtn" style="width:38px;height:38px;color:var(--accent)" aria-hidden="true">${ic(e.type==="aniversario"?"star":e.type==="encontro"?"heart":e.type==="consulta"?"baby":"cal")}</span>
+    <button class="taskbody" ${e.auto?"":`data-act="editDate" data-id="${e.id}"`}><div class="t">${esc(e.title)}</div><div class="m"><span>${esc(fmt(e.date,{weekday:"short",day:"numeric",month:"short",year:"numeric"}))}</span>${e.yearly||e.auto&&e.id!=="_due"?`<span>· ${ic("repeat")} todo ano</span>`:""}${e.auto?`<span>· automática</span>`:""}</div></button>
+    <span class="tag ${e.inDays>=0&&e.inDays<=7?"acc":""}">${esc(inDaysText(e.inDays))}</span></div>`;
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Nossas <em class="acc">datas</em></h1><p class="sub">Aniversários, encontros e consultas</p></div></div></div>
+  <div class="card" style="padding-block:4px">${up.map(row).join("")}</div>
+  ${past.length?`<div class="section"><h3>Já passaram</h3><div class="card" style="padding-block:4px">${past.map(row).join("")}</div></div>`:""}
+  <button class="btn fab" data-act="newDate">${ic("plus")} Nova data</button>`;
+}
+function dateForm(d={}){
+  return `<label class="field"><span>Nome</span><input type="text" id="dTitle" name="title" required maxlength="80" value="${esc(d.title||"")}" placeholder="Ex.: Jantar de aniversário"></label>
+  <label class="field"><span>Data</span><input type="date" id="dDate" name="date" required value="${esc(d.date||"")}"></label>
+  <div class="field"><span>Tipo</span><div class="seg">${Object.entries(DATE_TYPES).map(([k,l])=>`<label><input type="radio" name="type" value="${k}" ${(d.type||"encontro")===k?"checked":""}><span>${l}</span></label>`).join("")}</div></div>
+  <div class="seg"><label><input type="checkbox" name="yearly" id="dYearly" ${d.yearly?"checked":""}><span>Repetir todo ano</span></label></div>`;
+}
+
+/* ----- Ideias ----- */
+function ideias(){
+  const saved = (S.meta.ideas||{});
+  const list = IDEAS.filter(([id,cat]) => ideaCat==="todas" ? true : ideaCat==="salvas" ? saved[id] : cat===ideaCat)
+    .filter(([,cat]) => cat!=="criancas" || hasStage("temos") || ideaCat==="criancas");
+  const cats = Object.entries(IDEA_CATS).filter(([k])=>k!=="criancas"||hasStage("temos"));
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Fazer <em class="acc">juntos</em></h1><p class="sub">Escolham algo para os dois.</p></div></div></div>
+  <div class="chips" role="group" aria-label="Categorias" style="margin-bottom:14px">
+    <button class="chip" data-act="ideaCat" data-v="todas" aria-pressed="${ideaCat==="todas"}">Todas</button>
+    ${cats.map(([k,v])=>`<button class="chip" data-act="ideaCat" data-v="${k}" aria-pressed="${ideaCat===k}">${ic(v.icon)} ${v.label}</button>`).join("")}
+    <button class="chip" data-act="ideaCat" data-v="salvas" aria-pressed="${ideaCat==="salvas"}">${ic("heart")} Salvas</button>
+  </div>
+  <div class="stack">${list.length ? list.map(([id,cat,title,desc])=>`<article class="card idea">
+      <span class="eyebrow row" style="gap:6px">${ic(IDEA_CATS[cat].icon)} ${IDEA_CATS[cat].label}</span>
+      <h3 style="margin-top:8px">${esc(title)}</h3>
+      <p class="muted small" style="margin-top:6px">${esc(desc)}</p>
+      <div class="acts"><button class="btn sm" data-act="planIdea" data-id="${id}">${ic("cal")} Planejar</button><button class="btn sm ${saved[id]?"soft":"ghost"}" data-act="saveIdea" data-id="${id}" aria-pressed="${!!saved[id]}">${ic("heart")} ${saved[id]?"Salva":"Salvar"}</button></div>
+    </article>`).join("") : `<div class="card empty"><p>Nenhuma ideia salva ainda.</p></div>`}</div>`;
+}
+
+/* ----- Desejos ----- */
+function desejos(){
+  const ws = Object.entries(S.wishes);
+  const col = s => { const mine = ws.filter(([,w])=>w.who===s).sort((a,b)=>(a[1].got-b[1].got)||((a[1].at||"")<(b[1].at||"")?1:-1));
+    return `<div class="section"><div class="row">${avatar(s,"sm")}<h3 class="grow">${s===me?"Seus desejos":`Desejos de ${esc(nameOf(s))}`}</h3></div><div class="card" style="padding-block:4px">${mine.length ? mine.map(([id,w])=>`<div class="task ${w.got?"done":""}">
+      <button class="chk ${w.got?"on":""}" data-act="toggleWish" data-id="${id}" aria-label="${w.got?"Ainda não ganhou":"Já ganhou"}: ${esc(w.text)}">${ic("tick")}</button>
+      <button class="taskbody" data-act="editWish" data-id="${id}"><div class="t">${esc(w.text)}</div>${w.note?`<div class="m">${esc(w.note)}</div>`:""}</button></div>`).join("") : `<div class="empty"><p>${s===me?"Anote o que você gostaria de ganhar ou viver.":"Nada anotado ainda."}</p></div>`}</div></div>`; };
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Desejos</h1><p class="sub">O que cada um gostaria de ter ou viver</p></div></div></div>
+  ${col(me)}${col(other(me))}
+  <button class="btn fab" data-act="newWish">${ic("plus")} Novo desejo</button>`;
+}
+
+/* ----- Ajustes ----- */
+function ajustes(){
+  const c = C();
+  const sync = mode==="db" ? (readOnly ? "Você pode ver, mas não editar. Peça para ser Colaborador(a)." : "Sincronizado entre vocês em tempo real.") : mode==="demo" ? "Demonstração: nada é salvo." : "Salvo só neste aparelho.";
+  return `
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Ajustes</h1><p class="sub">${esc(sync)}</p></div></div></div>
+  <form class="card stack" data-form="settings">
+    <label class="field"><span>Nome 1</span><input type="text" id="cfA" name="a" required maxlength="40" value="${esc(nameOf("a"))}"></label>
+    <label class="field"><span>Nome 2</span><input type="text" id="cfB" name="b" required maxlength="40" value="${esc(nameOf("b"))}"></label>
+    <label class="field"><span>Juntos desde</span><input type="date" id="cfStart" name="start" required max="${today()}" value="${esc(c.start||"")}"></label>
+    <div class="field"><span>Família</span><div class="seg">${Object.entries(STAGES).map(([k,v])=>`<label><input type="checkbox" name="st_${k}" ${hasStage(k)?"checked":""}><span>${v}</span></label>`).join("")}</div></div>
+    <label class="field"><span>Data prevista do parto (se estiverem esperando)</span><input type="date" id="cfDue" name="due" value="${esc(c.dueDate||"")}"></label>
+    <button class="btn block" type="submit">Salvar ajustes</button>
+  </form>
+  <div class="section"><h3>Quem está usando este aparelho</h3>
+    <div class="who-pick">${["a","b"].map(s=>`<button data-act="iam" data-s="${s}" aria-pressed="${me===s}" style="${me===s?"border-color:var(--accent);border-width:2px":""}">${avatar(s)}<span>${esc(nameOf(s))}</span></button>`).join("")}</div>
+  </div>
+  ${mode==="cloud" && cloud ? `<div class="section"><h3>Usar a dois</h3><section class="card stack">
+    <p class="small">Mande este link para a outra pessoa. Ela abre no celular dela, escolhe o próprio nome e pronto.</p>
+    <input type="text" id="inviteLink" readonly value="${esc(appUrl())}" aria-label="Link de convite">
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="copyInvite">Copiar link</button>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar no WhatsApp")}</div>
+    <p class="small muted">Quem tiver este link entra no espaço de vocês. Mande só para quem divide a casa com você.</p>
+  </section></div>` : ""}
+  ${mode==="db" ? `<div class="section"><h3>Usar a dois</h3><section class="card stack"><p class="small">1. Compartilhe este app com a outra pessoa pelo botão de compartilhar do Claude, com acesso de <b>Colaborador(a)</b>.<br>2. Mande o link pelo WhatsApp. Cada um abre no próprio celular e escolhe o seu nome.</p><div>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar convite")}</div><p class="small muted">As respostas da pergunta do dia ficam guardadas no espaço compartilhado de vocês. O app só mostra a resposta da outra pessoa depois que você responde.</p></section></div>` : ""}
+  <div class="section"><h3>Nós Dois Premium</h3><section class="card stack">
+    <p class="small">Uma assinatura para os dois: <b>R$ 9,90 por mês</b> ou <b>R$ 69,90 por ano</b>. Os 30 primeiros dias são grátis e só começam quando vocês dois tiverem entrado.</p>
+    <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px"><li>Pacote da fase de vocês: rotina do bebê e plantão da noite, gestação a dois, marcos dos filhos</li><li>Contas da casa com histórico</li><li>Todas as perguntas, por tema, e a retrospectiva do ano</li><li>Histórico completo do placar da casa</li></ul>
+    <p class="small muted">O pagamento ainda não existe neste protótipo. Tudo está liberado por enquanto.</p>
+    ${(C().interest||{})[me] ? `<span class="tag ok">${ic("tick")} Você está na lista de espera</span>` : `<button class="btn sm" data-act="interest">Quero ser avisado(a)</button>`}
+  </section></div>
+  <div class="section"><h3>Privacidade</h3><section class="card stack">
+    <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com o link de convite de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
+    <p class="small muted">A pergunta do dia esconde a resposta da outra pessoa até você responder; isso é uma regra da tela, não criptografia.</p>
+    ${mode!=="demo" ? `<button class="btn danger" data-act="wipeAll">${ic("trash")} Apagar todos os dados de vocês</button>` : ""}
+  </section></div>
+  ${mode==="local" ? `<div class="section"><h3>Dados</h3><section class="card stack"><p class="small muted">Neste modo tudo fica salvo só neste navegador, sem sincronização entre celulares.</p></section></div>` : ""}`;
+}
+
+/* ===================== Folha (formulários) ===================== */
+const sheetEl = document.getElementById("sheet");
+let sheetSubmit = null, sheetReturn = null;
+function openSheet(title, body, onSubmit, {submit="Salvar", extra=""}={}){
+  sheetReturn = document.activeElement;
+  sheetEl.innerHTML = `<div class="sheetwrap" role="dialog" aria-modal="true" aria-label="${esc(title)}"><button class="scrim" data-act="closeSheet" aria-label="Fechar" tabindex="-1"></button>
+    <form class="sheet" id="sheetForm"><div class="grab"></div><div class="row between"><h2>${esc(title)}</h2><button type="button" class="btn sm ghost" data-act="closeSheet">Fechar</button></div>
+    ${body}${onSubmit?`<button class="btn block" type="submit">${esc(submit)}</button>`:""}${extra}</form></div>`;
+  sheetEl.hidden = false; sheetSubmit = onSubmit;
+  const f = sheetEl.querySelector("input[type=text],textarea,input[type=date],input[type=number]"); if(f) setTimeout(()=>f.focus({preventScroll:true}), 60);
+}
+function closeSheet(){ sheetEl.hidden = true; sheetEl.innerHTML = ""; sheetSubmit = null; if(sheetReturn && document.contains(sheetReturn)) sheetReturn.focus({preventScroll:true}); }
+const delBtn = (act, id) => `<button type="button" class="btn danger block" data-act="${act}" data-id="${id}">${ic("trash")} Excluir</button>`;
+
+/* ===================== Ações ===================== */
+let toastT = null;
+function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(()=>{ t.hidden = true; }, 3200); }
+function armed(el){ if(el.dataset.armed) return true; el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo para excluir`; return false; }
+
+const ACT = {
+  go: el => { view = el.dataset.v; if(view!=="listas") openList = null; editingAnswer = false; schedule(); },
+  iam: el => { me = el.dataset.s; lsSet("nd-me", me); if(mode==="db" && myId){ const ms = (C().members)||{}; const upd = {[me]:myId}; if(ms[other(me)]===myId) upd[other(me)] = null; patch("meta","couple",{members:upd}); } schedule(); },
+  demo: () => startDemo(),
+  exitDemo: () => exitDemo(),
+  editAns: () => { editingAnswer = true; schedule(); },
+  histTheme: el => { histTheme = el.dataset.v; schedule(); },
+  taskFilter: el => { taskFilter = el.dataset.v; schedule(); },
+  ideaCat: el => { ideaCat = el.dataset.v; schedule(); },
+  closeSheet: () => closeSheet(),
+  setDue: el => { const i = document.getElementById("tDue"); if(i) i.value = el.dataset.v; },
+
+  newTask: el => openSheet("Nova tarefa", taskForm({cat:el.dataset.cat}), fd => {
+    put("tasks", uid(), {title:fd.title.trim(), who:fd.who||me, due:fd.due||"", cat:fd.cat||"Casa", repeat:fd.repeat||"", done:false, at:new Date().toISOString(), by:me});
+    toast("Tarefa criada");
+  }, {submit:"Criar tarefa"}),
+  editTask: el => { const id = el.dataset.id, t = S.tasks[id]; if(!t) return;
+    openSheet("Editar tarefa", taskForm(t), fd => { put("tasks", id, {...t, title:fd.title.trim(), who:fd.who, due:fd.due||"", cat:fd.cat, repeat:fd.repeat||""}); toast("Tarefa atualizada"); }, {extra:delBtn("delTask", id)}); },
+  delTask: el => { if(!armed(el)) return; del("tasks", el.dataset.id); closeSheet(); toast("Tarefa excluída"); },
+  toggleTask: el => { const id = el.dataset.id, t = S.tasks[id]; if(!t) return;
+    if(!t.done && t.repeat){
+      const base = t.due || today(); let nx = t.repeat==="diaria" ? addDays(base,1) : t.repeat==="semanal" ? addDays(base,7) : addMonths(base,1);
+      while(diff(today(), nx) < 0) nx = t.repeat==="diaria" ? addDays(nx,1) : t.repeat==="semanal" ? addDays(nx,7) : addMonths(nx,1);
+      const log = [...(t.log||[]), {at:today(), by:me}].slice(-30);
+      put("tasks", id, {...t, due:nx, log}); toast(`Feito! Próxima: ${fmt(nx,{day:"numeric",month:"short"})}`);
+    } else {
+      put("tasks", id, {...t, done:!t.done, doneAt:!t.done?today():"", doneBy:!t.done?me:""});
+    } },
+
+  newList: () => openSheet("Nova lista", `<label class="field"><span>Nome da lista</span><input type="text" id="lTitle" name="title" required maxlength="60" placeholder="Ex.: Presentes de Natal"></label>`, fd => {
+    const id = uid(); put("lists", id, {title:fd.title.trim(), at:new Date().toISOString()}); openList = id; view = "listas"; }, {submit:"Criar lista"}),
+  tpl: el => { const tp = TEMPLATES[el.dataset.v]; const id = uid(); put("lists", id, {title:tp.title, at:new Date().toISOString()});
+    tp.items.forEach((t,i)=>put("items", uid(), {listId:id, text:t, done:false, at:new Date(Date.now()+i).toISOString()})); openList = id; view = "listas"; schedule(); },
+  openList: el => { openList = el.dataset.id; view = "listas"; schedule(); },
+  closeList: () => { openList = null; schedule(); },
+  toggleItem: el => { const i = S.items[el.dataset.id]; if(i) put("items", el.dataset.id, {...i, done:!i.done}); },
+  delItem: el => del("items", el.dataset.id),
+  clearDone: el => { Object.entries(S.items).filter(([,i])=>i.listId===el.dataset.id && i.done).forEach(([iid])=>del("items", iid)); toast("Itens marcados removidos"); },
+  listMenu: el => { const id = el.dataset.id, l = S.lists[id];
+    openSheet("Editar lista", `<label class="field"><span>Nome da lista</span><input type="text" id="lTitleE" name="title" required maxlength="60" value="${esc(l.title)}"></label>`, fd => put("lists", id, {...l, title:fd.title.trim()}), {extra:delBtn("delList", id)}); },
+  delList: el => { if(!armed(el)) return; const id = el.dataset.id; Object.entries(S.items).filter(([,i])=>i.listId===id).forEach(([iid])=>del("items", iid)); del("lists", id); openList = null; closeSheet(); toast("Lista excluída"); },
+
+  newDate: el => openSheet("Nova data", dateForm({type:el.dataset.type||"encontro"}), fd => {
+    put("dates", uid(), {title:fd.title.trim(), date:fd.date, type:fd.type||"outro", yearly:!!fd.yearly}); toast("Data salva. Toque nela para mandar ao Google Agenda."); }, {submit:"Salvar data"}),
+  editDate: el => { const id = el.dataset.id, d = S.dates[id]; if(!d) return;
+    openSheet("Editar data", dateForm(d), fd => put("dates", id, {title:fd.title.trim(), date:fd.date, type:fd.type, yearly:!!fd.yearly}), {extra:`<a class="btn ghost block" href="${gcalUrl(d)}" target="_blank" rel="noopener">${ic("cal")} Adicionar ao Google Agenda</a>`+delBtn("delDate", id)}); },
+  delDate: el => { if(!armed(el)) return; del("dates", el.dataset.id); closeSheet(); toast("Data excluída"); },
+
+  planIdea: el => { const idea = IDEAS.find(x=>x[0]===el.dataset.id);
+    openSheet("Planejar", dateForm({title:idea[2], type:"encontro", date:addDays(today(), (6-new Date().getDay()+7)%7 || 7)}), fd => {
+      put("dates", uid(), {title:fd.title.trim(), date:fd.date, type:fd.type||"encontro", yearly:!!fd.yearly}); toast("Encontro marcado nas datas de vocês"); }, {submit:"Marcar na agenda"}); },
+  saveIdea: el => { const id = el.dataset.id; const cur = (S.meta.ideas||{})[id]; patch("meta","ideas",{[id]:!cur}); },
+
+  newWish: () => openSheet("Novo desejo", wishForm({who:me}), fd => { put("wishes", uid(), {who:fd.who, text:fd.text.trim(), note:(fd.note||"").trim(), got:false, at:new Date().toISOString()}); toast("Desejo anotado"); }),
+  editWish: el => { const id = el.dataset.id, w = S.wishes[id]; openSheet("Editar desejo", wishForm(w), fd => put("wishes", id, {...w, who:fd.who, text:fd.text.trim(), note:(fd.note||"").trim()}), {extra:delBtn("delWish", id)}); },
+  delWish: el => { if(!armed(el)) return; del("wishes", el.dataset.id); closeSheet(); },
+  toggleWish: el => { const w = S.wishes[el.dataset.id]; if(w) put("wishes", el.dataset.id, {...w, got:!w.got}); },
+
+  addStage: el => { const st = stages().filter(s=>s!=="nao"); patch("meta","couple",{stages:[...new Set([...st, el.dataset.v])]}); },
+  toggleTalk: el => { const k = el.dataset.v; const cur = (S.meta.talks||{})[k]; patch("meta","talks",{[k]:!cur}); },
+  editGoal: () => { const g = C().goal || {};
+    openSheet("Reserva para o bebê", `<label class="field"><span>Meta (R$)</span><input type="number" id="gT" name="target" min="0" step="100" required value="${g.target||""}" placeholder="Ex.: 15000"></label>
+      <label class="field"><span>Já guardado (R$)</span><input type="number" id="gS" name="saved" min="0" step="50" value="${g.saved||0}"></label>`, fd => patch("meta","couple",{goal:{target:Number(fd.target)||0, saved:Number(fd.saved)||0}})); },
+  likeName: el => { const n = S.names[el.dataset.id]; if(!n) return; const v = !(n.likes && n.likes[me]); patch("names", el.dataset.id, {likes:{[me]:v}});
+    if(v && n.likes && n.likes[other(me)]) toast(`Combinou! Vocês dois gostam de ${n.name}.`); },
+  delName: el => del("names", el.dataset.id),
+
+  newKid: () => openSheet("Adicionar filho(a)", kidForm({}), fd => { put("kids", uid(), {name:fd.name.trim(), birth:fd.birth}); toast("Adicionado à família"); }),
+  openKid: el => { const id = el.dataset.id, k = S.kids[id]; if(!k) return;
+    const js = Object.entries(S.journal).filter(([,j])=>j.kidId===id).sort((a,b)=>a[1].date<b[1].date?1:-1);
+    openSheet(k.name, `<p class="muted">${esc(ageText(k.birth))} · nasceu em ${fmt(k.birth)}</p>
+      <div class="field"><span>Novo marco</span><input type="text" id="jText" name="text" required maxlength="200" placeholder="Ex.: Primeira palavra: “água”"></div>
+      <label class="field"><span>Quando</span><input type="date" id="jDate" name="date" required value="${today()}" max="${today()}"></label>`,
+      fd => { put("journal", uid(), {kidId:id, text:fd.text.trim(), date:fd.date, by:me}); toast("Marco registrado"); },
+      {submit:"Registrar marco", extra:`<div class="stack" style="gap:0">${js.map(([jid,j])=>`<div class="hist"><span class="small muted">${fmt(j.date)} · ${esc(ageAt(k.birth,j.date))}</span><span>${esc(j.text)}</span></div>`).join("") || `<p class="small muted">Os marcos registrados aparecem aqui: primeiros passos, palavras, dentes, a primeira vez na escola.</p>`}</div>
+        <div class="row" style="gap:8px"><button type="button" class="btn sm ghost" data-act="editKid" data-id="${id}">${ic("pencil")} Editar dados</button></div>`}); },
+  editKid: el => { const id = el.dataset.id, k = S.kids[id]; openSheet("Editar", kidForm(k), fd => put("kids", id, {...k, name:fd.name.trim(), birth:fd.birth}), {extra:delBtn("delKid", id)}); },
+  hideSteps: () => patch("meta","couple",{hideSteps:{[me]:true}}),
+  tone: el => { patch("meta","couple",{tone:el.dataset.v}); toast(`Tom: ${TONES[el.dataset.v]}. Vale a partir da próxima pergunta.`); },
+  thank: el => { const t = S.tasks[el.dataset.id]; if(!t) return; patch("tasks", el.dataset.id, {thanks:{[me]:true}}); toast(`Valeu enviado para ${nameOf(other(me))}`); },
+  interest: () => { patch("meta","couple",{interest:{[me]:true}}); toast("Pronto! Avisamos quando o Premium abrir."); },
+  startNight: el => patch("meta","couple",{night:{base:today(), who:el.dataset.s}}),
+  swapNight: () => { const nw = nightWho(); patch("meta","couple",{night:{base:today(), who:other(nw||me)}}); toast(`Hoje o plantão é ${other(nw||me)===me?"seu":"de "+nameOf(other(nw||me))}`); },
+  logBaby: el => { const k = el.dataset.v; put("logs", uid(), {type:k, at:new Date().toISOString(), by:me});
+    const old = Object.entries(S.logs).filter(([,l])=>l.by===me && l.at && diff(isoOf(new Date(l.at)), today()) > 14).slice(0,20); old.forEach(([id])=>del("logs", id));
+    toast(`${LOG_TYPES[k][0]} registrada às ${hhmm(new Date().toISOString())}`); },
+  delLog: el => del("logs", el.dataset.id),
+  newBill: () => openSheet("Nova conta", billForm(), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
+    put("bills", uid(), {title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, split:fd.split||"meio", date:fd.date||today(), settled:false, at:new Date().toISOString(), by:me}); toast("Conta anotada"); }, {submit:"Anotar conta"}),
+  editBill: el => { const id = el.dataset.id, b = S.bills[id]; if(!b) return;
+    openSheet("Editar conta", billForm(b), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
+      put("bills", id, {...b, title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, split:fd.split, date:fd.date||b.date}); }, {extra:delBtn("delBill", id)}); },
+  delBill: el => { if(!armed(el)) return; del("bills", el.dataset.id); closeSheet(); },
+  settle: () => { Object.entries(S.bills).filter(([,b])=>!b.settled).forEach(([id,b])=>put("bills", id, {...b, settled:true, settledAt:today()})); toast("Contas acertadas"); },
+  copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
+    try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
+    catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
+  wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois`; return; }
+    if(mode==="cloud"){ const sp = cloud; lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
+      if(sp) api({op:"wipe", id:sp.id, key:sp.key}).then(()=>toast("Todos os dados foram apagados.")).catch(()=>toast("Não deu para apagar no servidor. Tente de novo.")); schedule(); return; }
+    COLS.forEach(c => Object.keys(S[c]).forEach(id => del(c, id))); lsSet("nd-me", null); me = null; view = "home"; toast("Todos os dados foram apagados."); },
+  delKid: el => { if(!armed(el)) return; const id = el.dataset.id; Object.entries(S.journal).filter(([,j])=>j.kidId===id).forEach(([jid])=>del("journal", jid)); del("kids", id); closeSheet(); }
+};
+function ageAt(birth, date){ const {y,m} = ymd(birth, date); if(diff(birth,date)<0) return "antes de nascer"; return y ? `${pl(y,"ano","anos")}${m?` e ${pl(m,"mês","meses")}`:""}` : m ? pl(m,"mês","meses") : pl(diff(birth,date),"dia","dias"); }
+function wishForm(w){ const pn = nameOf(other(me));
+  return `<div class="field"><span>De quem é o desejo</span><div class="seg">${[[me,"Meu"],[other(me),`De ${pn}`]].map(([v,l])=>`<label><input type="radio" name="who" value="${v}" ${w.who===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
+  <label class="field"><span>O quê</span><input type="text" id="wText" name="text" required maxlength="120" value="${esc(w.text||"")}" placeholder="Ex.: Aula de cerâmica"></label>
+  <label class="field"><span>Detalhes (tamanho, cor, onde comprar)</span><input type="text" id="wNote" name="note" maxlength="200" value="${esc(w.note||"")}"></label>`; }
+function kidForm(k){ return `<label class="field"><span>Nome</span><input type="text" id="kName" name="name" required maxlength="40" value="${esc(k.name||"")}"></label>
+  <label class="field"><span>Data de nascimento</span><input type="date" id="kBirth" name="birth" required value="${esc(k.birth||"")}"></label>`; }
+
+const FORMS = {
+  setup: fd => {
+    let sts = Object.keys(STAGES).filter(k=>fd["st_"+k]); if(sts.includes("nao") && sts.length>1) sts = sts.filter(s=>s!=="nao");
+    me = "a"; lsSet("nd-me","a");
+    put("meta","couple",{a:{name:fd.a.trim()}, b:{name:fd.b.trim()}, start:fd.start, stages:sts, dueDate:"", goal:{}, members:myId?{a:myId}:{}, createdAt:new Date().toISOString()});
+    view = hasStage("esperando") || hasStage("temos") ? "familia" : "home";
+  },
+  answer: (fd, f) => { const t = today(); const q = questionFor(t);
+    put("answers", `${t}_${me}`, {date:t, slot:me, text:fd.text.trim(), q:q.q, theme:q.theme, at:new Date().toISOString()});
+    clearIds.add("ans"); editingAnswer = false;
+    if(ans(t,other(me))) toast("Salvo! Agora você pode ler a resposta."); else toast(`Salvo! ${nameOf(other(me))} vai ver depois de responder.`); },
+  addItem: (fd, f) => { const id = f.dataset.id; put("items", uid(), {listId:id, text:fd.text.trim(), done:false, at:new Date().toISOString()}); clearIds.add("newItem_"+id); f.reset(); },
+  addName: (fd, f) => { const n = fd.name.trim(); if(Object.values(S.names).some(x=>x.name.toLowerCase()===n.toLowerCase())){ toast("Esse nome já está na lista."); return; }
+    put("names", uid(), {name:n, likes:{[me]:true}, at:new Date().toISOString(), by:me}); clearIds.add("newName"); f.reset(); },
+  setDue: fd => patch("meta","couple",{dueDate:fd.due}),
+  settings: fd => {
+    let sts = Object.keys(STAGES).filter(k=>fd["st_"+k]); if(sts.includes("nao") && sts.length>1) sts = sts.filter(s=>s!=="nao");
+    const c = C(); put("meta","couple",{...c, a:{...(c.a||{}), name:fd.a.trim()}, b:{...(c.b||{}), name:fd.b.trim()}, start:fd.start, stages:sts, dueDate:fd.due||""});
+    toast("Ajustes salvos");
+  }
+};
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if(!el || el.disabled) return;
+  const fn = ACT[el.dataset.act]; if(fn) fn(el, e);
+});
+document.addEventListener("submit", e => {
+  const f = e.target; e.preventDefault();
+  const fd = {}; new FormData(f).forEach((v,k)=>{ fd[k] = v; });
+  f.querySelectorAll("input[type=checkbox]").forEach(cb => { if(cb.name) fd[cb.name] = cb.checked; });
+  if(f.id === "sheetForm"){ const fn = sheetSubmit; closeSheet(); if(fn) fn(fd, f); schedule(); return; }
+  const fn = FORMS[f.dataset.form]; if(fn){ fn(fd, f); schedule(); }
+});
+document.addEventListener("input", e => { if(e.target.id === "ans"){ const c = document.getElementById("ansCount"); if(c) c.textContent = `${e.target.value.length}/1000`; } });
+document.addEventListener("keydown", e => { if(e.key === "Escape" && !sheetEl.hidden) closeSheet(); });
+
+/* ===================== Demonstração ===================== */
+function startDemo(){
+  savedReal = {S, mode, me, view};
+  mode = "demo"; me = "a"; view = "home"; const t = today();
+  const D = blank();
+  D.meta.couple = {a:{name:"Lucas"}, b:{name:"Bia"}, start:"2016-03-12", stages:["esperando","temos"], dueDate:addDays(t,128), goal:{target:15000, saved:9200}};
+  D.meta.ideas = {i36:true, irede:true};
+  D.meta.talks = {};
+  D.kids.k1 = {name:"Theo", birth:addDays(t,-(4*365+70))};
+  D.journal.j1 = {kidId:"k1", text:"Andou de bicicleta sem rodinha pela primeira vez", date:addDays(t,-9), by:"b"};
+  D.journal.j2 = {kidId:"k1", text:"Primeiro dia na escola nova", date:addDays(t,-60), by:"a"};
+  for(let i=1;i<=13;i++){ const d = addDays(t,-i); const q = questionFor(d);
+    const A = ["Viajar só nós dois de novo","Aquela tarde de chuva na praia","A risada que você dá quando erra a letra da música","Quando você segurou minha mão no hospital","Uma casa com quintal e uma rede","Você cozinhando no domingo","Mais calma nas manhãs","Te ver ensinando o Theo a pedalar","Quando a gente dançou na cozinha","Ir a Portugal com as crianças","Que a gente nunca parou de conversar","Dividir melhor as noites com o bebê","Um café na padaria antes de todo mundo acordar"];
+    const B = ["Acampar de novo, mesmo reclamando do frio","Nosso primeiro apartamento, sem sofá","Seu jeito de chegar cantando em casa","Quando você me esperou na saída da prova","Perto do mar, com espaço para os avós","A mesa cheia de amigos","Ler mais antes de dormir","O jeito que você conta história para o Theo","Na formatura da minha irmã","Japão, um dia","Que a gente foi parceiro em tudo","Revezar: uma noite cada","Caminhar no parque sem pressa"];
+    D.answers[`${d}_a`] = {date:d, slot:"a", text:A[i-1], q:q.q, theme:q.theme}; D.answers[`${d}_b`] = {date:d, slot:"b", text:B[i-1], q:q.q, theme:q.theme}; }
+  const tq = questionFor(t); D.answers[`${t}_b`] = {date:t, slot:"b", text:"Uma casa clara, com horta, e o quarto do bebê pertinho do nosso.", q:tq.q, theme:tq.theme};
+  const tk = (title, who, due, cat, extra={}) => ({title, who, due, cat, repeat:"", done:false, ...extra});
+  D.tasks = {
+    t1:tk("Comprar fraldas tamanho G para o Theo","b",t,"Compras"),
+    t2:tk("Marcar ultrassom morfológico","a",addDays(t,2),"Filhos"),
+    t3:tk("Buscar o Theo na natação","a",t,"Filhos",{repeat:"semanal"}),
+    t4:tk("Pagar a conta de luz","ambos",addDays(t,5),"Contas"),
+    t5:tk("Montar o berço","ambos",addDays(t,30),"Casa"),
+    t6:tk("Lavar o carro","b",addDays(t,-1),"Casa"),
+    d1:tk("Levar o lixo reciclável","a","", "Casa",{done:true, doneAt:t, doneBy:"a"}),
+    d2:tk("Reunião da escola","b","", "Filhos",{done:true, doneAt:t, doneBy:"b"}),
+    d3:tk("Fazer o mercado da semana","b","", "Compras",{done:true, doneAt:t, doneBy:"b"}),
+    d4:tk("Trocar a lâmpada da varanda","a","", "Casa",{done:true, doneAt:t, doneBy:"a"})
+  };
+  D.lists.l1 = {title:"Mercado", at:"1"}; D.lists.l2 = {title:"Enxoval do bebê", at:"2"};
+  ["Banana","Iogurte do Theo","Café","Pão de forma","Tomate"].forEach((x,i)=>D.items["m"+i] = {listId:"l1", text:x, done:i<2, at:String(i)});
+  TEMPLATES.enxoval.items.forEach((x,i)=>D.items["e"+i] = {listId:"l2", text:x, done:i<6, at:String(i)});
+  D.dates.dd1 = {title:"Jantar de aniversário de casamento", date:addDays(t,18), type:"encontro", yearly:false};
+  D.dates.dd2 = {title:"Consulta pré-natal", date:addDays(t,6), type:"consulta", yearly:false};
+  D.dates.dd3 = {title:"Cinema só nós dois", date:addDays(t,-26), type:"encontro", yearly:false};
+  D.dates.dd4 = {title:"Aniversário da Bia", date:"1991-"+addDays(t,40).slice(5), type:"aniversario", yearly:true};
+  D.wishes = {w1:{who:"b", text:"Aula de cerâmica", note:"Ateliê perto do trabalho", got:false, at:"1"}, w2:{who:"a", text:"Fone sem fio", note:"", got:false, at:"2"}, w3:{who:"b", text:"Um dia de spa", note:"", got:false, at:"3"}, w4:{who:"a", text:"Livro novo do autor preferido", note:"", got:true, at:"4"}};
+  D.names = {n1:{name:"Helena", likes:{a:true,b:true}, at:"1"}, n2:{name:"Alice", likes:{a:true}, at:"2"}, n3:{name:"Cecília", likes:{b:true}, at:"3"}, n4:{name:"Antônio", likes:{a:true,b:true}, at:"4"}, n5:{name:"Davi", likes:{b:true}, at:"5"}};
+  D.meta.couple.night = {base:t, who:"b"}; D.meta.couple.tone = "leve";
+  D.tasks.d2.thanks = {a:true}; D.tasks.d1.thanks = {b:true};
+  const now = Date.now(); [["mamada",35,"b"],["fralda",80,"a"],["mamada",190,"a"],["sono",240,"b"],["fralda",300,"b"]].forEach(([k,m,s],i)=>{ const at = new Date(now - m*60000); if(isoOf(at)===t) D.logs["g"+i] = {type:k, at:at.toISOString(), by:s}; });
+  D.kids.k2 = {name:"Lia", birth:addDays(t,-150)};
+  D.bills = {b1:{title:"Mercado da semana", amount:312.4, paidBy:"a", split:"meio", date:addDays(t,-2), settled:false, at:"3"}, b2:{title:"Farmácia do Theo", amount:86, paidBy:"b", split:"meio", date:addDays(t,-1), settled:false, at:"4"}, b3:{title:"Conta de luz", amount:214.9, paidBy:"b", split:"meio", date:addDays(t,-12), settled:true, at:"1"}};
+  S = D; COLS.forEach(c=>loaded.add(c)); schedule();
+}
+function exitDemo(){ if(savedReal){ S = savedReal.S; mode = savedReal.mode; me = savedReal.me; view = "home"; savedReal = null; } schedule(); }
+
+boot();
+</script>
+
+</body>
+</html>

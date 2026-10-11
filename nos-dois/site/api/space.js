@@ -1,0 +1,116 @@
+// Nós Dois: guarda o espaço de cada casal no Upstash Redis (integração do Vercel Marketplace).
+// Uma única rota: POST /api/space com {op, ...}. O casal acessa com id + chave secreta (o link de convite).
+const crypto = require("crypto");
+
+const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills"]);
+const ID_RE = /^[a-f0-9]{8,32}$/;
+const KEY_RE = /^[a-f0-9]{16,64}$/;
+const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
+const MAX_DOC_BYTES = 20000;
+const MAX_DOCS = 5000;
+
+function storage() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
+}
+
+async function redis(st, ...cmds) {
+  const r = await fetch(st.url + "/pipeline", {
+    method: "POST",
+    headers: { Authorization: "Bearer " + st.token, "content-type": "application/json" },
+    body: JSON.stringify(cmds),
+  });
+  if (!r.ok) throw new Error("redis " + r.status);
+  const out = await r.json();
+  return out.map((i) => { if (i.error) throw new Error(i.error); return i.result; });
+}
+
+const sha = (s) => crypto.createHash("sha256").update(s).digest("hex");
+function sameHash(a, b) {
+  const x = Buffer.from(String(a || "")), y = Buffer.from(String(b || ""));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+function deepMerge(a, b) {
+  const o = Array.isArray(a) ? [...a] : { ...a };
+  for (const k in b) {
+    const v = b[k];
+    o[k] = v && typeof v === "object" && !Array.isArray(v) && a && typeof a[k] === "object" && a[k] && !Array.isArray(a[k]) ? deepMerge(a[k], v) : v;
+  }
+  return o;
+}
+
+module.exports = async (req, res) => {
+  res.setHeader("cache-control", "no-store");
+  if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
+  let body = req.body || {};
+  if (typeof body === "string") { try { body = JSON.parse(body || "{}"); } catch { return res.status(400).json({ error: "JSON inválido." }); } }
+  const st = storage();
+  if (body.op === "ping") return res.status(200).json({ ok: true, storage: !!st });
+  if (!st) return res.status(503).json({ error: "Armazenamento não configurado." });
+
+  try {
+    if (body.op === "create") {
+      const id = crypto.randomBytes(8).toString("hex");
+      const key = crypto.randomBytes(20).toString("hex");
+      const [ok] = await redis(st, ["SET", `nd:${id}:auth`, sha(key), "NX"], ["SET", `nd:${id}:v`, "1", "NX"]);
+      if (ok !== "OK") return res.status(409).json({ error: "Tente de novo." });
+      return res.status(200).json({ id, key });
+    }
+
+    const { id, key } = body;
+    if (!ID_RE.test(String(id || "")) || !KEY_RE.test(String(key || ""))) return res.status(401).json({ error: "Link inválido." });
+    const [auth] = await redis(st, ["GET", `nd:${id}:auth`]);
+    if (!auth || !sameHash(auth, sha(key))) return res.status(404).json({ error: "Espaço não encontrado." });
+    const H = `nd:${id}:data`, V = `nd:${id}:v`;
+
+    if (body.op === "get") {
+      const [v] = await redis(st, ["GET", V]);
+      const ver = Number(v || 0);
+      if (Number(body.since || 0) === ver) return res.status(200).json({ changed: false, v: ver });
+      const [flat] = await redis(st, ["HGETALL", H]);
+      const data = {};
+      const pairs = Array.isArray(flat) ? flat : Object.entries(flat || {}).flat();
+      for (let i = 0; i + 1 < pairs.length; i += 2) {
+        const [col, doc] = String(pairs[i]).split("/");
+        try { (data[col] = data[col] || {})[doc] = JSON.parse(pairs[i + 1]); } catch {}
+      }
+      return res.status(200).json({ changed: true, v: ver, data });
+    }
+
+    if (body.op === "wipe") {
+      await redis(st, ["DEL", H, V, `nd:${id}:auth`]);
+      return res.status(200).json({ ok: true });
+    }
+
+    const { col, doc } = body;
+    if (!COLS.has(col) || !DOC_RE.test(String(doc || ""))) return res.status(400).json({ error: "Documento inválido." });
+    const field = `${col}/${doc}`;
+
+    if (body.op === "del") {
+      const [, v] = await redis(st, ["HDEL", H, field], ["INCR", V]);
+      return res.status(200).json({ v });
+    }
+
+    if (body.op === "put" || body.op === "merge") {
+      if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) return res.status(400).json({ error: "Dados inválidos." });
+      let value = body.data;
+      if (body.op === "merge") {
+        const [cur] = await redis(st, ["HGET", H, field]);
+        let base = {}; try { base = cur ? JSON.parse(cur) : {}; } catch {}
+        value = deepMerge(base, body.data);
+      }
+      const json = JSON.stringify(value);
+      if (json.length > MAX_DOC_BYTES) return res.status(413).json({ error: "Documento grande demais." });
+      const [exists, count] = await redis(st, ["HEXISTS", H, field], ["HLEN", H]);
+      if (!exists && count >= MAX_DOCS) return res.status(413).json({ error: "Espaço cheio." });
+      const [, v] = await redis(st, ["HSET", H, field, json], ["INCR", V]);
+      return res.status(200).json({ v });
+    }
+
+    return res.status(400).json({ error: "Operação desconhecida." });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: "Erro no servidor." });
+  }
+};

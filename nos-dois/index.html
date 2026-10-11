@@ -1,4 +1,20 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#FBF3F2"></head><body style="margin:0">
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#FBF3F2">
+<meta name="description" content="A casa, as contas e o bebê divididos à vista dos dois. Pergunta do dia, placar da casa, contas e rotina do bebê para casais.">
+<meta property="og:title" content="Nós Dois">
+<meta property="og:description" content="A casa é dos dois. A carga também.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Nós Dois">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
 <title>Nós Dois</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -388,7 +404,12 @@ function weekStart(){ const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%
 function deepMerge(a,b){ const o = Array.isArray(a)?[...a]:{...a}; for(const k in b){ const v=b[k]; o[k] = (v && typeof v==="object" && !Array.isArray(v) && a && typeof a[k]==="object" && a[k] && !Array.isArray(a[k])) ? deepMerge(a[k],v) : v; } return o; }
 const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
 const ARTIFACT_URL = "https://claude.ai/artifact/C1zfUg9TcfSupjdprCTNUp";
-const appUrl = () => (mode==="local" && /^https?:/.test(location.protocol)) ? location.href.split("#")[0] : ARTIFACT_URL;
+const appUrl = () => {
+  const real = savedReal ? savedReal.mode : mode;
+  if(real==="cloud" && cloud) return `${location.origin}${location.pathname}#entrar-${cloud.id}-${cloud.key}`;
+  if(real==="local" && /^https?:/.test(location.protocol)) return location.href.split("#")[0];
+  return ARTIFACT_URL;
+};
 const wa = text => "https://wa.me/?text=" + encodeURIComponent(text);
 const waBtn = (text, label, cls="btn sm soft") => `<a class="${cls}" href="${wa(text)}" target="_blank" rel="noopener">${ic("chat")} ${label}</a>`;
 function gcalUrl(e){ const d = e.date.replace(/-/g,""), n = addDays(e.date,1).replace(/-/g,""); let u = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(e.title)}&dates=${d}/${n}&details=${encodeURIComponent("Criado no Nós Dois")}`; if(e.yearly) u += "&recur=" + encodeURIComponent("RRULE:FREQ=YEARLY"); return u; }
@@ -410,19 +431,52 @@ const LOCAL_KEY = "nd-data-v1";
 function loadLocal(){ try{ const raw = lsGet(LOCAL_KEY); if(raw){ const o = JSON.parse(raw); S = {...blank(), ...o}; } }catch(e){} COLS.forEach(c=>loaded.add(c)); }
 function saveLocal(){ if(mode==="local") lsSet(LOCAL_KEY, JSON.stringify(S)); }
 
-const queues = {};
-function enqueue(key, fn){ queues[key] = (queues[key]||Promise.resolve()).then(fn).catch(onWriteError); }
+const queues = {}; let inflight = 0;
+function enqueue(key, fn){ inflight++; queues[key] = (queues[key]||Promise.resolve()).then(fn).catch(onWriteError).finally(()=>{ inflight--; }); }
+
+/* ----- Nuvem própria (site no Vercel): /api/space ----- */
+const CLOUD_KEY = "nd-cloud-v1";
+let cloud = null, cloudVer = 0, pollT = null, spacePromise = null;
+async function api(body){
+  let r; try{ r = await fetch("/api/space", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)}); }
+  catch(e){ const er = new Error("offline"); er.code = "unavailable"; throw er; }
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ const er = new Error(j.error || "erro"); er.code = (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : "unavailable"; throw er; }
+  return j;
+}
+function ensureSpace(){
+  if(cloud) return Promise.resolve(cloud);
+  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); startPoll(); schedule(); return cloud; })
+    .catch(e => { spacePromise = null; throw e; });
+  return spacePromise;
+}
+function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
+function cloudLost(){ lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+async function pull(){
+  if(!cloud || inflight > 0) return;
+  try{
+    const r = await api({op:"get", id:cloud.id, key:cloud.key, since:cloudVer});
+    if(inflight > 0) return;
+    if(r.changed){ const fresh = {...blank(), ...r.data}; cloudVer = r.v;
+      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; } }
+    COLS.forEach(c=>loaded.add(c)); schedule();
+  }catch(e){ if(e.code==="auth") cloudLost(); }
+}
+function startPoll(){ if(pollT) return; pollT = setInterval(()=>{ if(document.visibilityState==="visible") pull(); }, 4000);
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pull(); }); }
 function onWriteError(e){
   const code = e && e.code;
   if(code==="invalid_argument"){ readOnly = true; toast("Você só pode ver este espaço. Peça para ser adicionado(a) como Colaborador(a)."); }
   else if(code==="quota_exceeded"){ toast("O espaço de vocês está cheio. Apaguem itens antigos para continuar."); }
   else if(code==="unavailable"){ toast("Sem conexão agora. Tente de novo em instantes."); }
+  else if(code==="auth"){ cloudLost(); }
   else { toast("Não foi possível salvar. Tente de novo."); }
 }
 function put(c, id, data){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
   S[c] = {...S[c], [id]:data}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).set(data));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}));
   else saveLocal();
 }
 function patch(c, id, part){
@@ -430,12 +484,14 @@ function patch(c, id, part){
   const cur = S[c][id]; const merged = deepMerge(cur||{}, part);
   S[c] = {...S[c], [id]:merged}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => cur ? db.collection(c).doc(id).update(part) : db.collection(c).doc(id).set(merged));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}));
   else saveLocal();
 }
 function del(c, id){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
   const o = {...S[c]}; delete o[id]; S[c] = o; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).delete());
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"del", col:c, doc:id}));
   else saveLocal();
 }
 
@@ -453,6 +509,15 @@ async function boot(){
         S[c] = o; loaded.add(c); schedule();
       }, err => { loaded.add(c); if(err && err.code!=="revoked") toast("A sincronização parou. Recarregue a página."); schedule(); });
     });
+  } else if(/^https?:/.test(location.protocol)){
+    const m = location.hash.match(/^#entrar-([a-f0-9]{8,32})-([a-f0-9]{16,64})$/);
+    if(m){ lsSet(CLOUD_KEY, JSON.stringify({id:m[1], key:m[2]})); lsSet("nd-me", null); me = null; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
+    let avail = false; try{ avail = !!(await api({op:"ping"})).storage; }catch(e){}
+    if(avail){
+      mode = "cloud";
+      try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
+      if(cloud){ await pull(); startPoll(); } else { COLS.forEach(c=>loaded.add(c)); }
+    } else { mode = "local"; loadLocal(); }
   } else {
     mode = "local"; loadLocal();
   }
@@ -572,7 +637,7 @@ function render(){
 }
 
 function screen(){
-  if(mode==="loading" || (mode==="db" && !loaded.has("meta"))) return `<div class="splash"><div class="stack" style="align-items:center"><h1>Nós <em class="acc">Dois</em></h1><p class="muted">Abrindo o espaço de vocês…</p></div></div>`;
+  if(mode==="loading" || ((mode==="db"||mode==="cloud") && !loaded.has("meta"))) return `<div class="splash"><div class="stack" style="align-items:center"><h1>Nós <em class="acc">Dois</em></h1><p class="muted">Abrindo o espaço de vocês…</p></div></div>`;
   if(!C()) return onboarding();
   if(!me){ const ms = C().members||{}; if(myId){ if(ms.a===myId) me="a"; else if(ms.b===myId) me="b"; } }
   if(!me) return whoPicker();
@@ -609,7 +674,7 @@ function onboarding(){
     </form>
     <button class="btn ghost block" data-act="demo">Ver uma demonstração antes</button>
     <p class="small muted row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>Sem anúncios. O que vocês escrevem fica só no espaço de vocês, não é vendido nem compartilhado, e pode ser apagado a qualquer momento em Ajustes.</span></p>
-    ${mode==="local" ? `<p class="small muted">Aberto fora do Claude, os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
+    ${mode==="cloud" ? `<p class="small muted">Depois, mande o link de convite pelo WhatsApp: vocês dois veem e editam tudo, cada um no seu celular.</p>` : mode==="local" ? `<p class="small muted">Neste modo os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
   </div>`;
 }
 function whoPicker(){
@@ -1070,6 +1135,12 @@ function ajustes(){
   <div class="section"><h3>Quem está usando este aparelho</h3>
     <div class="who-pick">${["a","b"].map(s=>`<button data-act="iam" data-s="${s}" aria-pressed="${me===s}" style="${me===s?"border-color:var(--accent);border-width:2px":""}">${avatar(s)}<span>${esc(nameOf(s))}</span></button>`).join("")}</div>
   </div>
+  ${mode==="cloud" && cloud ? `<div class="section"><h3>Usar a dois</h3><section class="card stack">
+    <p class="small">Mande este link para a outra pessoa. Ela abre no celular dela, escolhe o próprio nome e pronto.</p>
+    <input type="text" id="inviteLink" readonly value="${esc(appUrl())}" aria-label="Link de convite">
+    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="copyInvite">Copiar link</button>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar no WhatsApp")}</div>
+    <p class="small muted">Quem tiver este link entra no espaço de vocês. Mande só para quem divide a casa com você.</p>
+  </section></div>` : ""}
   ${mode==="db" ? `<div class="section"><h3>Usar a dois</h3><section class="card stack"><p class="small">1. Compartilhe este app com a outra pessoa pelo botão de compartilhar do Claude, com acesso de <b>Colaborador(a)</b>.<br>2. Mande o link pelo WhatsApp. Cada um abre no próprio celular e escolhe o seu nome.</p><div>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar convite")}</div><p class="small muted">As respostas da pergunta do dia ficam guardadas no espaço compartilhado de vocês. O app só mostra a resposta da outra pessoa depois que você responde.</p></section></div>` : ""}
   <div class="section"><h3>Nós Dois Premium</h3><section class="card stack">
     <p class="small">Uma assinatura para os dois: <b>R$ 9,90 por mês</b> ou <b>R$ 69,90 por ano</b>. Os 30 primeiros dias são grátis e só começam quando vocês dois tiverem entrado.</p>
@@ -1078,11 +1149,11 @@ function ajustes(){
     ${(C().interest||{})[me] ? `<span class="tag ok">${ic("tick")} Você está na lista de espera</span>` : `<button class="btn sm" data-act="interest">Quero ser avisado(a)</button>`}
   </section></div>
   <div class="section"><h3>Privacidade</h3><section class="card stack">
-    <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
+    <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com o link de convite de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
     <p class="small muted">A pergunta do dia esconde a resposta da outra pessoa até você responder; isso é uma regra da tela, não criptografia.</p>
     ${mode!=="demo" ? `<button class="btn danger" data-act="wipeAll">${ic("trash")} Apagar todos os dados de vocês</button>` : ""}
   </section></div>
-  ${mode==="local" ? `<div class="section"><h3>Dados</h3><section class="card stack"><p class="small muted">Aberto fora do Claude, tudo fica salvo só neste navegador. Para usar a dois com sincronização, abram a versão publicada no Claude.</p></section></div>` : ""}`;
+  ${mode==="local" ? `<div class="section"><h3>Dados</h3><section class="card stack"><p class="small muted">Neste modo tudo fica salvo só neste navegador, sem sincronização entre celulares.</p></section></div>` : ""}`;
 }
 
 /* ===================== Folha (formulários) ===================== */
@@ -1198,7 +1269,12 @@ const ACT = {
       put("bills", id, {...b, title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, split:fd.split, date:fd.date||b.date}); }, {extra:delBtn("delBill", id)}); },
   delBill: el => { if(!armed(el)) return; del("bills", el.dataset.id); closeSheet(); },
   settle: () => { Object.entries(S.bills).filter(([,b])=>!b.settled).forEach(([id,b])=>put("bills", id, {...b, settled:true, settledAt:today()})); toast("Contas acertadas"); },
+  copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
+    try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
+    catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
   wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois`; return; }
+    if(mode==="cloud"){ const sp = cloud; lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
+      if(sp) api({op:"wipe", id:sp.id, key:sp.key}).then(()=>toast("Todos os dados foram apagados.")).catch(()=>toast("Não deu para apagar no servidor. Tente de novo.")); schedule(); return; }
     COLS.forEach(c => Object.keys(S[c]).forEach(id => del(c, id))); lsSet("nd-me", null); me = null; view = "home"; toast("Todos os dados foram apagados."); },
   delKid: el => { if(!armed(el)) return; const id = el.dataset.id; Object.entries(S.journal).filter(([,j])=>j.kidId===id).forEach(([jid])=>del("journal", jid)); del("kids", id); closeSheet(); }
 };
@@ -1296,4 +1372,5 @@ function exitDemo(){ if(savedReal){ S = savedReal.S; mode = savedReal.mode; me =
 boot();
 </script>
 
-</body></html>
+</body>
+</html>
