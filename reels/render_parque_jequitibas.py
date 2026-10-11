@@ -93,30 +93,31 @@ VIG = vignette()
 
 # ---------- assets ----------
 hook = load("064650fe-image.jpg")
-montage = [load(n) for n in ["a446c196-image.jpg", "1011b296-image.jpg", "66ee42b1-image.jpg",
-                             "782c1b4d-image.jpg", "41700cbb-image.jpg", "0aad2ef6-image.jpg",
-                             "cc0f3daa-image.jpg"]]
+montage = [load(n) for n in ["a446c196-image.jpg", "760934ab-image.jpg", "1011b296-image.jpg", "9e4b4d58-image.jpg",
+                             "782c1b4d-image.jpg", "d18ec0ce-image.jpg", "66ee42b1-image.jpg", "5028e082-image.jpg",
+                             "0aad2ef6-image.jpg", "e3207cc3-image.jpg", "41700cbb-image.jpg", "cc0f3daa-image.jpg"]]
 
 L_hook1 = text_layer([("SEU PET MERECE", ANTON(118), WHITE)])
 L_hook2 = text_layer([("FOTOS ASSIM", ANTON(150), ORANGE)])
 L_hook3 = text_layer([("Vem fotografar com a gente!", MONT(50, "Bold"), WHITE)])
 
 chips = [
-    text_layer([("QUANDO", MONT(36, "ExtraBold"), ORANGE), ("FERIADO • 12 DE OUTUBRO", ANTON(76), WHITE)],
+    text_layer([("QUANDO", MONT(36, "ExtraBold"), ORANGE), ("12 DE OUTUBRO", ANTON(84), WHITE), ("DIA DAS CRIANÇAS", MONT(40, "ExtraBold"), ORANGE)],
                bg=(30, 30, 28, 220)),
-    text_layer([("ONDE", MONT(36, "ExtraBold"), ORANGE), ("PARQUE DOS JEQUITIBÁS", ANTON(76), WHITE)],
+    text_layer([("ONDE", MONT(36, "ExtraBold"), ORANGE), ("PARQUE DOS JEQUITIBÁS", ANTON(76), WHITE), ("SOBRADINHO", MONT(40, "ExtraBold"), ORANGE)],
                bg=(30, 30, 28, 220)),
     text_layer([("HORÁRIO", MONT(36, "ExtraBold"), ORANGE), ("A PARTIR DAS 7H", ANTON(84), WHITE)],
                bg=(30, 30, 28, 220)),
 ]
-chip_for = [0, 0, 0, 1, 1, 2, 2]
+chip_for = [0] * 4 + [1] * 4 + [2] * 4
 
 F_top = text_layer([("TE ESPERAMOS!", ANTON(124), DARK)], shadow=False)
 F_card = text_layer([
     ("PARQUE DOS", ANTON(88), DARK),
     ("JEQUITIBÁS", ANTON(128), ORANGE),
-], shadow=False)
-F_date = text_layer([("Segunda, 12 de outubro • Feriado", MONT(46, "Bold"), WHITE)], bg=ORANGE + (255,), pad=(40, 22))
+    ("SOBRADINHO", MONT(50, "ExtraBold"), DARK),
+], shadow=False, gap=14)
+F_date = text_layer([("12 de outubro • Dia das Crianças", MONT(46, "Bold"), WHITE)], bg=ORANGE + (255,), pad=(40, 22))
 F_time = text_layer([("A partir das 7h da manhã", MONT(52, "ExtraBold"), WHITE)], bg=DARK + (255,), pad=(40, 24))
 F_cta = text_layer([("Traga seu pet e venha brilhar!", MONT(44, "SemiBold"), DARK)], shadow=False)
 
@@ -162,7 +163,7 @@ BADGE.alpha_composite(_lf, ((200 - _lf.width) // 2, (190 - _lf.height) // 2))
 
 # ---------- timeline ----------
 T_HOOK = 3.0
-T_SHOT = 1.3
+T_SHOT = 1.1
 T_MONT = T_SHOT * len(montage)
 T_FINAL = 7.0
 TOTAL = T_HOOK + T_MONT + T_FINAL
@@ -223,11 +224,11 @@ for i in range(N):
         cy = 860 + (460 - 860) * mv
         sc = 0.62 + (0.44 - 0.62) * mv
         draw_logo(fr, W / 2, cy, sc, tf - 0.25)
-        place(fr, F_top, W / 2, 870, tf - 3.0)
-        place(fr, F_card, W / 2, 1110, tf - 3.25, "pop")
-        place(fr, F_date, W / 2, 1350, tf - 3.7)
-        place(fr, F_time, W / 2, 1480, tf - 3.95)
-        place(fr, F_cta, W / 2, 1610, tf - 4.4)
+        place(fr, F_top, W / 2, 850, tf - 3.0)
+        place(fr, F_card, W / 2, 1120, tf - 3.25, "pop")
+        place(fr, F_date, W / 2, 1395, tf - 3.7)
+        place(fr, F_time, W / 2, 1520, tf - 3.95)
+        place(fr, F_cta, W / 2, 1635, tf - 4.4)
     ff.stdin.write(fr.convert("RGB").tobytes())
     if i % 60 == 0:
         print(f"{i}/{N}", flush=True)
