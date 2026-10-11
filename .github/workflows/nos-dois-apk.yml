@@ -31,7 +31,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - name: Conferir o Android SDK da máquina
+        run: |
+          echo "ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          ls "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/platforms" | tail -5
 
       - name: Instalar Capacitor
         run: npm install --no-audit --no-fund
