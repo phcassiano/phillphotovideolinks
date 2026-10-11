@@ -1,5 +1,5 @@
 // Nós Dois: guarda a "casca" do app para abrir mesmo sem internet. Nunca guarda /api.
-const CACHE = "nos-dois-v1";
+const CACHE = "nos-dois-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
