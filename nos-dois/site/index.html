@@ -9,10 +9,11 @@
 <meta property="og:description" content="A casa é dos dois. A carga também.">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Nós Dois">
 <style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<script>if("serviceWorker" in navigator && location.protocol==="https:"){addEventListener("load",function(){navigator.serviceWorker.register("/sw.js").catch(function(){})})}</script>
 </head>
 <body>
 <title>Nós Dois</title>
@@ -435,7 +436,7 @@ const queues = {}; let inflight = 0;
 function enqueue(key, fn){ inflight++; queues[key] = (queues[key]||Promise.resolve()).then(fn).catch(onWriteError).finally(()=>{ inflight--; }); }
 
 /* ----- Nuvem própria (site no Vercel): /api/space ----- */
-const CLOUD_KEY = "nd-cloud-v1";
+const CLOUD_KEY = "nd-cloud-v1", CLOUD_CACHE = "nd-cloud-cache-v1";
 let cloud = null, cloudVer = 0, pollT = null, spacePromise = null;
 async function api(body){
   let r; try{ r = await fetch("/api/space", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)}); }
@@ -451,14 +452,15 @@ function ensureSpace(){
   return spacePromise;
 }
 function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
-function cloudLost(){ lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+function cloudLost(){ lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
 async function pull(){
   if(!cloud || inflight > 0) return;
   try{
     const r = await api({op:"get", id:cloud.id, key:cloud.key, since:cloudVer});
     if(inflight > 0) return;
     if(r.changed){ const fresh = {...blank(), ...r.data}; cloudVer = r.v;
-      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; } }
+      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; }
+      lsSet(CLOUD_CACHE, JSON.stringify(fresh)); }
     COLS.forEach(c=>loaded.add(c)); schedule();
   }catch(e){ if(e.code==="auth") cloudLost(); }
 }
@@ -512,11 +514,15 @@ async function boot(){
   } else if(/^https?:/.test(location.protocol)){
     const m = location.hash.match(/^#entrar-([a-f0-9]{8,32})-([a-f0-9]{16,64})$/);
     if(m){ lsSet(CLOUD_KEY, JSON.stringify({id:m[1], key:m[2]})); lsSet("nd-me", null); me = null; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
-    let avail = false; try{ avail = !!(await api({op:"ping"})).storage; }catch(e){}
-    if(avail){
+    let avail = false, offline = false; try{ avail = !!(await api({op:"ping"})).storage; }catch(e){ offline = true; }
+    try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
+    if(avail || (offline && cloud)){
       mode = "cloud";
-      try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
-      if(cloud){ await pull(); startPoll(); } else { COLS.forEach(c=>loaded.add(c)); }
+      if(cloud){
+        try{ const cached = JSON.parse(lsGet(CLOUD_CACHE) || "null"); if(cached) S = {...blank(), ...cached}; }catch(e){}
+        if(offline){ COLS.forEach(c=>loaded.add(c)); toast("Sem internet: mostrando a última versão salva."); } else { await pull(); }
+        startPoll();
+      } else { COLS.forEach(c=>loaded.add(c)); }
     } else { mode = "local"; loadLocal(); }
   } else {
     mode = "local"; loadLocal();
@@ -1349,7 +1355,7 @@ const ACT = {
     try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
     catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
   wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois`; return; }
-    if(mode==="cloud"){ const sp = cloud; lsSet(CLOUD_KEY, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
+    if(mode==="cloud"){ const sp = cloud; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
       if(sp) api({op:"wipe", id:sp.id, key:sp.key}).then(()=>toast("Todos os dados foram apagados.")).catch(()=>toast("Não deu para apagar no servidor. Tente de novo.")); schedule(); return; }
     COLS.forEach(c => Object.keys(S[c]).forEach(id => del(c, id))); lsSet("nd-me", null); me = null; view = "home"; toast("Todos os dados foram apagados."); },
   delKid: el => { if(!armed(el)) return; const id = el.dataset.id; Object.entries(S.journal).filter(([,j])=>j.kidId===id).forEach(([jid])=>del("journal", jid)); del("kids", id); closeSheet(); }
