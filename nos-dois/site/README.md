@@ -6,7 +6,7 @@ App para casais em uma página (`index.html`) + uma função do Vercel (`api/spa
 1. Em vercel.com → **Add New… → Project**, importe o repositório `phcassiano/phillphotovideolinks`.
 2. Em **Root Directory**, escolha `nos-dois/site`. Framework: **Other**. Sem comando de build.
 3. **Deploy.**
-4. No projeto, aba **Storage** (ou **Marketplace**) → **Upstash Redis** → crie o banco (plano grátis) e **conecte ao projeto**. Isso cria as variáveis `KV_REST_API_URL` e `KV_REST_API_TOKEN` (ou `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`; o código aceita as duas).
+4. No projeto, aba **Storage** → crie um banco **Upstash** ou o **Redis** oficial e conecte ao projeto. O código aceita as variáveis do Upstash (`KV_REST_API_URL`/`KV_REST_API_TOKEN` ou `UPSTASH_REDIS_REST_*`) e qualquer `REDIS_URL` (inclusive com prefixo, como `kv_REDIS_URL`).
 5. Faça **Redeploy** para as variáveis valerem.
 
 Sem o passo 4 o site funciona, mas salva só no aparelho (sem sincronizar o casal).
