@@ -4,11 +4,11 @@ const crypto = require("crypto");
 const net = require("net");
 const tls = require("tls");
 
-const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed"]);
+const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards"]);
 const ID_RE = /^[a-f0-9]{8,32}$/;
 const KEY_RE = /^[a-f0-9]{16,64}$/;
 const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
-const MAX_DOC_BYTES = 20000;
+const MAX_DOC_BYTES = 300000;
 const MAX_DOCS = 5000;
 const CODE_ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I
 const newCode = () => [...crypto.randomBytes(8)].map((x) => CODE_ALPHA[x % 32]).join("");

@@ -8,7 +8,7 @@ const cfg = {
   appName: "Nós Dois",
   webDir: "www",
   server: { url, cleartext: false, allowNavigation: [host] },
-  android: { backgroundColor: "#FBF3F2" }
+  android: { backgroundColor: "#EAF4EF" }
 };
 fs.writeFileSync("capacitor.config.json", JSON.stringify(cfg, null, 2));
 console.log("capacitor.config.json ->", url);
