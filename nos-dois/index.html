@@ -417,7 +417,7 @@ const hhmm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pa
 const lsSet = (k,v) => { try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} };
 
 /* ===================== Estado e sincronização ===================== */
-const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills"];
+const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed"];
 const blank = () => Object.fromEntries(COLS.map(c=>[c,{}]));
 let S = blank();
 let mode = "loading";          // loading | db | local | demo
@@ -579,8 +579,9 @@ function allEvents(){
 const upcoming = () => allEvents().filter(e=>e.inDays>=0).sort((a,b)=>a.inDays-b.inDays);
 function partnerJoined(){ const o = other(me); const c = C()||{}; if(c.members && c.members[o]) return true;
   return Object.values(S.answers).some(a=>a.slot===o) || Object.values(S.tasks).some(t=>t.by===o||t.doneBy===o) || Object.values(S.logs).some(l=>l.by===o); }
+const ownerOf = b => b.owner || (b.split==="outro" ? other(b.paidBy) : "casal");
 function billBalance(){ let net = 0; // > 0: b deve para a
-  Object.values(S.bills).filter(b=>!b.settled).forEach(b=>{ const share = b.split==="outro" ? b.amount : b.amount/2; net += b.paidBy==="a" ? share : -share; });
+  Object.values(S.bills).filter(b=>!b.settled).forEach(b=>{ const o = ownerOf(b); if(o===b.paidBy) return; const share = o==="casal" ? b.amount/2 : b.amount; net += b.paidBy==="a" ? share : -share; });
   return Math.round(net*100)/100; }
 function balanceText(){ const n = billBalance(); if(Math.abs(n) < 0.01) return "Tudo certo entre vocês"; const debtor = n>0?"b":"a", creditor = other(debtor);
   return `${debtor===me?"Você deve":nameOf(debtor)+" deve"} ${money2(Math.abs(n))} ${creditor===me?"para você":"para "+nameOf(creditor)}`; }
@@ -764,7 +765,7 @@ function home(){
       <button class="tile" data-act="go" data-v="tarefas"><span class="ic">${ic("check")}${ic("chev")}</span><span class="eyebrow">Tarefas</span><b>${pl(open.length,"aberta","abertas")}</b><span class="small muted">${myOpen} com você</span></button>
       <button class="tile" data-act="go" data-v="ideias"><span class="ic">${ic("spark")}${ic("chev")}</span><span class="eyebrow">Fazer juntos</span><b>${IDEAS.length} ideias</b><span class="small muted">Em casa ou numa escapada</span></button>
       <button class="tile" data-act="go" data-v="desejos"><span class="ic">${ic("gift")}${ic("chev")}</span><span class="eyebrow">Desejos</span><b>${pl(wishes,"desejo","desejos")}</b><span class="small muted">Ideias de presente</span></button>
-      <button class="tile ${fam?"":"wide"}" data-act="go" data-v="contas"><span class="ic">${ic("coin")}${ic("chev")}</span><span class="eyebrow">Contas da casa</span><b>${Math.abs(bal)<0.01 ? "Tudo certo" : money2(Math.abs(bal))}</b><span class="small muted">${Math.abs(bal)<0.01 ? (nBills?"Nada a acertar":"Quem pagou o quê") : esc(balanceText())}</span></button>
+      <button class="tile ${fam?"":"wide"}" data-act="go" data-v="contas"><span class="ic">${ic("coin")}${ic("chev")}</span><span class="eyebrow">Contas da casa</span><b>${fixedDueSoon() ? pl(fixedDueSoon(),"conta vencendo","contas vencendo") : Math.abs(bal)<0.01 ? "Tudo certo" : money2(Math.abs(bal))}</b><span class="small muted">${fixedDueSoon() ? "Nos próximos 3 dias" : Math.abs(bal)<0.01 ? (nBills?"Nada a acertar":"Fixas e gastos do mês") : esc(balanceText())}</span></button>
       ${fam ? `<button class="tile" data-act="go" data-v="familia"><span class="ic">${ic("family")}${ic("chev")}</span><span class="eyebrow">Família</span>${fam}</button>` : ""}
     </div>
   </div>`;
@@ -1038,32 +1039,88 @@ function namesSection(){
 }
 
 /* ----- Contas da casa ----- */
+const BILL_CATS = ["Moradia","Mercado","Contas","Transporte","Saúde","Filhos","Lazer","Outros"];
+let billMonth = null;
+const monthOf = d => (d||"").slice(0,7);
+const monthLabel = m => { const [y,mo] = m.split("-").map(Number); const s = new Date(y,mo-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}); return s.charAt(0).toUpperCase()+s.slice(1); };
+const shiftMonth = (m,k) => { const [y,mo] = m.split("-").map(Number); const d = new Date(y, mo-1+k, 1); return `${d.getFullYear()}-${pad(d.getMonth()+1)}`; };
+const ownerLabel = o => o==="casal" ? "Do casal" : o===me ? "Seu" : `De ${nameOf(o)}`;
+function fixedStatus(f, m){
+  const paidId = f.paid && f.paid[m]; const paid = paidId && S.bills[paidId];
+  if(paid) return {k:"paga", txt:`Paga · ${money2(paid.amount)}`, bill:paid};
+  const [y,mo] = m.split("-").map(Number); const last = new Date(y,mo,0).getDate();
+  const due = `${m}-${pad(Math.min(Number(f.dueDay)||1,last))}`; const n = diff(today(), due);
+  if(n < 0) return {k:"atrasada", txt:`Venceu ${inDaysText(n).toLowerCase()}`, due};
+  return {k:"aberta", txt:n===0?"Vence hoje":`Vence ${inDaysText(n).toLowerCase()}`, due, n};
+}
+function fixedDueSoon(){ const m = monthOf(today()); return Object.values(S.fixed).filter(f=>{ const st = fixedStatus(f,m); return st.k==="atrasada" || (st.k==="aberta" && st.n<=3); }).length; }
 function contas(){
-  const bs = Object.entries(S.bills).map(([id,b])=>({...b,id})).sort((a,b)=>(a.at||"")<(b.at||"")?1:-1);
-  const openB = bs.filter(b=>!b.settled), past = bs.filter(b=>b.settled).slice(0,10);
+  const m = billMonth || monthOf(today()); const isNow = m===monthOf(today());
+  const bs = Object.entries(S.bills).map(([id,b])=>({...b,id}));
+  const month = bs.filter(b=>monthOf(b.date)===m).sort((a,b)=>(a.date||"")<(b.date||"")?1:-1);
+  const sum = arr => arr.reduce((x,b)=>x+(Number(b.amount)||0),0);
+  const casal = sum(month.filter(b=>ownerOf(b)==="casal")), ia = sum(month.filter(b=>ownerOf(b)==="a")), ib = sum(month.filter(b=>ownerOf(b)==="b"));
+  const total = casal+ia+ib;
+  const cats = BILL_CATS.map(c=>[c, sum(month.filter(b=>(b.category||"Outros")===c))]).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   const n = billBalance();
-  const paid = s => openB.filter(b=>b.paidBy===s).reduce((x,b)=>x+b.amount,0);
-  const row = b => `<div class="task ${b.settled?"done":""}"><span class="iconbtn" style="width:38px;height:38px;color:var(--accent)" aria-hidden="true">${ic("coin")}</span>
-    <button class="taskbody" data-act="editBill" data-id="${b.id}"><div class="t">${esc(b.title)}</div><div class="m"><span>${esc(label(b.paidBy))} pagou</span><span>· ${b.split==="outro"?(other(b.paidBy)===me?"era sua":`era de ${esc(nameOf(other(b.paidBy)))}`):"meio a meio"}</span><span>· ${esc(fmt(b.date||today(),{day:"numeric",month:"short"}))}</span></div></button>
-    <b class="num">${money2(b.amount)}</b></div>`;
+  const fixed = Object.entries(S.fixed).map(([id,f])=>({...f,id})).filter(f=>!f.at || f.at.length<7 || monthOf(f.at)<=m).sort((a,b)=>(Number(a.dueDay)||0)-(Number(b.dueDay)||0));
+  const fixedPaid = fixed.filter(f=>fixedStatus(f,m).k==="paga").length;
+  const row = b => { const o = ownerOf(b);
+    return `<div class="task"><span class="iconbtn" style="width:38px;height:38px;color:var(--accent)" aria-hidden="true">${ic("coin")}</span>
+    <button class="taskbody" data-act="editBill" data-id="${b.id}"><div class="t">${esc(b.title)}</div><div class="m"><span class="tag ${o==="casal"?"acc":""}">${esc(ownerLabel(o))}</span><span>${esc(label(b.paidBy))} pagou</span><span>· ${esc(b.category||"Outros")}</span><span>· ${esc(fmt(b.date||today(),{day:"numeric",month:"short"}))}</span>${b.settled && o!==b.paidBy?`<span>· acertado</span>`:""}</div></button>
+    <b class="num">${money2(b.amount)}</b></div>`; };
+  const fixedRow = f => { const st = fixedStatus(f,m); const o = f.owner||"casal";
+    return `<div class="task"><span class="chk ${st.k==="paga"?"on":""}" aria-hidden="true">${ic("tick")}</span>
+    <button class="taskbody" data-act="editFixed" data-id="${f.id}"><div class="t">${esc(f.title)}</div><div class="m"><span class="tag ${st.k==="atrasada"?"warn":st.k==="paga"?"ok":""}">${esc(st.txt)}</span><span>dia ${Number(f.dueDay)||1}</span><span>· ${esc(ownerLabel(o))}</span>${f.amount?`<span>· ~${money2(f.amount)}</span>`:""}</div></button>
+    ${st.k==="paga" ? `<button class="btn sm ghost" data-act="unpayFixed" data-id="${f.id}" data-m="${m}">Desfazer</button>` : `<button class="btn sm soft" data-act="payFixed" data-id="${f.id}" data-m="${m}">Paguei</button>`}</div>`; };
   return `
-  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Contas <em class="acc">da casa</em></h1><p class="sub">Quem pagou o quê, sem planilha</p></div></div></div>
+  <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Contas <em class="acc">da casa</em></h1><p class="sub">Contas fixas, gastos do casal e de cada um</p></div></div></div>
   <section class="hero stack" style="gap:10px">
     <span class="eyebrow">Saldo entre vocês</span>
     <h2 class="num">${esc(balanceText())}</h2>
-    <div class="row between small num"><span class="row" style="gap:6px">${avatar("a","xs")} pagou ${money2(paid("a"))}</span><span class="row" style="gap:6px">pagou ${money2(paid("b"))} ${avatar("b","xs")}</span></div>
+    <p class="small muted">Conta só o que um pagou pelo casal ou pelo outro. Gasto individual pago pela própria pessoa não entra.</p>
     ${Math.abs(n)>=0.01 ? `<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="settle">Marcar como acertado</button>${mode!=="demo"?waBtn(`Contas da casa no Nós Dois: ${nameOf(n>0?"b":"a")} deve ${money2(Math.abs(n))} para ${nameOf(n>0?"a":"b")}. Pix quando der?`, "Mandar no WhatsApp"):""}</div>` : ""}
   </section>
-  <div class="section"><h3>Em aberto</h3><div class="card" style="padding-block:4px">${openB.length ? openB.map(row).join("") : `<div class="empty"><p>Anote o que cada um pagou: mercado, luz, farmácia, presente da família.</p></div>`}</div></div>
-  ${past.length ? `<div class="section"><details><summary>Já acertadas (${past.length})</summary><div class="card" style="padding-block:4px;margin-top:10px">${past.map(row).join("")}</div></details></div>` : ""}
-  <button class="btn fab" data-act="newBill">${ic("plus")} Nova conta</button>`;
+
+  <div class="row between" style="margin-top:22px">
+    <button class="iconbtn" data-act="billMonth" data-k="-1" aria-label="Mês anterior">${ic("back")}</button>
+    <h2 class="num" style="text-align:center">${esc(monthLabel(m))}</h2>
+    <button class="iconbtn" data-act="billMonth" data-k="1" aria-label="Próximo mês" ${isNow?"disabled style=\"opacity:.35\"":""}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONS.chev}</svg></button>
+  </div>
+  <section class="card stack" style="margin-top:12px">
+    <div class="row between"><span class="eyebrow">Gastos do mês</span><b class="num">${money2(total)}</b></div>
+    <div class="stats num">
+      <div class="stat"><b style="font-size:20px">${money2(casal)}</b><span>Do casal</span></div>
+      <div class="stat"><b style="font-size:20px">${money2(ia)}</b><span>Só ${esc(nameOf("a"))}</span></div>
+      <div class="stat"><b style="font-size:20px">${money2(ib)}</b><span>Só ${esc(nameOf("b"))}</span></div>
+    </div>
+    ${casal ? `<p class="small muted num">Somando a metade dos gastos do casal: ${esc(nameOf("a"))} ${money2(ia+casal/2)} · ${esc(nameOf("b"))} ${money2(ib+casal/2)}</p>` : ""}
+    ${cats.length ? `<div class="stack" style="gap:8px">${cats.map(([c,v])=>`<div class="stack" style="gap:3px"><div class="row between small num"><span>${esc(c)}</span><span class="muted">${money2(v)} · ${Math.round(v/total*100)}%</span></div><div class="bar"><i class="fx" style="width:${v/total*100}%"></i></div></div>`).join("")}</div>` : `<p class="small muted">Nenhum gasto anotado neste mês.</p>`}
+  </section>
+
+  <div class="section"><div class="row"><h2>Contas fixas</h2><span class="small muted num">${fixed.length?`${fixedPaid} de ${fixed.length} pagas`:""}</span><button class="btn sm ghost" data-act="newFixed">${ic("plus")} Adicionar</button></div>
+    <div class="card" style="padding-block:4px">${fixed.length ? fixed.map(fixedRow).join("") : `<div class="empty"><p>Aluguel, condomínio, luz, água, internet, escola: cadastre uma vez e marque "Paguei" todo mês.</p></div>`}</div>
+  </div>
+
+  <div class="section"><div class="row"><h2>Lançamentos</h2><span class="small muted">${month.length}</span></div>
+    <div class="card" style="padding-block:4px">${month.length ? month.map(row).join("") : `<div class="empty"><p>Anote mercado, farmácia, presente, gasolina. Diga se é do casal ou só de um.</p></div>`}</div>
+  </div>
+  <button class="btn fab" data-act="newBill">${ic("plus")} Novo gasto</button>`;
 }
-function billForm(b={}){ const pn = nameOf(other(me));
+function billForm(b={}){ const pn = nameOf(other(me)); const o = b.id ? ownerOf(b) : (b.owner||"casal");
   return `<label class="field"><span>O quê</span><input type="text" id="bTitle" name="title" required maxlength="80" value="${esc(b.title||"")}" placeholder="Ex.: Mercado da semana"></label>
   <label class="field"><span>Valor (R$)</span><input type="text" inputmode="decimal" id="bAmount" name="amount" required value="${b.amount!=null?String(b.amount).replace(".",","):""}" placeholder="Ex.: 230,50"></label>
+  <div class="field"><span>De quem é o gasto</span><div class="seg">${[["casal","Do casal"],[me,"Meu"],[other(me),`De ${pn}`]].map(([v,l])=>`<label><input type="radio" name="owner" value="${v}" ${o===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
   <div class="field"><span>Quem pagou</span><div class="seg">${[[me,"Eu"],[other(me),pn]].map(([v,l])=>`<label><input type="radio" name="paidBy" value="${v}" ${(b.paidBy||me)===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
-  <div class="field"><span>Como dividir</span><div class="seg"><label><input type="radio" name="split" value="meio" ${(b.split||"meio")==="meio"?"checked":""}><span>Meio a meio</span></label><label><input type="radio" name="split" value="outro" ${b.split==="outro"?"checked":""}><span>Era todo do outro</span></label></div></div>
-  <label class="field"><span>Data</span><input type="date" id="bDate" name="date" value="${esc(b.date||today())}"></label>`; }
+  <div class="field"><span>Categoria</span><div class="seg">${BILL_CATS.map(c=>`<label><input type="radio" name="category" value="${c}" ${(b.category||"Mercado")===c?"checked":""}><span>${c}</span></label>`).join("")}</div></div>
+  <label class="field"><span>Data</span><input type="date" id="bDate" name="date" value="${esc(b.date||today())}"></label>
+  <p class="small muted">Do casal: quem não pagou deve a metade. De um só, pago pelo outro: deve o valor todo. Pago pela própria pessoa: só entra no resumo.</p>`; }
+function fixedForm(f={}){ const pn = nameOf(other(me)); const o = f.owner||"casal";
+  return `<label class="field"><span>Conta</span><input type="text" id="fTitle" name="title" required maxlength="60" value="${esc(f.title||"")}" placeholder="Ex.: Aluguel, Luz, Internet"></label>
+  <label class="field"><span>Valor de costume (R$, opcional)</span><input type="text" inputmode="decimal" id="fAmount" name="amount" value="${f.amount!=null?String(f.amount).replace(".",","):""}" placeholder="Ex.: 2.200,00"></label>
+  <label class="field"><span>Dia do vencimento</span><input type="number" id="fDay" name="dueDay" min="1" max="31" required value="${esc(f.dueDay||10)}"></label>
+  <div class="field"><span>De quem é</span><div class="seg">${[["casal","Do casal"],[me,"Minha"],[other(me),`De ${pn}`]].map(([v,l])=>`<label><input type="radio" name="owner" value="${v}" ${o===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
+  <div class="field"><span>Categoria</span><div class="seg">${BILL_CATS.map(c=>`<label><input type="radio" name="category" value="${c}" ${(f.category||"Contas")===c?"checked":""}><span>${c}</span></label>`).join("")}</div></div>`; }
 
 /* ----- Datas ----- */
 function datas(){
@@ -1176,7 +1233,7 @@ function toast(msg){ const t = document.getElementById("toast"); t.textContent =
 function armed(el){ if(el.dataset.armed) return true; el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo para excluir`; return false; }
 
 const ACT = {
-  go: el => { view = el.dataset.v; if(view!=="listas") openList = null; editingAnswer = false; schedule(); },
+  go: el => { if(el.dataset.v==="contas" && view!=="contas") billMonth = null; view = el.dataset.v; if(view!=="listas") openList = null; editingAnswer = false; schedule(); },
   iam: el => { me = el.dataset.s; lsSet("nd-me", me); if(mode==="db" && myId){ const ms = (C().members)||{}; const upd = {[me]:myId}; if(ms[other(me)]===myId) upd[other(me)] = null; patch("meta","couple",{members:upd}); } schedule(); },
   demo: () => startDemo(),
   exitDemo: () => exitDemo(),
@@ -1262,13 +1319,32 @@ const ACT = {
     const old = Object.entries(S.logs).filter(([,l])=>l.by===me && l.at && diff(isoOf(new Date(l.at)), today()) > 14).slice(0,20); old.forEach(([id])=>del("logs", id));
     toast(`${LOG_TYPES[k][0]} registrada às ${hhmm(new Date().toISOString())}`); },
   delLog: el => del("logs", el.dataset.id),
-  newBill: () => openSheet("Nova conta", billForm(), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
-    put("bills", uid(), {title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, split:fd.split||"meio", date:fd.date||today(), settled:false, at:new Date().toISOString(), by:me}); toast("Conta anotada"); }, {submit:"Anotar conta"}),
+  billMonth: el => { const cur = billMonth || monthOf(today()); const nx = shiftMonth(cur, Number(el.dataset.k)); if(nx > monthOf(today())) return; billMonth = nx; schedule(); },
+  newBill: () => openSheet("Novo gasto", billForm({date: billMonth && billMonth!==monthOf(today()) ? `${billMonth}-01` : today()}), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
+    put("bills", uid(), {title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, owner:fd.owner||"casal", category:fd.category||"Outros", date:fd.date||today(), settled:false, at:new Date().toISOString(), by:me}); toast("Gasto anotado"); }, {submit:"Anotar gasto"}),
   editBill: el => { const id = el.dataset.id, b = S.bills[id]; if(!b) return;
-    openSheet("Editar conta", billForm(b), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
-      put("bills", id, {...b, title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, split:fd.split, date:fd.date||b.date}); }, {extra:delBtn("delBill", id)}); },
-  delBill: el => { if(!armed(el)) return; del("bills", el.dataset.id); closeSheet(); },
-  settle: () => { Object.entries(S.bills).filter(([,b])=>!b.settled).forEach(([id,b])=>put("bills", id, {...b, settled:true, settledAt:today()})); toast("Contas acertadas"); },
+    openSheet("Editar gasto", billForm({...b, id}), fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
+      const nb = {...b, title:fd.title.trim(), amount:Math.round(v*100)/100, paidBy:fd.paidBy, owner:fd.owner, category:fd.category, date:fd.date||b.date}; delete nb.split; put("bills", id, nb); }, {extra:delBtn("delBill", id)}); },
+  delBill: el => { if(!armed(el)) return; const id = el.dataset.id; const b = S.bills[id];
+    if(b && b.fixedId && S.fixed[b.fixedId]) patch("fixed", b.fixedId, {paid:{[b.month||monthOf(b.date)]:null}});
+    del("bills", id); closeSheet(); },
+  settle: () => { Object.entries(S.bills).filter(([,b])=>!b.settled && ownerOf(b)!==b.paidBy).forEach(([id,b])=>put("bills", id, {...b, settled:true, settledAt:today()})); toast("Contas acertadas"); },
+  newFixed: () => openSheet("Nova conta fixa", fixedForm(), fd => { const v = parseMoney(fd.amount); const day = Math.min(31, Math.max(1, parseInt(fd.dueDay,10)||1));
+    put("fixed", uid(), {title:fd.title.trim(), amount:v>0?Math.round(v*100)/100:null, dueDay:day, owner:fd.owner||"casal", category:fd.category||"Contas", paid:{}, at:new Date().toISOString()}); toast("Conta fixa cadastrada"); }, {submit:"Cadastrar"}),
+  editFixed: el => { const id = el.dataset.id, f = S.fixed[id]; if(!f) return;
+    openSheet("Editar conta fixa", fixedForm(f), fd => { const v = parseMoney(fd.amount); const day = Math.min(31, Math.max(1, parseInt(fd.dueDay,10)||1));
+      put("fixed", id, {...f, title:fd.title.trim(), amount:v>0?Math.round(v*100)/100:null, dueDay:day, owner:fd.owner, category:fd.category}); }, {extra:delBtn("delFixed", id)}); },
+  delFixed: el => { if(!armed(el)) return; del("fixed", el.dataset.id); closeSheet(); toast("Conta fixa removida. Os pagamentos já anotados continuam."); },
+  payFixed: el => { const id = el.dataset.id, m = el.dataset.m, f = S.fixed[id]; if(!f) return; const pn = nameOf(other(me));
+    const dflt = m===monthOf(today()) ? today() : `${m}-${pad(Math.min(Number(f.dueDay)||1, 28))}`;
+    openSheet(`Pagar: ${f.title}`, `<label class="field"><span>Valor pago (R$)</span><input type="text" inputmode="decimal" id="pAmount" name="amount" required value="${f.amount!=null?String(f.amount).replace(".",","):""}"></label>
+      <div class="field"><span>Quem pagou</span><div class="seg">${[[me,"Eu"],[other(me),pn]].map(([v,l])=>`<label><input type="radio" name="paidBy" value="${v}" ${v===me?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div></div>
+      <label class="field"><span>Data do pagamento</span><input type="date" id="pDate" name="date" value="${dflt}"></label>`,
+      fd => { const v = parseMoney(fd.amount); if(!(v>0)){ toast("Informe um valor maior que zero."); return; }
+        const bid = uid(); put("bills", bid, {title:f.title, amount:Math.round(v*100)/100, paidBy:fd.paidBy, owner:f.owner||"casal", category:f.category||"Contas", date:fd.date||dflt, settled:false, fixedId:id, month:m, at:new Date().toISOString(), by:me});
+        patch("fixed", id, {paid:{[m]:bid}}); toast(`${f.title} marcada como paga`); }, {submit:"Marcar como paga"}); },
+  unpayFixed: el => { const id = el.dataset.id, m = el.dataset.m, f = S.fixed[id]; if(!f) return; const bid = f.paid && f.paid[m];
+    if(bid) del("bills", bid); patch("fixed", id, {paid:{[m]:null}}); toast("Pagamento desfeito"); },
   copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
     try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
     catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
@@ -1364,10 +1440,15 @@ function startDemo(){
   D.tasks.d2.thanks = {a:true}; D.tasks.d1.thanks = {b:true};
   const now = Date.now(); [["mamada",35,"b"],["fralda",80,"a"],["mamada",190,"a"],["sono",240,"b"],["fralda",300,"b"]].forEach(([k,m,s],i)=>{ const at = new Date(now - m*60000); if(isoOf(at)===t) D.logs["g"+i] = {type:k, at:at.toISOString(), by:s}; });
   D.kids.k2 = {name:"Lia", birth:addDays(t,-150)};
-  D.bills = {b1:{title:"Mercado da semana", amount:312.4, paidBy:"a", split:"meio", date:addDays(t,-2), settled:false, at:"3"}, b2:{title:"Farmácia do Theo", amount:86, paidBy:"b", split:"meio", date:addDays(t,-1), settled:false, at:"4"}, b3:{title:"Conta de luz", amount:214.9, paidBy:"b", split:"meio", date:addDays(t,-12), settled:true, at:"1"}};
+  const mo = monthOf(t);
+  D.bills = {b1:{title:"Mercado da semana", amount:312.4, paidBy:"a", owner:"casal", category:"Mercado", date:addDays(t,-2), settled:false, at:"3"}, b2:{title:"Farmácia do Theo", amount:86, paidBy:"b", owner:"casal", category:"Filhos", date:addDays(t,-1), settled:false, at:"4"},
+    b3:{title:"Aluguel", amount:2200, paidBy:"a", owner:"casal", category:"Moradia", date:`${mo}-05`, settled:false, fixedId:"f1", month:mo, at:"1"}, b4:{title:"Tênis de corrida", amount:349.9, paidBy:"a", owner:"a", category:"Lazer", date:addDays(t,-4), settled:false, at:"5"},
+    b5:{title:"Curso de cerâmica", amount:280, paidBy:"b", owner:"b", category:"Lazer", date:addDays(t,-6), settled:false, at:"6"}, b6:{title:"Gasolina", amount:180, paidBy:"b", owner:"casal", category:"Transporte", date:addDays(t,-3), settled:false, at:"7"}};
+  D.fixed = {f1:{title:"Aluguel", amount:2200, dueDay:5, owner:"casal", category:"Moradia", paid:{[mo]:"b3"}, at:"1"}, f2:{title:"Escola do Theo", amount:1450, dueDay:8, owner:"casal", category:"Filhos", paid:{}, at:"2"},
+    f3:{title:"Luz", amount:215, dueDay:Math.min(28, Number(t.slice(8))+2), owner:"casal", category:"Contas", paid:{}, at:"3"}, f4:{title:"Internet", amount:120, dueDay:20, owner:"casal", category:"Contas", paid:{}, at:"4"}, f5:{title:"Celular da Bia", amount:59.9, dueDay:25, owner:"b", category:"Contas", paid:{}, at:"5"}};
   S = D; COLS.forEach(c=>loaded.add(c)); schedule();
 }
-function exitDemo(){ if(savedReal){ S = savedReal.S; mode = savedReal.mode; me = savedReal.me; view = "home"; savedReal = null; } schedule(); }
+function exitDemo(){ billMonth = null; if(savedReal){ S = savedReal.S; mode = savedReal.mode; me = savedReal.me; view = "home"; savedReal = null; } schedule(); }
 
 boot();
 </script>

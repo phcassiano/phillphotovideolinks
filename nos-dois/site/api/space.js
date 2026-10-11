@@ -2,7 +2,7 @@
 // Uma única rota: POST /api/space com {op, ...}. O casal acessa com id + chave secreta (o link de convite).
 const crypto = require("crypto");
 
-const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills"]);
+const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed"]);
 const ID_RE = /^[a-f0-9]{8,32}$/;
 const KEY_RE = /^[a-f0-9]{16,64}$/;
 const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
