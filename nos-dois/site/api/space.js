@@ -8,6 +8,8 @@ const KEY_RE = /^[a-f0-9]{16,64}$/;
 const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
 const MAX_DOC_BYTES = 20000;
 const MAX_DOCS = 5000;
+const CODE_ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem 0/O, 1/I
+const newCode = () => [...crypto.randomBytes(8)].map((x) => CODE_ALPHA[x % 32]).join("");
 
 function storage() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
@@ -58,6 +60,21 @@ module.exports = async (req, res) => {
       return res.status(200).json({ id, key });
     }
 
+    if (body.op === "join") {
+      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
+      const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (code.length !== 8) return res.status(400).json({ error: "O código tem 8 letras e números." });
+      const [fails] = await redis(st, ["GET", `nd:jf:${ip}`]);
+      if (Number(fails || 0) >= 30) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      const [v] = await redis(st, ["GET", `nd:code:${code}`]);
+      if (!v) {
+        await redis(st, ["INCR", `nd:jf:${ip}`], ["EXPIRE", `nd:jf:${ip}`, "3600"]);
+        return res.status(404).json({ error: "Código não encontrado. Confira as letras e números." });
+      }
+      const o = JSON.parse(v);
+      return res.status(200).json({ id: o.id, key: o.key, slot: o.slot });
+    }
+
     const { id, key } = body;
     if (!ID_RE.test(String(id || "")) || !KEY_RE.test(String(key || ""))) return res.status(401).json({ error: "Link inválido." });
     const [auth] = await redis(st, ["GET", `nd:${id}:auth`]);
@@ -78,8 +95,29 @@ module.exports = async (req, res) => {
       return res.status(200).json({ changed: true, v: ver, data });
     }
 
+    if (body.op === "codes") {
+      const out = {};
+      for (const slot of ["a", "b"]) {
+        let [c] = await redis(st, ["GET", `nd:${id}:code:${slot}`]);
+        if (!c || body.regen === slot) {
+          if (c) await redis(st, ["DEL", `nd:code:${c}`]);
+          for (let tries = 0; tries < 5; tries++) {
+            const nc = newCode();
+            const [ok] = await redis(st, ["SET", `nd:code:${nc}`, JSON.stringify({ id, key, slot }), "NX"]);
+            if (ok === "OK") { c = nc; break; }
+          }
+          if (!c) return res.status(500).json({ error: "Tente de novo." });
+          await redis(st, ["SET", `nd:${id}:code:${slot}`, c]);
+        }
+        out[slot] = c;
+      }
+      return res.status(200).json({ codes: out });
+    }
+
     if (body.op === "wipe") {
-      await redis(st, ["DEL", H, V, `nd:${id}:auth`]);
+      const [ca, cb] = await redis(st, ["GET", `nd:${id}:code:a`], ["GET", `nd:${id}:code:b`]);
+      const extra = [ca, cb].filter(Boolean).map((c) => `nd:code:${c}`);
+      await redis(st, ["DEL", H, V, `nd:${id}:auth`, `nd:${id}:code:a`, `nd:${id}:code:b`, ...extra]);
       return res.status(200).json({ ok: true });
     }
 
