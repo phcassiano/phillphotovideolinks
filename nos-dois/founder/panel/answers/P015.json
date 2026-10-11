@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "habit",
-  "reason": "A pergunta do dia a dois tem tudo a ver comigo e eu baixaria a versão grátis hoje mesmo, mas a gestação semana a semana a gente já acompanha num app grátis. No primeiro mês eu ficaria no grátis para ver se a minha esposa e eu realmente mantemos o ritual antes de pagar.",
-  "objection": "O que o Premium destrava é justamente a parte Família, e gravidez eu já tenho coberta de graça. Não sei se o jogo de nomes e umas perguntas a mais valem mais uma assinatura, ainda mais com o bebê chegando e tudo virando gasto.",
-  "would_change_my_mind": "Se depois de umas semanas a gente estivesse respondendo a pergunta todo dia e as perguntas extras e a área Família fossem claramente melhores que o app de gravidez que já uso, eu pagaria o anual sem pensar.",
-  "price_too_cheap": 4.9,
-  "price_cheap": 9.9,
-  "price_expensive": 24.9,
-  "price_too_expensive": 39.9
+  "reason": "A pergunta do dia até me pega, mas isso é grátis. O que o Premium vende pra mim é a gestação semana a semana, e isso eu já tenho de graça no app de gravidez que a gente usa. Pago só se o grátis virar ritual nosso, e não vai ser no primeiro mês.",
+  "objection": "Já uso um app de gravidez grátis, e o placar de tarefas não é o problema da nossa casa agora. Pagar mais um app pra ter de novo o que já tenho não faz sentido.",
+  "would_change_my_mind": "Se a área Família tivesse algo que o app grátis não faz pra nós dois juntos, tipo um diário ou álbum da gestação que guarda as datas e as respostas do casal pro bebê ver depois.",
+  "price_too_cheap": 3,
+  "price_cheap": 5.9,
+  "price_expensive": 14.9,
+  "price_too_expensive": 24.9
 }

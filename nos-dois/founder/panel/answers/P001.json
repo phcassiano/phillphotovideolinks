@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "habit",
-  "reason": "A gente já combina tudo no WhatsApp e numa lista no celular, e com um filho pequeno e sem avó por perto não sobra energia pra mais um app. Talvez eu até baixasse a versão grátis, mas pagar o Premium no primeiro mês, não.",
-  "objection": "Meu marido não ia abrir o app todo dia, e a área Família paga é de gestação e nomes de bebê, coisa que já passou pra gente; o que sobra eu tenho de graça nos perfis que sigo.",
-  "would_change_my_mind": "Uma criadora de maternidade que eu confio mostrando que o placar das tarefas realmente fez o marido dela dividir mais a casa, com um período de teste do Premium grátis.",
-  "price_too_cheap": 3,
-  "price_cheap": 7.9,
-  "price_expensive": 19.9,
-  "price_too_expensive": 29.9
+  "reason": "A gente já combina tudo no WhatsApp e no Google Agenda, e com filho pequeno e sem avó por perto não sobra cabeça pra mais um app de casal. Talvez eu teste a parte grátis, mas pagar Premium não, ainda mais que a gestação semana a semana já passou pra gente.",
+  "objection": "Meu marido não vai ficar marcando tarefa e respondendo pergunta todo dia; em duas semanas isso morre e vira mais uma coisa pra eu cobrar dele.",
+  "would_change_my_mind": "Ver uma criadora de maternidade que eu sigo usando de verdade com o parceiro por meses, mostrando que diminuiu a briga sobre quem faz o quê com a criança.",
+  "price_too_cheap": 2,
+  "price_cheap": 5,
+  "price_expensive": 12,
+  "price_too_expensive": 20
 }

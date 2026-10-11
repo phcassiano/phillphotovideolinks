@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "habit",
-  "reason": "A gente já resolve tudo no WhatsApp e no Google Agenda, e eu sei que ia baixar, usar uma semana e esquecer. O placar das tarefas até me atrai, mas meu marido não ia abrir mais um app pra marcar o que fez, então o placar ia ficar só com as minhas tarefas.",
-  "objection": "Depende dos dois usarem todo dia, e quem ia ficar lembrando o outro de abrir o app sou eu, ou seja, mais uma tarefa pra mim. Pagar R$ 14,90 por mês por algo que ia ficar parado é dinheiro jogado fora.",
-  "would_change_my_mind": "Se desse pra marcar tarefa e ver o placar direto pelo WhatsApp, sem os dois precisarem abrir outro app, e se meu marido usasse sem eu ter que cobrar.",
-  "price_too_cheap": 3,
-  "price_cheap": 6.9,
-  "price_expensive": 12.9,
-  "price_too_expensive": 19.9
+  "reason": "O placar até me chama atenção porque sinto que faço mais em casa, e gostei de não precisar instalar nada. Mas eu conheço a gente: uso uma semana, ele responde dois dias e a coisa morre no WhatsApp. E o que me interessa está no grátis, então não vejo por que pagar.",
+  "objection": "Meu marido não vai manter o hábito de marcar tarefa e responder pergunta todo dia, e aí o placar vira só mais uma coisa que eu cuido sozinha. Área de gestação e nomes de bebê não serve pra mim, meu filho já nasceu.",
+  "would_change_my_mind": "Se depois de um mês no grátis a gente ainda estivesse usando de verdade, os dois, e eu quisesse ver o histórico do placar pra mostrar pra ele que não é impressão minha.",
+  "price_too_cheap": 2,
+  "price_cheap": 5,
+  "price_expensive": 10,
+  "price_too_expensive": 15
 }

@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "need",
-  "reason": "A gente já resolve lista, data e quem lava a louça no WhatsApp e numa nota compartilhada. O que o Premium destrava é basicamente a área Família, e filho não está nos nossos planos agora, então não tem por que pagar. No máximo baixo a versão grátis pra testar a pergunta do dia, e aposto que em duas semanas a gente já esqueceu.",
-  "objection": "Mais uma assinatura pra coisa que a gente não usaria toda semana, e a parte paga é justamente a que não serve pra gente agora.",
-  "would_change_my_mind": "Se a gente decidisse ter filho e o app virasse o lugar que os dois realmente abrem todo dia, talvez o anual. Hoje não.",
-  "price_too_cheap": 3,
-  "price_cheap": 6.9,
-  "price_expensive": 12.9,
-  "price_too_expensive": 19.9
+  "reason": "A gente não tem planos de filho agora, então a área Família, que é o principal do Premium, não serve pra nada pra mim. O que eu talvez usasse, placar e pergunta do dia, já é grátis, e honestamente a gente já combina a casa no WhatsApp.",
+  "objection": "Chegando cansado às 19h, não vou abrir mais uma coisa pra marcar tarefa; em duas semanas isso vira mais uma notificação que eu ignoro, e pagar todo mês por histórico de placar não faz sentido.",
+  "would_change_my_mind": "Se a gente decidisse ter filho, a parte de gestação semana a semana pros dois poderia justificar uns meses de assinatura.",
+  "price_too_cheap": 2,
+  "price_cheap": 4.9,
+  "price_expensive": 9.9,
+  "price_too_expensive": 15
 }

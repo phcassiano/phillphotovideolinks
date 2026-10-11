@@ -1,0 +1,154 @@
+{
+ "business": "Nós Dois, app de celular para casais brasileiros (valores de renda em reais por ano, renda familiar do casal)",
+ "seed": 710546,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 0,
+ "passes": 20,
+ "buy_rate": 0.0,
+ "by_segment": [
+  [
+   "Casal com filho de 0 a 5 anos",
+   6,
+   0.0
+  ],
+  [
+   "Casal esperando o primeiro bebê",
+   5,
+   0.0
+  ],
+  [
+   "Casal sem planos de filhos por agora",
+   3,
+   0.0
+  ],
+  [
+   "Casal planejando ter filhos nos próximos 2 anos",
+   6,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Segue perfis de maternidade/paternidade",
+   3,
+   0.0
+  ],
+  [
+   "Avesso a assinaturas",
+   3,
+   0.0
+  ],
+  [
+   "Testa apps e abandona",
+   4,
+   0.0
+  ],
+  [
+   "Planejador(a) da casa",
+   3,
+   0.0
+  ],
+  [
+   "Organiza tudo no WhatsApp",
+   5,
+   0.0
+  ],
+  [
+   "Romântico(a) do casal",
+   2,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$156,000 and up",
+   7,
+   0.0
+  ],
+  [
+   "$122,000 to $156,000",
+   7,
+   0.0
+  ],
+  [
+   "under $122,000",
+   6,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "habit",
+   15,
+   [
+    "A gente já combina tudo no WhatsApp e numa lista no celular, e com um filho pequeno e sem avó por perto não sobra energia pra mais um app. Talvez eu até baixasse a versão grátis, mas pagar o Premium no primeiro mês, não.",
+    "Até baixaria a versão grátis por curiosidade, mas com um filho pequeno a gente chega às 19h moído e não vai abrir app pra responder pergunta todo dia; em duas semanas vira mais um ícone esquecido. Pagar 14,90 por mês por isso é exatamente o tipo de assinatura que eu cancelo."
+   ],
+   [
+    "P001",
+    "P002"
+   ]
+  ],
+  [
+   "need",
+   2,
+   [
+    "O que o Premium destrava é basicamente a área Família, e a gente não pensa em filhos agora. Tarefas e listas já estão no grátis, e mesmo isso eu já tentei com outro app e meu parceiro largou em duas semanas; no fim a gente resolve tudo no WhatsApp.",
+    "A gente já resolve lista, data e quem lava a louça no WhatsApp e numa nota compartilhada. O que o Premium destrava é basicamente a área Família, e filho não está nos nossos planos agora, então não tem por que pagar. No máximo baixo a versão grátis pra testar a pergunta do dia, e aposto que em duas semanas a gente já esqueceu."
+   ],
+   [
+    "P004",
+    "P012"
+   ]
+  ],
+  [
+   "timing",
+   2,
+   [
+    "A gente ainda nem está grávido, então gestação semana a semana e jogo de nomes não servem pra nada agora, e o resto a gente já faz no WhatsApp e numa lista compartilhada. Talvez eu baixasse a versão grátis pra testar a pergunta do dia, mas pagar não.",
+    "A pergunta do dia eu até instalaria hoje à noite pra fazer com ela, mas isso já vem grátis. O que o Premium destrava é a área Família, e filho pra gente ainda é daqui a um ou dois anos, então pagar agora seria pagar por algo que eu não vou usar."
+   ],
+   [
+    "P011",
+    "P013"
+   ]
+  ],
+  [
+   "trust",
+   1,
+   [
+    "A pergunta do dia e a parte de conversas antes de ter filhos até me interessam, mas é um app que nunca vi, e não vou colocar nossas conversas sobre ter filho e dados da família num lugar desconhecido. No máximo baixaria a versão grátis pra ver, pagar o Premium agora não."
+   ],
+   [
+    "P006"
+   ]
+  ]
+ ],
+ "why_yes": [],
+ "flip": [
+  "Uma criadora de maternidade que eu confio mostrando que o placar das tarefas realmente fez o marido dela dividir mais a casa, com um período de teste do Premium grátis.",
+  "Se a gente realmente usasse o placar de tarefas toda semana por um mês no grátis e isso diminuísse as brigas sobre quem faz o quê, eu pagaria uma vez o plano anual, nunca o mensal.",
+  "Se depois de umas três semanas a gente ainda estivesse usando de verdade, os dois, e o placar tivesse mudado alguma coisa na divisão da casa, eu pagaria o anual por causa do bebê.",
+  "Ver meu parceiro usando o grátis sozinho por um mês sem eu cobrar, e o Premium ter algo para casal sem filhos, não só a área Família.",
+  "Se o placar das tarefas funcionasse dentro do WhatsApp, sem ele precisar baixar nada, e mostrasse de verdade quem faz mais, eu testaria o grátis e talvez pagasse quando engravidar.",
+  "Ver uma criadora de maternidade que eu já sigo e confio usando de verdade com o parceiro, e uma explicação clara de que nossos dados não são vendidos nem compartilhados.",
+  "Ver meu parceiro abrindo o app sozinho e marcando tarefas por umas três ou quatro semanas seguidas; aí os R$ 99,90 por ano pela área Família completa seriam fáceis de pagar.",
+  "Se depois de umas três semanas no grátis ela estivesse marcando as tarefas dela sem eu cobrar, eu pagaria o anual para a área Família.",
+  "Se funcionasse dentro do WhatsApp ou sincronizasse com o Google Agenda, sem precisar abrir outro app.",
+  "Se o placar das tarefas funcionasse direto dentro do WhatsApp ou do Google Agenda, sem os dois terem que abrir outro app, eu testaria a versão grátis.",
+  "Ela engravidar e algum criador de paternidade que eu sigo indicar o app como o melhor pra acompanhar a gestação a dois.",
+  "Se a gente decidisse ter filho e o app virasse o lugar que os dois realmente abrem todo dia, talvez o anual. Hoje não.",
+  "Ela engravidar, ou a gente estar usando o grátis todo dia há uns meses e as perguntas acabarem.",
+  "Engravidar de fato e ver que meu parceiro está usando a gestação semana a semana sem eu precisar cobrar; aí os R$ 99,90 por ano para o casal valeriam.",
+  "Se depois de umas semanas a gente estivesse respondendo a pergunta todo dia e as perguntas extras e a área Família fossem claramente melhores que o app de gravidez que já uso, eu pagaria o anual sem pensar.",
+  "Ficar grávida: aí a gestação semana a semana para os dois e o jogo de nomes do bebê passariam a ter uso real, e eu pagaria o anual.",
+  "Se funcionasse dentro do WhatsApp ou sincronizasse com o Google Agenda, de uma empresa conhecida com política de privacidade clara.",
+  "Se desse pra marcar tarefa e ver o placar direto pelo WhatsApp, sem os dois precisarem abrir outro app, e se meu marido usasse sem eu ter que cobrar.",
+  "Se o placar de tarefas da casa fosse tão útil que meu parceiro realmente passasse a dividir mais, aí talvez pagaria o anual.",
+  "Se depois de umas semanas no grátis a gente ainda estivesse usando de verdade, os dois, especialmente o jogo de nomes e o acompanhamento da gestação juntos, aí eu pagaria o anual."
+ ],
+ "purchases_first_month_per_buyer": null,
+ "price_answers": 20
+}

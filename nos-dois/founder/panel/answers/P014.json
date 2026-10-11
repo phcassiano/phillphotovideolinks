@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "habit",
-  "reason": "Eu provavelmente baixaria o grátis por curiosidade, responderia a pergunta do dia por uns dias e esqueceria, como faço com todo app da moda. Meu parceiro não ia responder com constância, e sem a resposta dele a pergunta do dia perde a graça; pagar Premium para algo que vou largar em uma semana não faz sentido.",
-  "objection": "Depende de nós dois usarmos todo dia, e eu sei que meu parceiro não vai entrar nessa. Sozinha não tem graça, e a área Família só vale quando a gravidez for realidade, não agora.",
-  "would_change_my_mind": "Engravidar de fato e ver que meu parceiro está usando a gestação semana a semana sem eu precisar cobrar; aí os R$ 99,90 por ano para o casal valeriam.",
+  "reason": "Eu até mandaria o link e brincaria com o placar grátis uns dias, mas conheço meu padrão: baixo, uso uma semana e esqueço. E meu parceiro não vai responder pergunta do dia nenhuma, então nem chegamos aos 7 dias juntos pra pensar em pagar.",
+  "objection": "Meu parceiro não vai usar, e sozinha não tem graça; um placar da casa sem o outro participando vira só eu cobrando.",
+  "would_change_my_mind": "Ficar grávida de verdade: aí a área Família com a gestação semana a semana para os dois poderia valer a assinatura, se ele estivesse usando.",
   "price_too_cheap": 3,
-  "price_cheap": 7.9,
-  "price_expensive": 14.9,
+  "price_cheap": 6,
+  "price_expensive": 15,
   "price_too_expensive": 25
 }

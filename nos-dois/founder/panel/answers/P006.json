@@ -3,11 +3,11 @@
   "buys": false,
   "purchases_first_month": 0,
   "reason_code": "trust",
-  "reason": "A pergunta do dia e a parte de conversas antes de ter filhos até me interessam, mas é um app que nunca vi, e não vou colocar nossas conversas sobre ter filho e dados da família num lugar desconhecido. No máximo baixaria a versão grátis pra ver, pagar o Premium agora não.",
-  "objection": "Não sei quem está por trás disso nem o que fazem com o que eu e meu marido respondemos sobre gravidez, filhos e a nossa relação.",
-  "would_change_my_mind": "Ver uma criadora de maternidade que eu já sigo e confio usando de verdade com o parceiro, e uma explicação clara de que nossos dados não são vendidos nem compartilhados.",
-  "price_too_cheap": 4,
-  "price_cheap": 9.9,
-  "price_expensive": 19.9,
-  "price_too_expensive": 34.9
+  "reason": "Nunca ouvi falar desse app e não vou colocar a rotina da nossa casa, nossas respostas íntimas e depois dados de gestação num app desconhecido só porque apareceu no meu feed. E a parte que me interessaria, a de gestação, ainda não serve pra gente: o bebê é plano pra daqui a uns dois anos.",
+  "objection": "Não quero meus dados de família num app desconhecido. 'Não vendemos seus dados' qualquer um escreve; quem está por trás, onde ficam as respostas e o que acontece se o app fechar?",
+  "would_change_my_mind": "Uma criadora de maternidade em quem eu confio usando de verdade com o marido e mostrando o app por dentro, e a gente já estar tentando engravidar.",
+  "price_too_cheap": 15,
+  "price_cheap": 40,
+  "price_expensive": 120,
+  "price_too_expensive": 200
 }

@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "A gente já resolve tudo no WhatsApp e no Google Agenda, e funciona; não vou convencer meu marido a baixar mais um app, muito menos pagar por ele. E pergunta do dia me soa como coisa de casal fazendo terapia.",
+  "objection": "Mais um app que os dois teriam que lembrar de abrir todo dia, quando a gente mal tem tempo com uma criança pequena. Na prática ia ficar só eu usando, igual já acontece com as tarefas da casa.",
+  "would_change_my_mind": "Se o placar das tarefas funcionasse direto dentro do WhatsApp ou do Google Agenda, sem os dois terem que abrir outro app, eu testaria a versão grátis.",
+  "price_too_cheap": 3,
+  "price_cheap": 6.9,
+  "price_expensive": 14.9,
+  "price_too_expensive": 25
+}
