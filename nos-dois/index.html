@@ -442,7 +442,7 @@ async function api(body){
   let r; try{ r = await fetch("/api/space", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)}); }
   catch(e){ const er = new Error("offline"); er.code = "unavailable"; throw er; }
   const j = await r.json().catch(()=>({}));
-  if(!r.ok){ const er = new Error(j.error || "erro"); er.code = (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : "unavailable"; throw er; }
+  if(!r.ok){ const er = new Error(j.error || "Não deu certo. Tente de novo."); er.code = (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : r.status===400 ? "bad" : "unavailable"; throw er; }
   return j;
 }
 function ensureSpace(){
@@ -452,7 +452,7 @@ function ensureSpace(){
   return spacePromise;
 }
 function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
-function cloudLost(){ lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+function cloudLost(){ codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
 async function pull(){
   if(!cloud || inflight > 0) return;
   try{
@@ -463,6 +463,28 @@ async function pull(){
       lsSet(CLOUD_CACHE, JSON.stringify(fresh)); }
     COLS.forEach(c=>loaded.add(c)); schedule();
   }catch(e){ if(e.code==="auth") cloudLost(); }
+}
+let codes = null, codesLoading = false, codesFailAt = 0;
+const fmtCode = c => c ? `${c.slice(0,4)}-${c.slice(4)}` : "····-····";
+function loadCodes(regen){
+  if(!cloud || codesLoading || mode!=="cloud" || (!regen && Date.now()-codesFailAt < 15000)) return; codesLoading = true;
+  api({op:"codes", id:cloud.id, key:cloud.key, regen:regen||undefined})
+    .then(r => { codes = r.codes; if(regen) toast("Código novo gerado. O antigo parou de funcionar."); })
+    .catch(e => { codesFailAt = Date.now(); if(e.code==="auth") cloudLost(); })
+    .finally(() => { codesLoading = false; schedule(); });
+}
+const siteUrl = () => `${location.origin}${location.pathname}`;
+const codeInvite = slot => `Oi! Criei o nosso espaço no Nós Dois. Abra o app (ou ${siteUrl()}), toque em "Tenho um código" e digite: ${fmtCode(codes && codes[slot])}`;
+function joinWithCode(raw, inputId){
+  const code = String(raw||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  if(code.length !== 8){ toast("O código tem 8 letras e números, como ABCD-2345."); return; }
+  api({op:"join", code}).then(async r => {
+    if(pollT){ clearInterval(pollT); pollT = null; }
+    cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null);
+    me = r.slot; lsSet("nd-me", r.slot); cloudVer = 0; codes = null; S = blank(); view = "home";
+    if(inputId) clearIds.add(inputId);
+    await pull(); startPoll(); toast(`Pronto, ${nameOf(r.slot)}! Você entrou no espaço de vocês.`);
+  }).catch(e => toast(e.message || "Não deu para entrar. Tente de novo."));
 }
 function startPoll(){ if(pollT) return; pollT = setInterval(()=>{ if(document.visibilityState==="visible") pull(); }, 4000);
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") pull(); }); }
@@ -679,6 +701,11 @@ function onboarding(){
       </div>
       <button class="btn block" type="submit">Criar o nosso espaço</button>
     </form>
+    ${mode==="cloud" ? `<form class="card stack" data-form="join" style="border-color:var(--accent)">
+      <h3>Tenho um código</h3>
+      <p class="small muted">Se a outra pessoa já criou o espaço de vocês, digite o código que ela mandou.</p>
+      <div class="inline"><input type="text" id="joinCode" name="code" required maxlength="9" autocomplete="off" autocapitalize="characters" placeholder="ABCD-2345" aria-label="Código do casal" style="text-transform:uppercase;letter-spacing:.08em"><button class="btn" type="submit">Entrar</button></div>
+    </form>` : ""}
     <button class="btn ghost block" data-act="demo">Ver uma demonstração antes</button>
     <p class="small muted row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>Sem anúncios. O que vocês escrevem fica só no espaço de vocês, não é vendido nem compartilhado, e pode ser apagado a qualquer momento em Ajustes.</span></p>
     ${mode==="cloud" ? `<p class="small muted">Depois, mande o link de convite pelo WhatsApp: vocês dois veem e editam tudo, cada um no seu celular.</p>` : mode==="local" ? `<p class="small muted">Neste modo os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
@@ -711,12 +738,13 @@ function home(){
   const ldn = lastDateNight(); const since = ldn ? diff(ldn, t) : null;
   const pn = nameOf(other(me));
   const steps = [
-    ["Convidar "+pn, partnerJoined(), mode==="demo" ? "" : waBtn(`Oi! Criei um espaço só nosso no Nós Dois: pergunta do dia, tarefas da casa divididas e nossas datas. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Convidar")],
+    ["Convidar "+pn, partnerJoined(), mode==="demo" ? "" : mode==="cloud" ? (codes ? waBtn(codeInvite(other(me)), `Código: ${fmtCode(codes[other(me)])}`) : `<button class="btn sm ghost" data-act="go" data-v="ajustes">Ver código</button>`) : waBtn(`Oi! Criei um espaço só nosso no Nós Dois: pergunta do dia, tarefas da casa divididas e nossas datas. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Convidar")],
     ["Os dois respondem a primeira pergunta", Object.values(S.answers).some(a=>bothDone(a.date)), `<button class="btn sm ghost" data-act="go" data-v="pergunta">Responder</button>`],
     ["Dividir a primeira tarefa", Object.values(S.tasks).some(x=>x.who===other(me)||x.who==="ambos"), `<button class="btn sm ghost" data-act="newTask">Criar</button>`],
     ["Marcar um encontro a dois", Object.values(S.dates).some(d=>d.type==="encontro"), `<button class="btn sm ghost" data-act="go" data-v="ideias">Ideias</button>`]
   ];
   const stepsDone = steps.filter(x=>x[1]).length;
+  if(mode==="cloud" && cloud && !codes) loadCodes();
   const showSteps = stepsDone < steps.length && !(c.hideSteps && c.hideSteps[me]);
   const bal = billBalance(); const nBills = Object.values(S.bills).filter(b=>!b.settled).length;
 
@@ -1184,9 +1212,28 @@ function desejos(){
 /* ----- Ajustes ----- */
 function ajustes(){
   const c = C();
-  const sync = mode==="db" ? (readOnly ? "Você pode ver, mas não editar. Peça para ser Colaborador(a)." : "Sincronizado entre vocês em tempo real.") : mode==="demo" ? "Demonstração: nada é salvo." : "Salvo só neste aparelho.";
+  const sync = mode==="db" ? (readOnly ? "Você pode ver, mas não editar. Peça para ser Colaborador(a)." : "Sincronizado entre vocês em tempo real.") : mode==="cloud" ? "Sincronizado entre os dois celulares." : mode==="demo" ? "Demonstração: nada é salvo." : "Salvo só neste aparelho.";
   return `
   <div class="top"><div class="row" style="gap:12px;align-items:flex-start">${backBtn()}<div><h1>Ajustes</h1><p class="sub">${esc(sync)}</p></div></div></div>
+  ${mode==="cloud" && cloud ? `<div class="section" style="margin-top:0;margin-bottom:22px"><h3>Usar a dois</h3><section class="card stack">
+    ${codes ? `<div class="stack" style="gap:6px">
+        <span class="eyebrow">Código de ${esc(nameOf(other(me)))}</span>
+        <b class="num" style="font-family:var(--display);font-size:34px;letter-spacing:.06em">${fmtCode(codes[other(me)])}</b>
+        <p class="small muted">${esc(nameOf(other(me)))} abre o app, toca em "Tenho um código" e digita este código. Entra já com o próprio nome.</p>
+        <div class="row" style="gap:8px;flex-wrap:wrap">${waBtn(codeInvite(other(me)), "Mandar no WhatsApp")}<button class="btn sm ghost" data-act="copyCode" data-s="${other(me)}">Copiar código</button><button class="btn sm ghost" data-act="regenCode" data-s="${other(me)}">Gerar outro</button></div>
+      </div>
+      <div class="hr"></div>
+      <div class="row between" style="flex-wrap:wrap;gap:8px"><span class="small">Seu código, para entrar em outro celular: <b class="num">${fmtCode(codes[me])}</b></span><button class="btn sm ghost" data-act="copyCode" data-s="${me}">Copiar</button></div>`
+      : `<p class="small muted">Gerando os códigos de vocês…</p>${(loadCodes(), "")}`}
+    <p class="small muted">Cada código dá acesso ao espaço de vocês. Mande só para quem divide a casa com você; se vazar, toque em "Gerar outro".</p>
+    <details><summary>Ou mande um link</summary><div class="stack" style="margin-top:8px"><input type="text" id="inviteLink" readonly value="${esc(appUrl())}" aria-label="Link de convite"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-act="copyInvite">Copiar link</button></div></div></details>
+  </section></div>
+  <div class="section"><h3>Entrar no espaço do seu par</h3>
+    <form class="card stack" data-form="join">
+      <p class="small muted">Se a outra pessoa criou o espaço primeiro, digite o código dela. Você sai deste espaço e passa a usar o dela.</p>
+      <div class="inline"><input type="text" id="joinCode2" name="code" required maxlength="9" autocomplete="off" autocapitalize="characters" placeholder="ABCD-2345" aria-label="Código do casal" style="text-transform:uppercase;letter-spacing:.08em"><button class="btn" type="submit">Entrar</button></div>
+    </form>
+  </div>` : ""}
   <form class="card stack" data-form="settings">
     <label class="field"><span>Nome 1</span><input type="text" id="cfA" name="a" required maxlength="40" value="${esc(nameOf("a"))}"></label>
     <label class="field"><span>Nome 2</span><input type="text" id="cfB" name="b" required maxlength="40" value="${esc(nameOf("b"))}"></label>
@@ -1198,12 +1245,7 @@ function ajustes(){
   <div class="section"><h3>Quem está usando este aparelho</h3>
     <div class="who-pick">${["a","b"].map(s=>`<button data-act="iam" data-s="${s}" aria-pressed="${me===s}" style="${me===s?"border-color:var(--accent);border-width:2px":""}">${avatar(s)}<span>${esc(nameOf(s))}</span></button>`).join("")}</div>
   </div>
-  ${mode==="cloud" && cloud ? `<div class="section"><h3>Usar a dois</h3><section class="card stack">
-    <p class="small">Mande este link para a outra pessoa. Ela abre no celular dela, escolhe o próprio nome e pronto.</p>
-    <input type="text" id="inviteLink" readonly value="${esc(appUrl())}" aria-label="Link de convite">
-    <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="copyInvite">Copiar link</button>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar no WhatsApp")}</div>
-    <p class="small muted">Quem tiver este link entra no espaço de vocês. Mande só para quem divide a casa com você.</p>
-  </section></div>` : ""}
+
   ${mode==="db" ? `<div class="section"><h3>Usar a dois</h3><section class="card stack"><p class="small">1. Compartilhe este app com a outra pessoa pelo botão de compartilhar do Claude, com acesso de <b>Colaborador(a)</b>.<br>2. Mande o link pelo WhatsApp. Cada um abre no próprio celular e escolhe o seu nome.</p><div>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar convite")}</div><p class="small muted">As respostas da pergunta do dia ficam guardadas no espaço compartilhado de vocês. O app só mostra a resposta da outra pessoa depois que você responde.</p></section></div>` : ""}
   <div class="section"><h3>Nós Dois Premium</h3><section class="card stack">
     <p class="small">Uma assinatura para os dois: <b>R$ 9,90 por mês</b> ou <b>R$ 69,90 por ano</b>. Os 30 primeiros dias são grátis e só começam quando vocês dois tiverem entrado.</p>
@@ -1351,11 +1393,13 @@ const ACT = {
         patch("fixed", id, {paid:{[m]:bid}}); toast(`${f.title} marcada como paga`); }, {submit:"Marcar como paga"}); },
   unpayFixed: el => { const id = el.dataset.id, m = el.dataset.m, f = S.fixed[id]; if(!f) return; const bid = f.paid && f.paid[m];
     if(bid) del("bills", bid); patch("fixed", id, {paid:{[m]:null}}); toast("Pagamento desfeito"); },
+  copyCode: el => { const c = fmtCode(codes && codes[el.dataset.s]); try{ navigator.clipboard.writeText(c).then(()=>toast(`Código ${c} copiado`)).catch(()=>toast(`Código: ${c}`)); }catch(e){ toast(`Código: ${c}`); } },
+  regenCode: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.textContent = "Toque de novo: o atual para de valer"; return; } loadCodes(el.dataset.s); },
   copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
     try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
     catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
   wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois`; return; }
-    if(mode==="cloud"){ const sp = cloud; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
+    if(mode==="cloud"){ const sp = cloud; codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
       if(sp) api({op:"wipe", id:sp.id, key:sp.key}).then(()=>toast("Todos os dados foram apagados.")).catch(()=>toast("Não deu para apagar no servidor. Tente de novo.")); schedule(); return; }
     COLS.forEach(c => Object.keys(S[c]).forEach(id => del(c, id))); lsSet("nd-me", null); me = null; view = "home"; toast("Todos os dados foram apagados."); },
   delKid: el => { if(!armed(el)) return; const id = el.dataset.id; Object.entries(S.journal).filter(([,j])=>j.kidId===id).forEach(([jid])=>del("journal", jid)); del("kids", id); closeSheet(); }
@@ -1369,6 +1413,7 @@ function kidForm(k){ return `<label class="field"><span>Nome</span><input type="
   <label class="field"><span>Data de nascimento</span><input type="date" id="kBirth" name="birth" required value="${esc(k.birth||"")}"></label>`; }
 
 const FORMS = {
+  join: (fd, f) => joinWithCode(fd.code, f.querySelector("input") && f.querySelector("input").id),
   setup: fd => {
     let sts = Object.keys(STAGES).filter(k=>fd["st_"+k]); if(sts.includes("nao") && sts.length>1) sts = sts.filter(s=>s!=="nao");
     me = "a"; lsSet("nd-me","a");
