@@ -6,9 +6,10 @@ FONTS = sys.argv[1]
 OUT = sys.argv[2]
 W, H, FPS = 1080, 1920, 30
 
-PINK = (255, 79, 163)
+ORANGE = (225, 90, 10)
 WHITE = (255, 255, 255)
-DARK = (25, 8, 12)
+DARK = (30, 30, 28)
+LOGO = sys.argv[3]
 
 def font(name, size, var=None):
     f = ImageFont.truetype(f"{FONTS}/{name}", size)
@@ -68,13 +69,6 @@ def text_layer(lines, pad=(46, 26), bg=None, radius=28, gap=8, shadow=True):
         img = Image.alpha_composite(img, sh)
     return Image.alpha_composite(img, txt)
 
-def paw(size, color):
-    s = size; img = Image.new("RGBA", (s, s), (0, 0, 0, 0)); d = ImageDraw.Draw(img)
-    d.ellipse((s*0.22, s*0.45, s*0.78, s*0.95), fill=color)
-    for (x, y) in [(0.08, 0.30), (0.30, 0.08), (0.56, 0.08), (0.78, 0.30)]:
-        d.ellipse((s*x, s*y, s*(x+0.17), s*(y+0.24)), fill=color)
-    return img
-
 def place(frame, layer, cx, cy, t, kind="up"):
     """animate layer in: t in [0..] seconds since appearance."""
     a = ease_out(t / 0.35)
@@ -102,44 +96,81 @@ hook = load("064650fe-image.jpg")
 montage = [load(n) for n in ["a446c196-image.jpg", "1011b296-image.jpg", "66ee42b1-image.jpg",
                              "782c1b4d-image.jpg", "41700cbb-image.jpg", "0aad2ef6-image.jpg",
                              "cc0f3daa-image.jpg"]]
-final_bg = load("41700cbb-image.jpg", 1.0).resize((W, H)).filter(ImageFilter.GaussianBlur(28))
-final_bg = ImageEnhance.Brightness(final_bg).enhance(0.55).convert("RGBA")
 
 L_hook1 = text_layer([("SEU PET MERECE", ANTON(118), WHITE)])
-L_hook2 = text_layer([("FOTOS ASSIM", ANTON(150), PINK)])
+L_hook2 = text_layer([("FOTOS ASSIM", ANTON(150), ORANGE)])
 L_hook3 = text_layer([("Vem fotografar com a gente!", MONT(50, "Bold"), WHITE)])
 
 chips = [
-    text_layer([("QUANDO", MONT(36, "ExtraBold"), PINK), ("FERIADO • 12 DE OUTUBRO", ANTON(76), WHITE)],
-               bg=(20, 6, 10, 200)),
-    text_layer([("ONDE", MONT(36, "ExtraBold"), PINK), ("PARQUE DOS JEQUITIBÁS", ANTON(76), WHITE)],
-               bg=(20, 6, 10, 200)),
-    text_layer([("HORÁRIO", MONT(36, "ExtraBold"), PINK), ("A PARTIR DAS 7H", ANTON(84), WHITE)],
-               bg=(20, 6, 10, 200)),
+    text_layer([("QUANDO", MONT(36, "ExtraBold"), ORANGE), ("FERIADO • 12 DE OUTUBRO", ANTON(76), WHITE)],
+               bg=(30, 30, 28, 220)),
+    text_layer([("ONDE", MONT(36, "ExtraBold"), ORANGE), ("PARQUE DOS JEQUITIBÁS", ANTON(76), WHITE)],
+               bg=(30, 30, 28, 220)),
+    text_layer([("HORÁRIO", MONT(36, "ExtraBold"), ORANGE), ("A PARTIR DAS 7H", ANTON(84), WHITE)],
+               bg=(30, 30, 28, 220)),
 ]
 chip_for = [0, 0, 0, 1, 1, 2, 2]
 
-F_top = text_layer([("TE ESPERAMOS!", ANTON(130), WHITE)])
+F_top = text_layer([("TE ESPERAMOS!", ANTON(124), DARK)], shadow=False)
 F_card = text_layer([
-    ("PARQUE DOS", ANTON(92), WHITE),
-    ("JEQUITIBÁS", ANTON(128), PINK),
-], bg=None)
-F_date = text_layer([("Segunda, 12 de outubro • Feriado", MONT(46, "Bold"), WHITE)], bg=(255, 79, 163, 235), pad=(40, 22))
-F_time = text_layer([("A partir das 7h da manhã", MONT(52, "ExtraBold"), DARK)], bg=(255, 255, 255, 240), pad=(40, 24))
-F_cta = text_layer([("Traga seu pet e venha brilhar!", MONT(44, "SemiBold"), WHITE)])
-PAW = paw(120, PINK + (255,))
+    ("PARQUE DOS", ANTON(88), DARK),
+    ("JEQUITIBÁS", ANTON(128), ORANGE),
+], shadow=False)
+F_date = text_layer([("Segunda, 12 de outubro • Feriado", MONT(46, "Bold"), WHITE)], bg=ORANGE + (255,), pad=(40, 22))
+F_time = text_layer([("A partir das 7h da manhã", MONT(52, "ExtraBold"), WHITE)], bg=DARK + (255,), pad=(40, 24))
+F_cta = text_layer([("Traga seu pet e venha brilhar!", MONT(44, "SemiBold"), DARK)], shadow=False)
+
+# ---------- logo ----------
+L_AP = Image.open(f"{LOGO}/logo_aperture.png")
+L_PAW = Image.open(f"{LOGO}/logo_paw.png")
+L_TXT = Image.open(f"{LOGO}/logo_text.png")
+L_FULL = Image.open(f"{LOGO}/logo_full.png")
+AP_C, TXT_C, GRP_C = (356, 351), (627.5 - 115, 984 - 912), (627, 613)  # centers, source coords
+
+def scaled(im, s):
+    return im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.LANCZOS)
+
+def draw_logo(fr, cx, cy, s, t):
+    """animated logo: aperture spins open, paw pops, wordmark wipes in. t = seconds since start."""
+    ax, ay = cx + (626 - GRP_C[0]) * s, cy + (521 - GRP_C[1]) * s
+    pa = ease_back(t / 0.7)
+    if t > 0:
+        ap = L_AP.rotate(-200 * (1 - ease_out(t / 0.8)), Image.BICUBIC)
+        ap = scaled(ap, s * max(0.01, pa))
+        a = ease_out(t / 0.3)
+        if a < 1: ap.putalpha(ap.getchannel("A").point(lambda v: int(v * a)))
+        fr.alpha_composite(ap, (int(ax - ap.width / 2), int(ay - ap.height / 2)))
+    tp = t - 0.45
+    if tp > 0:
+        pw = scaled(L_PAW, s * max(0.01, ease_back(tp / 0.45)))
+        fr.alpha_composite(pw, (int(ax - pw.width / 2), int(ay - pw.height / 2)))
+    tt = t - 0.85
+    if tt > 0:
+        tx = scaled(L_TXT, s)
+        wpx = int(tx.width * ease_out(tt / 0.5))
+        if wpx > 0:
+            tx = tx.crop((0, 0, wpx, tx.height))
+            x0 = cx + (115 - GRP_C[0]) * s
+            y0 = cy + (912 - GRP_C[1]) * s + (1 - ease_out(tt / 0.5)) * 30
+            fr.alpha_composite(tx, (int(x0), int(y0)))
+
+# watermark badge for the photo scenes
+BADGE = Image.new("RGBA", (200, 190), (0, 0, 0, 0))
+ImageDraw.Draw(BADGE).rounded_rectangle((0, 0, 199, 189), 26, fill=(255, 255, 255, 235))
+_lf = scaled(L_FULL, 170 / L_FULL.width)
+BADGE.alpha_composite(_lf, ((200 - _lf.width) // 2, (190 - _lf.height) // 2))
 
 # ---------- timeline ----------
 T_HOOK = 3.0
 T_SHOT = 1.3
 T_MONT = T_SHOT * len(montage)
-T_FINAL = 6.0
+T_FINAL = 7.0
 TOTAL = T_HOOK + T_MONT + T_FINAL
 N = int(TOTAL * FPS)
 
 def flash(frame, k):
     if k <= 0: return frame
-    return Image.blend(frame, Image.new("RGBA", (W, H), (255, 255, 255, 255)), k)
+    return Image.blend(frame, Image.new("RGBA", (W, H), ORANGE + (255,)), k * 0.8)
 
 ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
                        "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
@@ -155,8 +186,8 @@ for i in range(N):
         p = t / T_HOOK
         fr = kenburns(hook, p, 1.0, 1.18, dy=-0.3).convert("RGBA")
         fr.alpha_composite(VIG)
-        place(fr, L_hook1, W / 2, 380, t - 0.15)
-        place(fr, L_hook2, W / 2, 530, t - 0.45, "pop")
+        place(fr, L_hook1, W / 2, 470, t - 0.15)
+        place(fr, L_hook2, W / 2, 620, t - 0.45, "pop")
         place(fr, L_hook3, W / 2, 1520, t - 1.1)
     elif t < T_HOOK + T_MONT:
         tm = t - T_HOOK
@@ -173,20 +204,30 @@ for i in range(N):
         since = tm - first * T_SHOT
         place(fr, chips[c], W / 2, 1430, since - 0.05)
         fr = flash(fr, max(0.0, 0.85 - ts / 0.12 * 0.85))
+    if t < T_HOOK + T_MONT:
+        place(fr, BADGE, 50 + 100, 150 + 95, t - 0.6)
     else:
         tf = t - T_HOOK - T_MONT
-        fr = final_bg.copy()
-        # crossfade from last montage frame
-        if tf < 0.4:
-            last = kenburns(montage[-1], 1.0, 1.22 if (len(montage) - 1) % 2 else 1.05,
-                            1.05 if (len(montage) - 1) % 2 else 1.2).convert("RGBA")
-            fr = Image.blend(last, fr, ease_out(tf / 0.4))
-        place(fr, F_top, W / 2, 420, tf - 0.3)
-        place(fr, PAW, W / 2, 620, tf - 0.6, "pop")
-        place(fr, F_card, W / 2, 860, tf - 0.8, "pop")
-        place(fr, F_date, W / 2, 1120, tf - 1.3)
-        place(fr, F_time, W / 2, 1260, tf - 1.6)
-        place(fr, F_cta, W / 2, 1420, tf - 2.1)
+        fr = Image.new("RGBA", (W, H), WHITE + (255,))
+        # aperture-style iris reveal from the last photo to the white brand screen
+        if tf < 0.5:
+            k = len(montage) - 1
+            last = kenburns(montage[k], 1.0, *((1.22, 1.05) if k % 2 else (1.05, 1.2))).convert("RGBA")
+            r = ease_out(tf / 0.5) * 1150
+            m = Image.new("L", (W, H), 0)
+            ImageDraw.Draw(m).ellipse((W / 2 - r, H / 2 - r, W / 2 + r, H / 2 + r), fill=255)
+            last.paste(fr, (0, 0), m)
+            fr = last
+        # logo intro, then it moves up to make room for the info
+        mv = ease_out((tf - 2.5) / 0.6)
+        cy = 860 + (460 - 860) * mv
+        sc = 0.62 + (0.44 - 0.62) * mv
+        draw_logo(fr, W / 2, cy, sc, tf - 0.25)
+        place(fr, F_top, W / 2, 870, tf - 3.0)
+        place(fr, F_card, W / 2, 1110, tf - 3.25, "pop")
+        place(fr, F_date, W / 2, 1350, tf - 3.7)
+        place(fr, F_time, W / 2, 1480, tf - 3.95)
+        place(fr, F_cta, W / 2, 1610, tf - 4.4)
     ff.stdin.write(fr.convert("RGB").tobytes())
     if i % 60 == 0:
         print(f"{i}/{N}", flush=True)
