@@ -187,9 +187,9 @@ for i in range(N):
         p = t / T_HOOK
         fr = kenburns(hook, p, 1.0, 1.18, dy=-0.3).convert("RGBA")
         fr.alpha_composite(VIG)
-        place(fr, L_hook1, W / 2, 470, t - 0.15)
-        place(fr, L_hook2, W / 2, 620, t - 0.45, "pop")
-        place(fr, L_hook3, W / 2, 1520, t - 1.1)
+        place(fr, L_hook1, W / 2, 1210, t - 0.15)
+        place(fr, L_hook2, W / 2, 1360, t - 0.45, "pop")
+        place(fr, L_hook3, W / 2, 1510, t - 1.1)
     elif t < T_HOOK + T_MONT:
         tm = t - T_HOOK
         k = min(int(tm // T_SHOT), len(montage) - 1)
