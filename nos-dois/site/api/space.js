@@ -3,6 +3,7 @@
 const crypto = require("crypto");
 const net = require("net");
 const tls = require("tls");
+const push = require("./_push.js");
 
 const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards"]);
 const ID_RE = /^[a-f0-9]{8,32}$/;
@@ -106,6 +107,16 @@ function deepMerge(a, b) {
   return o;
 }
 
+// Chave VAPID do servidor: criada uma vez e guardada no próprio Redis (nada para configurar no Vercel).
+let vapidCache = null;
+async function vapidKey(st) {
+  if (vapidCache) return vapidCache;
+  let [v] = await redis(st, ["GET", "nd:vapid"]);
+  if (!v) { await redis(st, ["SET", "nd:vapid", JSON.stringify(push.newVapid()), "NX"]); [v] = await redis(st, ["GET", "nd:vapid"]); }
+  vapidCache = JSON.parse(v);
+  return vapidCache;
+}
+
 module.exports = async (req, res) => {
   res.setHeader("cache-control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ error: "Use POST." });
@@ -138,6 +149,8 @@ module.exports = async (req, res) => {
       const o = JSON.parse(v);
       return res.status(200).json({ id: o.id, key: o.key, slot: o.slot });
     }
+
+    if (body.op === "vapid") return res.status(200).json({ key: push.vapidPublic(await vapidKey(st)) });
 
     const { id, key } = body;
     if (!ID_RE.test(String(id || "")) || !KEY_RE.test(String(key || ""))) return res.status(401).json({ error: "Link inválido." });
@@ -178,10 +191,52 @@ module.exports = async (req, res) => {
       return res.status(200).json({ codes: out });
     }
 
+    // Avisos no celular do outro (Web Push). Cada aparelho guarda a própria inscrição.
+    const P = `nd:${id}:push`;
+    if (body.op === "subscribe") {
+      const slot = body.slot === "a" || body.slot === "b" ? body.slot : null;
+      if (!slot || !push.validSub(body.sub)) return res.status(400).json({ error: "Inscrição inválida." });
+      const sub = { endpoint: String(body.sub.endpoint), keys: { p256dh: String(body.sub.keys.p256dh), auth: String(body.sub.keys.auth) } };
+      const [n] = await redis(st, ["HLEN", P]);
+      if (n >= 20) return res.status(413).json({ error: "Aparelhos demais." });
+      await redis(st, ["HSET", P, `${slot}:${sha(sub.endpoint).slice(0, 24)}`, JSON.stringify(sub)]);
+      return res.status(200).json({ ok: true });
+    }
+    if (body.op === "unsubscribe") {
+      const h = sha(String(body.endpoint || "")).slice(0, 24);
+      await redis(st, ["HDEL", P, `a:${h}`, `b:${h}`]);
+      return res.status(200).json({ ok: true });
+    }
+    if (body.op === "notify") {
+      const to = body.to === "a" || body.to === "b" ? body.to : null;
+      if (!to) return res.status(400).json({ error: "Destino inválido." });
+      const RL = `nd:${id}:nrl`;
+      const [count] = await redis(st, ["INCR", RL], ["EXPIRE", RL, "3600"]);
+      if (count > 200) return res.status(429).json({ error: "Avisos demais por agora." });
+      const [flat] = await redis(st, ["HGETALL", P]);
+      const pairs = Array.isArray(flat) ? flat : Object.entries(flat || {}).flat();
+      const subs = [];
+      for (let i = 0; i + 1 < pairs.length; i += 2) if (String(pairs[i]).startsWith(to + ":")) { try { subs.push([pairs[i], JSON.parse(pairs[i + 1])]); } catch {} }
+      if (!subs.length) return res.status(200).json({ sent: 0 });
+      const clip = (s, n) => String(s || "").slice(0, n);
+      const payload = JSON.stringify({ title: clip(body.title, 80), body: clip(body.body, 300), view: clip(body.view, 20), tag: clip(body.tag, 40) });
+      const jwk = await vapidKey(st);
+      const subject = `https://${String(req.headers["x-forwarded-host"] || req.headers.host || "nos-dois.app").split(",")[0].trim()}`;
+      let sent = 0;
+      await Promise.all(subs.map(async ([field, sub]) => {
+        try {
+          const status = await push.send(sub, payload, jwk, subject);
+          if (status === 404 || status === 410) await redis(st, ["HDEL", P, field]);
+          else if (status < 300) sent++;
+        } catch {}
+      }));
+      return res.status(200).json({ sent });
+    }
+
     if (body.op === "wipe") {
       const [ca, cb] = await redis(st, ["GET", `nd:${id}:code:a`], ["GET", `nd:${id}:code:b`]);
       const extra = [ca, cb].filter(Boolean).map((c) => `nd:code:${c}`);
-      await redis(st, ["DEL", H, V, `nd:${id}:auth`, `nd:${id}:code:a`, `nd:${id}:code:b`, ...extra]);
+      await redis(st, ["DEL", H, V, `nd:${id}:push`, `nd:${id}:auth`, `nd:${id}:code:a`, `nd:${id}:code:b`, ...extra]);
       return res.status(200).json({ ok: true });
     }
 

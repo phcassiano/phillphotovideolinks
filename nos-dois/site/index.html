@@ -262,6 +262,15 @@ details summary::-webkit-details-marker{display:none}
 .weekbars span{font-size:11px;color:var(--faint);font-weight:600}
 .weekbars .now span{color:var(--fg)}
 .weekbars .now i.h0{outline:2px dashed var(--accent);outline-offset:-2px;background:transparent}
+/* Pop-up de novidade do outro (topo da tela) */
+.pop{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:40;width:calc(100% - 24px);max-width:436px;display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:22px;background:var(--surface-solid);border:1px solid var(--line);box-shadow:0 16px 40px rgba(20,50,44,.22);animation:popin .28s cubic-bezier(.2,.9,.3,1.2)}
+.pop .grow{display:flex;flex-direction:column;gap:3px}
+.pop b{font-family:var(--display);font-weight:600;font-size:15px}
+.pop p{font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.pop p.big1{font-family:var(--display);font-weight:500;font-size:17px;color:var(--fg)}
+.pop .acts{display:flex;gap:8px;margin-top:8px}
+@keyframes popin{from{transform:translate(-50%,-24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+@media (prefers-reduced-motion: reduce){.pop{animation:none}}
 @media (max-width:360px){.big{font-size:30px} h1{font-size:25px} .ring{width:84px;height:84px}}
 </style>
 
@@ -269,6 +278,7 @@ details summary::-webkit-details-marker{display:none}
 <div class="app" id="app"><div class="splash"><div class="stack" style="align-items:center"><h1>Nós <em class="acc">Dois</em></h1><p class="muted">Abrindo o espaço de vocês…</p></div></div></div>
 <div id="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
+<div id="pop" class="pop" role="status" aria-live="polite" hidden></div>
 
 <script>
 /* ===================== Conteúdo ===================== */
@@ -521,8 +531,8 @@ async function pull(){
   try{
     const r = await api({op:"get", id:cloud.id, key:cloud.key, since:cloudVer});
     if(inflight > 0) return;
-    if(r.changed){ const fresh = {...blank(), ...r.data}; cloudVer = r.v;
-      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { S = fresh; }
+    if(r.changed){ const fresh = {...blank(), ...r.data}; const wasLoaded = loaded.has("meta") && cloudVer > 0; cloudVer = r.v;
+      if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { const old = S; S = fresh; if(wasLoaded) announce(remoteEvents(old, fresh)); }
       lsSet(CLOUD_CACHE, JSON.stringify(fresh)); }
     const first = !loaded.has("meta"); COLS.forEach(c=>loaded.add(c)); if(r.changed || first) scheduleBg();
   }catch(e){ if(e.code==="auth") cloudLost(); }
@@ -546,7 +556,7 @@ function joinWithCode(raw, inputId){
     cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null);
     me = r.slot; lsSet("nd-me", r.slot); cloudVer = 0; codes = null; S = blank(); view = "home";
     if(inputId) clearIds.add(inputId);
-    await pull(); startPoll(); toast(`Pronto, ${nameOf(r.slot)}! Você entrou no espaço de vocês.`);
+    await pull(); startPoll(); pushCheck().then(scheduleBg); toast(`Pronto, ${nameOf(r.slot)}! Você entrou no espaço de vocês.`);
   }).catch(e => toast(e.message || "Não deu para entrar. Tente de novo."));
 }
 function startPoll(){ if(pollT) return; pollT = setInterval(()=>{ if(document.visibilityState==="visible") pull(); }, 4000);
@@ -561,7 +571,7 @@ function onWriteError(e){
 }
 function put(c, id, data){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
-  S[c] = {...S[c], [id]:data}; schedule();
+  const before = S[c][id]; S[c] = {...S[c], [id]:data}; schedule(); noteChange(c, id, before, data);
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).set(data));
   else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}));
   else saveLocal();
@@ -569,7 +579,7 @@ function put(c, id, data){
 function patch(c, id, part){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
   const cur = S[c][id]; const merged = deepMerge(cur||{}, part);
-  S[c] = {...S[c], [id]:merged}; schedule();
+  S[c] = {...S[c], [id]:merged}; schedule(); noteChange(c, id, cur, merged);
   if(mode==="db") enqueue(c+"/"+id, () => cur ? db.collection(c).doc(id).update(part) : db.collection(c).doc(id).set(merged));
   else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}));
   else saveLocal();
@@ -580,6 +590,148 @@ function del(c, id){
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).delete());
   else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"del", col:c, doc:id}));
   else saveLocal();
+}
+
+/* ===================== Avisos entre os dois ===================== */
+// Notificações com o app fechado (Web Push). Funciona no app instalado pelo navegador
+// (Chrome/Android; iPhone com iOS 16.4+ quando adicionado à Tela de Início). Não funciona dentro do APK (WebView).
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && location.protocol==="https:";
+const isApk = () => /; wv\)/.test(navigator.userAgent);
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
+const standalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone===true;
+let pushState = "unknown"; // unknown | on | off | denied | unsupported
+async function pushCheck(){
+  if(!pushSupported()){ pushState = "unsupported"; return; }
+  if(Notification.permission==="denied"){ pushState = "denied"; return; }
+  try{ const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); pushState = sub && lsGet("nd-push-sub")===cloudKeyTag() ? "on" : "off";
+    if(sub && pushState==="off" && cloud && me && Notification.permission==="granted"){ await api({op:"subscribe", id:cloud.id, key:cloud.key, slot:me, sub:sub.toJSON()}); lsSet("nd-push-sub", cloudKeyTag()); pushState = "on"; }
+  }catch(e){ pushState = "off"; }
+}
+const cloudKeyTag = () => cloud ? `${cloud.id}:${me}` : "";
+const urlB64 = s => { const p = "=".repeat((4 - s.length % 4) % 4); const raw = atob((s + p).replace(/-/g,"+").replace(/_/g,"/")); return Uint8Array.from(raw, c => c.charCodeAt(0)); };
+async function pushEnable(){
+  if(!pushSupported()){ toast(isIOS() ? "No iPhone: toque em Compartilhar › Adicionar à Tela de Início e abra o app por lá." : "Este aparelho não aceita avisos aqui. Use o Chrome."); return; }
+  if(!cloud){ toast("Os avisos funcionam depois que o espaço de vocês estiver criado."); return; }
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm!=="granted"){ pushState = perm==="denied" ? "denied" : "off"; toast("Sem permissão para avisos. Dá para liberar nas configurações do navegador."); schedule(); return; }
+    const reg = await navigator.serviceWorker.ready;
+    const {key} = await api({op:"vapid"});
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub) sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlB64(key)});
+    await api({op:"subscribe", id:cloud.id, key:cloud.key, slot:me, sub:sub.toJSON()});
+    lsSet("nd-push-sub", cloudKeyTag()); pushState = "on"; toast(`Pronto! Você vai saber quando ${nameOf(other(me))} responder ou mandar recado.`);
+  }catch(e){ toast("Não deu para ativar os avisos agora. Tente de novo."); }
+  schedule();
+}
+async function pushDisable(){
+  try{ const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+    if(sub){ if(cloud) await api({op:"unsubscribe", id:cloud.id, key:cloud.key, endpoint:sub.endpoint}).catch(()=>{}); await sub.unsubscribe(); } }catch(e){}
+  lsSet("nd-push-sub", null); pushState = "off"; toast("Avisos desligados neste celular."); schedule();
+}
+function pushCard(){
+  const pn = nameOf(other(me));
+  if(pushState==="on") return `<div class="row between"><div class="grow"><b>Avisos ligados</b><p class="small muted">Você recebe um aviso quando ${esc(pn)} responder, mandar recado, votar ou mexer em algo.</p></div><button class="btn sm ghost" data-act="pushOff">Desligar</button></div>`;
+  if(pushState==="denied") return `<p class="small muted">Os avisos estão bloqueados para este site. Libere em Configurações do navegador › Notificações e volte aqui.</p>`;
+  if(pushState==="unsupported") return isApk()
+    ? `<p class="small muted">Com o app aberto, as novidades de ${esc(pn)} aparecem em pop-up. Para receber avisos com o app <b>fechado</b>, instale pela página: abra o site no Chrome, menu ⋮ › <b>Instalar app</b>.</p>`
+    : isIOS() && !standalone() ? `<p class="small muted">No iPhone, os avisos funcionam com o app na Tela de Início: toque em Compartilhar › <b>Adicionar à Tela de Início</b> e abra por lá.</p>`
+    : `<p class="small muted">Este navegador não aceita avisos. Com o app aberto, as novidades aparecem em pop-up.</p>`;
+  return `<div class="row between"><div class="grow"><b>Avisos no celular</b><p class="small muted">Saiba na hora quando ${esc(pn)} responder, mandar recado ou votar, mesmo com o app fechado.</p></div><button class="btn sm" data-act="pushOn">Ativar</button></div>`;
+}
+// Descreve uma mudança feita por `actor` (do ponto de vista do outro). null = não vale avisar.
+function describe(c, id, before, after, actor){
+  if(!after) return null;
+  if(!before && after.by && after.by!==actor) return null;
+  if(after.doneBy && before && !before.done && after.doneBy!==actor) return null;
+  if(after.log && before && (after.log.length > (before.log||[]).length) && after.log[after.log.length-1].by!==actor) return null;
+  const you = other(actor), q = s => `“${String(s||"").slice(0,60)}”`, b = before || null;
+  const newly = (o, k) => o && o[k]!=null && o[k]!==false && !(b && b[k] && b[k]!=null);
+  switch(c){
+    case "answers": if(!b && after.slot===actor) return {key:"ans", view:"pergunta", text: ans(after.date, you) ? "respondeu a pergunta do dia. Já dá para ver as respostas!" : "respondeu a pergunta do dia. Sua vez!"}; return null;
+    case "meta":
+      if(id==="recado_"+actor && (after.text || after.photo) && (!b || b.at!==after.at)) return {key:"rec", view:"home", title:`Recado de ${nameOf(actor)}`, text: after.text || "Mandou uma foto para a sua tela.", raw:true};
+      if(id==="photos" && after[actor] && (!b || b[actor]!==after[actor])) return {key:"ph", view:"home", text:"trocou a foto do perfil"};
+      if(id==="vault" && !b) return {key:"vlt", view:"cofre", text:"ativou o cofre. Peça o código para abrir no seu celular."};
+      return null;
+    case "polls":
+      if(!b) return {key:"poll"+id, view:"decidir", text:`quer decidir com você: ${q(after.question)}`};
+      if(after.votes && after.votes[actor]!=null && !(b.votes && b.votes[actor]!=null)) return {key:"vote"+id, view:"decidir", text: after.votes[you]!=null ? `votou em ${q(after.question)}. Veja o resultado!` : `votou em ${q(after.question)}. Sua vez de votar!`};
+      return null;
+    case "tasks":
+      if(!b) return {key:"task", view:"tarefas", text: after.who===you ? `criou uma tarefa para você: ${q(after.title)}` : `criou a tarefa ${q(after.title)}`};
+      if(after.done && !b.done) return {key:"done"+id, view:"tarefas", text:`concluiu ${q(after.title)}`};
+      if((after.log||[]).length > (b.log||[]).length) return {key:"done"+id, view:"tarefas", text:`fez ${q(after.title)}`};
+      if(after.thanks && after.thanks[actor] && !(b.thanks && b.thanks[actor])) return {key:"thx"+id, view:"tarefas", text:`agradeceu por ${q(after.title)} ❤`};
+      return null;
+    case "lists": return !b ? {key:"list"+id, view:"listas", text:`criou a lista ${q(after.title)}`} : null;
+    case "items": if(b) return null; { const l = S.lists[after.listId]; const ln = l ? ` à lista ${q(l.title)}` : "";
+      return {key:"items"+after.listId, view:"listas", text:`adicionou ${q(after.text)}${ln}`, many:n => `adicionou ${n} itens${ln}`}; }
+    case "dates": return !b ? {key:"date"+id, view:"datas", text:`marcou uma data: ${q(after.title)}`} : null;
+    case "wishes": return !b ? {key:"wish", view:"desejos", text:"atualizou os desejos"} : null;
+    case "bills":
+      if(!b) return {key:"bill"+id, view:"contas", text:`lançou ${money2(after.amount)} em ${q(after.title)}`};
+      if(after.settled && !b.settled) return {key:"settle", view:"contas", text:"marcou as contas como acertadas"};
+      return null;
+    case "fixed": { const m = Object.keys(after.paid||{}).find(k => after.paid[k] && !(b && b.paid && b.paid[k])); return m ? {key:"fx"+id, view:"contas", text:`pagou ${q(after.title)}`} : null; }
+    case "names":
+      if(!b) return {key:"name"+id, view:"familia", text:`sugeriu o nome ${q(after.name)}`};
+      if(after.likes && after.likes[actor] && !(b.likes && b.likes[actor])) return {key:"like"+id, view:"familia", text:`também curtiu o nome ${q(after.name)}`};
+      return null;
+    case "kids": return !b ? {key:"kid"+id, view:"familia", text:`adicionou ${after.name} à família`} : null;
+    case "journal": { const k = S.kids[after.kidId]; return !b ? {key:"jr"+id, view:"familia", text:`registrou um marco${k?` de ${k.name}`:""}: ${q(after.text)}`} : null; }
+    case "about": return {key:"about", view:"bomsaber", text:"atualizou o Bom saber"};
+    case "notes": return !b ? {key:"note"+id, view:"notas", text:`criou a nota ${q(after.title || "sem título")}`} : null;
+    case "plans":
+      if(!b) return {key:"plan"+id, view:"planos", text:`criou o plano ${q(after.title)}`};
+      if((after.steps||[]).filter(x=>x.done).length > (b.steps||[]).filter(x=>x.done).length) return {key:"plan"+id, view:"planos", text:`avançou no plano ${q(after.title)}`};
+      return null;
+    case "capsules": return !b && (after.to===you || after.to==="ambos" || !after.to) ? {key:"cap"+id, view:"capsulas", text:`guardou uma cápsula para abrir em ${fmt(after.openAt,{day:"numeric",month:"long",year:"numeric"})}`} : null;
+    case "cards": return !b ? {key:"card"+id, view:"cartoes", text:`adicionou o cartão ${q(after.name)}`} : null;
+    case "vault": return !b ? {key:"vault", view:"cofre", text:"guardou um item no cofre"} : null;
+  }
+  return null;
+}
+const cap1 = t => t ? t[0].toUpperCase() + t.slice(1) : t;
+// Junta eventos parecidos (ex.: vários itens na mesma lista) e monta o texto final.
+function groupEvents(evs){
+  const by = new Map(); evs.forEach(e => { const g = by.get(e.key); if(g){ g.n++; g.last = e; } else by.set(e.key, {...e, n:1, last:e}); });
+  return [...by.values()].map(g => g.n > 1 ? (g.many ? {...g, text:g.many(g.n)} : {...g.last}) : g);
+}
+// --- Enviar: o que eu faço vira aviso no celular do outro (só no modo nuvem)
+let outbox = [], outT = null;
+function noteChange(c, id, before, after){
+  if(mode!=="cloud" || !cloud || !me) return;
+  let d = null; try{ d = describe(c, id, before, after, me); }catch(e){ d = null; }
+  if(!d) return; outbox.push(d); clearTimeout(outT); outT = setTimeout(flushOutbox, d.key==="rec" ? 300 : 2500);
+}
+function flushOutbox(){
+  const evs = groupEvents(outbox); outbox = []; if(!evs.length || !cloud) return;
+  const n = nameOf(me); const one = evs.length===1 ? evs[0] : null;
+  const title = one ? (one.title || n) : n;
+  const body = one ? (one.raw ? one.text : cap1(one.text)) : evs.slice(0,3).map(e => e.raw ? `Recado: ${e.text}` : cap1(e.text)).join(" · ") + (evs.length>3 ? ` · e mais ${evs.length-3}` : "");
+  api({op:"notify", id:cloud.id, key:cloud.key, to:other(me), title, body, view:(evs.find(e=>e.key==="rec")||evs[0]).view, tag:one ? one.key.replace(/[^a-z]/g,"") : "varias"}).catch(()=>{});
+}
+// --- Receber: mudanças que chegaram do outro viram pop-up na tela
+function remoteEvents(oldS, newS){
+  const out = []; const actor = other(me); if(!me) return out;
+  COLS.forEach(c => { const a = oldS[c]||{}, b = newS[c]||{};
+    Object.keys(b).forEach(id => { if(JSON.stringify(a[id])===JSON.stringify(b[id])) return; let d = null; try{ d = describe(c, id, a[id], b[id], actor); }catch(e){} if(d) out.push(d); }); });
+  return groupEvents(out);
+}
+let popQ = [], popT = null;
+function announce(evs){
+  if(!evs.length || mode==="demo") return;
+  popQ.push(...evs); if(!popT) showPop();
+  try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){}
+}
+function showPop(){
+  const el = document.getElementById("pop"); const e = popQ.shift();
+  if(!e){ el.hidden = true; popT = null; return; }
+  const more = popQ.length; const s = other(me);
+  el.innerHTML = `${avatar(s,"sm")}<div class="grow">${e.raw ? `<b>${esc(e.title)}</b><p class="big1">${esc(e.text)}</p>` : `<b>${esc(nameOf(s))}</b><p>${esc(cap1(e.text))}</p>`}
+    <div class="acts"><button class="btn sm" data-act="popGo" data-v="${esc(e.view)}">Ver</button><button class="btn sm ghost" data-act="popClose">${more ? `Próxima (${more})` : "Fechar"}</button></div></div>`;
+  el.hidden = false; clearTimeout(popT); popT = setTimeout(showPop, e.raw ? 12000 : 7000);
 }
 
 async function boot(){
@@ -593,7 +745,9 @@ async function boot(){
       db.collection(c).onSnapshot(snap => {
         const o = {}; snap.docs.forEach(x => { if(x.exists) o[x.id] = x.data(); });
         if(mode==="demo"){ if(savedReal) savedReal.S = {...savedReal.S, [c]:o}; return; }
-        S[c] = o; const first = !loaded.has(c); loaded.add(c); first ? schedule() : scheduleBg();
+        const first = !loaded.has(c); const old = S; S = {...S, [c]:o}; loaded.add(c);
+        if(!first && COLS.every(x => loaded.has(x))) announce(remoteEvents(old, S));
+        first ? schedule() : scheduleBg();
       }, err => { loaded.add(c); if(err && err.code!=="revoked") toast("A sincronização parou. Recarregue a página."); schedule(); });
     });
   } else if(/^https?:/.test(location.protocol)){
@@ -612,8 +766,15 @@ async function boot(){
   } else {
     mode = "local"; loadLocal();
   }
+  const hv = location.hash.match(/^#ver-([a-z]+)$/); if(hv){ view = hv[1]; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
+  if(mode==="cloud") pushCheck().then(scheduleBg);
   schedule();
 }
+if("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", ev => {
+  const d = ev.data || {};
+  if(d.type==="nd-sync") pull();
+  if(d.type==="nd-open" && d.view){ view = d.view; if(view==="contas") billMonth = null; pull(); schedule(); }
+});
 
 /* ===================== Derivados ===================== */
 const C = () => S.meta.couple;
@@ -881,6 +1042,7 @@ function home(){
     </section>` : ""}
     ${pendingPoll ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${esc(pn)} quer decidir com você</b><p class="small" style="color:var(--fg)">${esc(pendingPoll[1].question)}</p></div><button class="btn sm coral" data-act="go" data-v="decidir">Votar</button></section>` : ""}
     ${capsReady ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${pl(capsReady,"cápsula abriu","cápsulas abriram")}</b><p class="small" style="color:var(--fg)">Uma mensagem guardada para hoje.</p></div><button class="btn sm coral" data-act="go" data-v="capsulas">Abrir</button></section>` : ""}
+    ${mode==="cloud" && pushState==="off" && partnerJoined() && lsGet("nd-push-later")!==today() && !(lsGet("nd-push-later")||"").startsWith("x") ? `<section class="card row" style="gap:12px"><span class="iconbtn" style="color:var(--accent);background:var(--accent-soft);border-color:transparent;box-shadow:none">${ic("phone")}</span><div class="grow"><b>Saber na hora</b><p class="small muted">Receba um aviso quando ${esc(pn)} responder ou mandar recado.</p></div><div class="stack" style="gap:6px"><button class="btn sm" data-act="pushOn">Ativar</button><button class="linkrow small muted" data-act="pushLater" style="justify-content:center">Agora não</button></div></section>` : ""}
     <section class="hero stack" style="gap:12px" aria-label="Tempo juntos">
       <div class="row between" style="align-items:center">
         <div class="stack" style="gap:6px;min-width:0">
@@ -1578,6 +1740,7 @@ function ajustes(){
     <label class="field"><span>Data prevista do parto (se estiverem esperando)</span><input type="date" id="cfDue" name="due" value="${esc(c.dueDate||"")}"></label>
     <button class="btn block" type="submit">Salvar ajustes</button>
   </form>
+  ${mode==="cloud" && cloud ? `<div class="section"><h3>Avisos</h3><section class="card">${pushCard()}</section></div>` : ""}
   <div class="section"><h3>Sua foto</h3><section class="card row" style="gap:14px">${avatar(me)}<div class="grow small muted">Aparece no início e nos recados, para ${esc(nameOf(other(me)))} também.</div><button class="btn sm ghost" data-act="setPhoto">${photoOf(me)?"Trocar":"Escolher foto"}</button>${photoOf(me)?`<button class="hbtn" data-act="delPhoto" aria-label="Tirar foto">${ic("trash")}</button>`:""}</section></div>
   <div class="section"><h3>Quem está usando este aparelho</h3>
     <div class="who-pick">${["a","b"].map(s=>`<button data-act="iam" data-s="${s}" aria-pressed="${me===s}" style="${me===s?"border-color:var(--accent);border-width:2px":""}">${avatar(s)}<span>${esc(nameOf(s))}</span></button>`).join("")}</div>
@@ -1791,6 +1954,11 @@ const ACT = {
         patch("fixed", id, {paid:{[m]:bid}}); toast(`${f.title} marcada como paga`); }, {submit:"Marcar como paga"}); },
   unpayFixed: el => { const id = el.dataset.id, m = el.dataset.m, f = S.fixed[id]; if(!f) return; const bid = f.paid && f.paid[m];
     if(bid) del("bills", bid); patch("fixed", id, {paid:{[m]:null}}); toast("Pagamento desfeito"); },
+  popGo: el => { clearTimeout(popT); popQ = []; document.getElementById("pop").hidden = true; popT = null; view = el.dataset.v || "home"; if(view==="contas") billMonth = null; schedule(); },
+  popClose: () => { clearTimeout(popT); showPop(); },
+  pushOn: () => pushEnable(),
+  pushOff: () => pushDisable(),
+  pushLater: () => { lsSet("nd-push-later", today()); schedule(); },
   copyCode: el => { const c = fmtCode(codes && codes[el.dataset.s]); try{ navigator.clipboard.writeText(c).then(()=>toast(`Código ${c} copiado`)).catch(()=>toast(`Código: ${c}`)); }catch(e){ toast(`Código: ${c}`); } },
   regenCode: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.textContent = "Toque de novo: o atual para de valer"; return; } loadCodes(el.dataset.s); },
   copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
