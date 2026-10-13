@@ -1,5 +1,5 @@
 // Nós Dois: guarda a "casca" do app para abrir mesmo sem internet. Nunca guarda /api.
-const CACHE = "nos-dois-v2";
+const CACHE = "nos-dois-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
@@ -13,4 +13,31 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+});
+
+// Avisos: quando o outro responde, deixa recado, vota… o servidor manda um push cifrado.
+// Se o app estiver aberto na tela, só pede para ele sincronizar (o pop-up aparece lá dentro).
+self.addEventListener("push", (e) => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : "" }; }
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    const vis = cs.filter((c) => c.visibilityState === "visible");
+    if (vis.length) { vis.forEach((c) => c.postMessage({ type: "nd-sync" })); return; }
+    return self.registration.showNotification(d.title || "Nós Dois", {
+      body: d.body || "Tem novidade no espaço de vocês.",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/badge-96.png",
+      tag: d.tag || "nos-dois",
+      renotify: true,
+      data: { view: d.view || "home" },
+    });
+  }));
+});
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const view = (e.notification.data && e.notification.data.view) || "home";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    const c = cs.find((x) => new URL(x.url).origin === location.origin);
+    if (c) { c.postMessage({ type: "nd-open", view }); return c.focus(); }
+    return self.clients.openWindow("/#ver-" + encodeURIComponent(view));
+  }));
 });
