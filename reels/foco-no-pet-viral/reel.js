@@ -4,27 +4,29 @@
 // Nada aqui toca no DOM no carregamento do módulo, assim o music.js (Node)
 // importa a mesma linha do tempo e a trilha fica sincronizada com os cortes.
 
-export const W = 1080, H = 1920, FPS = 30, BPM = 120, BEAT = 60 / BPM, DURATION = 25;
+export const W = 1080, H = 1920, FPS = 30, BPM = 120, BEAT = 60 / BPM, DURATION = 27;
 
 // Cenas (segundos)
-export const S = { hook: 0, cards: 2.5, rush: 10.5, grid: 12.5, end: 18.5 };
+export const S = { hook: 0, cards: 2.5, rush: 12.5, grid: 14.5, end: 20.5 };
 
 const ORANGE = '#E15A0A', ORANGE_D = '#B9470A', DARK = '#1E1E1C', CREAM = '#FFF4EA', WHITE = '#FFFFFF';
 const TAU = Math.PI * 2;
 
-// 8 fotos "personalidade", uma por segundo (2 batidas)
+// 10 fotos "personalidade", uma por segundo (2 batidas)
 export const CARDS = [
   { img: 'p01', word: 'ESTILOSO', emoji: '😎' },
   { img: 'p00', word: 'MODO FÉRIAS', emoji: '🌴' },
   { img: 'p02', word: 'SORRISÃO', emoji: '😁' },
+  { img: 'p12', word: 'OLHAR DE CINEMA', emoji: '🎬' },
   { img: 'p04', word: 'CARISMA', emoji: '✨' },
   { img: 'p05', word: 'SOLTA A VOZ', emoji: '🎤' },
   { img: 'p06', word: 'FOFURA 100%', emoji: '🥹' },
   { img: 'p09', word: 'TOCA AQUI', emoji: '🙌' },
+  { img: 'p13', word: 'POSE DE CAPA', emoji: '📸' },
   { img: 'p10', word: 'LINGUINHA', emoji: '😛' },
 ];
 // Sequência rápida, meia batida cada
-export const RUSH = ['p03', 'p07', 'p08', 'p11', 'p00', 'p04', 'p05', 'p02'];
+export const RUSH = ['p03', 'p12', 'p07', 'p08', 'p13', 'p11', 'p05', 'p02'];
 // Grade "qual é o seu favorito?" (números 1..12)
 export const GRID = ['p01', 'p04', 'p02', 'p06', 'p09', 'p00', 'p05', 'p11', 'p03', 'p10', 'p08', 'p07'];
 const PICK = 6;
@@ -32,6 +34,7 @@ const PICK = 6;
 const FOCUS = {
   p00: [0.28, 0.43], p01: [0.67, 0.4], p02: [0.6, 0.34], p03: [0.48, 0.43], p04: [0.63, 0.55], p05: [0.33, 0.28],
   p06: [0.44, 0.46], p07: [0.48, 0.55], p08: [0.74, 0.46], p09: [0.52, 0.43], p10: [0.52, 0.4], p11: [0.41, 0.49],
+  p12: [0.45, 0.35], p13: [0.52, 0.25],
 };
 const focus = (name) => FOCUS[name] || [0.5, 0.4]; // onde a roleta para (Nº 7)
 
@@ -315,7 +318,7 @@ function cardSize(img) { // foto inteira dentro de 860x940
   if (w > 860) { w = 860; h = w * img.height / img.width; }
   return [w + BORDER * 2, h + BORDER * 2];
 }
-const DIRS = [[-1, 0.2], [1, -0.1], [0, 1], [-0.6, -1], [1, 0.5], [-1, -0.4], [0.3, 1], [1, -0.8]];
+const DIRS = [[-1, 0.2], [1, -0.1], [0, 1], [-0.6, -1], [1, 0.5], [-1, -0.4], [0.3, 1], [1, -0.8], [-1, 0.6], [0.5, -1]];
 function cardPose(k) {
   return { x: W / 2 + (hash(k + 1) - 0.5) * 50, y: CARD_Y + (hash(k + 2) - 0.5) * 40, r: (k % 2 ? 1 : -1) * (0.035 + hash(k + 4) * 0.03) };
 }
@@ -384,7 +387,7 @@ function sceneRush(ctx, A, t) {
     ctx.save(); ctx.filter = 'blur(38px) saturate(1.2)'; drawCover(ctx, img, -60, -60, W + 120, H + 120, lerp(1.12, 1.04, e)); ctx.restore();
     if (i % 2) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(225,90,10,0.55)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     ctx.fillStyle = 'rgba(10,10,10,0.3)'; ctx.fillRect(0, 0, W, H);
-    const pw = 760, phh = pw * img.height / img.width, sc = lerp(1.1, 1, e), rot = (i % 2 ? 1 : -1) * 0.025 * (1 - e);
+    const phh = Math.min(940, 760 * img.height / img.width), pw = phh * img.width / img.height, sc = lerp(1.1, 1, e), rot = (i % 2 ? 1 : -1) * 0.025 * (1 - e);
     ctx.save(); ctx.translate(W / 2, 900); ctx.rotate(rot); ctx.scale(sc, sc);
     ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 24;
     ctx.fillStyle = WHITE; rrect(ctx, -pw / 2 - 16, -phh / 2 - 16, pw + 32, phh + 32, 22); ctx.fill();
@@ -563,7 +566,7 @@ export async function loadAssets(base = './assets/') {
   ];
   await Promise.all(fonts.map(async (f) => document.fonts.add(await f.load())));
   const img = (src) => new Promise((ok, err) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => err(new Error(src)); i.src = src; });
-  const names = ['hero', ...Array.from({ length: 12 }, (_, i) => `p${String(i).padStart(2, '0')}`)];
+  const names = ['hero', ...Array.from({ length: 14 }, (_, i) => `p${String(i).padStart(2, '0')}`)];
   const photos = Object.fromEntries(await Promise.all(names.map(async (n) => [n, await img(`${base}photos/${n}.jpg`)])));
   const logo = Object.fromEntries(await Promise.all(['aperture', 'paw', 'text', 'full'].map(async (n) => [n, await img(`${base}logo/logo_${n}.png`)])));
   return { photos, logo };

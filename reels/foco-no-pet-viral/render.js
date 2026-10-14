@@ -30,7 +30,7 @@ const frames = Math.round(DURATION * FPS);
 
 const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error',
   '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
-  '-i', join(ROOT, 'musica-foco-no-pet.wav'),
+  '-i', join(ROOT, 'efeitos-foco-no-pet.wav'),
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
   '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT], { stdio: ['pipe', 'inherit', 'inherit'] });
 
