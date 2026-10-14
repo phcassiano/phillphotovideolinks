@@ -28,7 +28,7 @@ export const CARDS = [
 // Sequência rápida, meia batida cada
 export const RUSH = ['p03', 'p12', 'p07', 'p08', 'p13', 'p11', 'p05', 'p02'];
 // Grade "qual é o seu favorito?" (números 1..12)
-export const GRID = ['p01', 'p04', 'p02', 'p06', 'p09', 'p00', 'p05', 'p11', 'p03', 'p10', 'p08', 'p07'];
+export const GRID = ['p01', 'p04', 'p02', 'p06', 'p09', 'p00', 'p05', 'p12', 'p13', 'p10', 'p08', 'p07'];
 const PICK = 6;
 // Onde fica o rosto em cada foto (0..1). O enquadramento nunca corta essa região.
 const FOCUS = {
