@@ -47,3 +47,22 @@ npm run render:fds   # gera efeitos-fds.wav e foco-no-pet-fds.mp4
 Preview: abra `index.html?reel=fds`.
 
 **Sugestão de legenda:** "Ele cresce rápido demais 🥺 Esse fim de semana tem ensaio Foco no Pet! Comenta FDS que a gente te manda onde vai estar 📍 ou chama no direct pra garantir o horário do seu pet 📸🐾"
+
+---
+
+# Modelo 3 · "Fim de semana · laboratório" (`fds2.js`)
+
+Mesma copy do modelo 2, com uma direção de arte própria de fotografia em vez do visual de template: tipografia editorial (DM Serif Display, Space Mono e Permanent Marker como marcador escrito à mão), grão de filme, vazamento de luz e transições de obturador de cortina.
+
+| Tempo | Cena |
+|---|---|
+| 0–3 s | **Visor da câmera**: REC, timecode, ISO/obturador/abertura; o autofoco procura e trava no rosto do cane corso ("● FOCO TRAVADO") enquanto a imagem entra em foco. "Seu pet não vai ser *filhote pra sempre.*" + à mão: "…mas essa foto vai durar pra sempre ✨" |
+| 3–9 s | **Mesa de revelação** com luz vermelha: celular com a foto ruim, legenda à mão (tremida / no escuro / cortou a cabeça), X de marcador e a foto impressa do ensaio caindo por cima ("ensaio Foco no Pet ✓") |
+| 9–13 s | **Filme 35 mm** avançando quadro a quadro: "Como funciona?" com os 4 pontos e ✓ à mão |
+| 13–17 s | **Folha de contato** com lupa: "Seu pet pode ser *o próximo.*", e o último quadro vazio, "seu pet aqui?", é circulado à mão: "esse!" |
+| 17–24 s | **Carimbos** SÁB e DOM, "Quer saber onde? 📍", "Comenta **FDS**" circulado à mão e a janela de comentários do Instagram com o comentário sendo digitado e publicado, "que a gente te manda onde vamos estar 📍" e "ou chama no direct pra agendar" |
+
+```bash
+npm run render:fds2   # gera efeitos-fds2.wav e foco-no-pet-fds2.mp4
+```
+Preview: `index.html?reel=fds2`.
