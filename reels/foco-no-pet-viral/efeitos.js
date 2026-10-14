@@ -1,8 +1,8 @@
-// Somente efeitos sonoros (sem trilha), sincronizados com a linha do tempo do reel.js:
+// Somente efeitos sonoros (sem trilha), sincronizados com a linha do tempo do modelo:
 // clique de câmera em cada foto, impactos, whooshes, pops, roleta e subidas de tensão.
-// Gera efeitos-foco-no-pet.wav (44.1 kHz, estéreo, 16 bits). Sem samples externos.
+// Uso: node efeitos.js [reel|fds]  →  efeitos-<NAME>.wav (44.1 kHz, estéreo, 16 bits). Sem samples externos.
 import { writeFileSync } from 'node:fs';
-import { DURATION, S, CUES } from './reel.js';
+const { DURATION, CUES, NAME } = await import(`./${process.argv[2] || 'reel'}.js`);
 
 const SR = 44100, N = Math.ceil(DURATION * SR);
 const L = new Float32Array(N), R = new Float32Array(N);
@@ -37,16 +37,9 @@ const stamp = (t) => { kick(t, 0.9); const n = noiseFn(0.5); add(t, 0.2, (x) => 
 const whoosh = (t, dur = 0.5) => { const n = noiseFn(0.15); add(t - dur * 0.7, dur, (x) => { const p = x / dur; return n() * Math.sin(Math.PI * p) ** 2; }, 0.55); };
 const riser = (t, dur) => { let ph = 0; const n = noiseFn(0.4, true); add(t, dur, (x) => { const p = x / dur; ph += TAU * (220 + 1400 * p * p) / SR; return (Math.sin(ph) * 0.25 + n() * 0.5) * p * p; }, 0.4); };
 
-// --- efeitos nas viradas de cena (sem música) ---
-riser(1.2, S.cards - 1.2);
-crash(S.cards, 0.7);
-riser(S.rush, S.grid - S.rush - 0.25);
-impact(S.grid); crash(S.grid, 0.8);
-riser(S.end - 1.2, 1.2);
-impact(S.end); crash(S.end, 0.8);
-
 for (const c of CUES) {
-  ({ impact, stamp, whoosh: (t) => whoosh(t), shutter, pop: (t) => pop(t, c.i), tick, ding })[c.type]?.(c.t);
+  ({ impact, stamp, whoosh: (t) => whoosh(t), shutter, pop: (t) => pop(t, c.i), tick, ding,
+     riser: (t) => riser(t, c.dur), crash: (t) => crash(t, c.g) })[c.type]?.(c.t);
 }
 
 // master: saturação suave + normalização a -1 dBFS
@@ -61,5 +54,5 @@ for (let i = 0; i < N; i++) {
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i] * k)) * 32767), 44 + i * 4);
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * k)) * 32767), 46 + i * 4);
 }
-writeFileSync(new URL('./efeitos-foco-no-pet.wav', import.meta.url), buf);
-console.log(`efeitos-foco-no-pet.wav: ${DURATION}s, pico normalizado`);
+writeFileSync(new URL(`./efeitos-${NAME}.wav`, import.meta.url), buf);
+console.log(`efeitos-${NAME}.wav: ${DURATION}s`);

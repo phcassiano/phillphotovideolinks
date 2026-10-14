@@ -25,14 +25,17 @@
   <input id="seek" type="range" min="0" max="27" step="0.001" value="0">
   <span id="time">0.0s</span>
 </div>
-<audio id="music" src="efeitos-foco-no-pet.wav" preload="auto" loop></audio>
+<audio id="music" preload="auto" loop></audio>
 <script type="module">
-  import { drawFrame, loadAssets, DURATION, FPS } from './reel.js';
+  // ?reel=fds abre o modelo "fim de semana"; sem parâmetro abre o reel.js
+  const params = new URLSearchParams(location.search);
+  const { drawFrame, loadAssets, DURATION, FPS, NAME } = await import(`./${params.get('reel') || 'reel'}.js`);
 
   const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
   const audio = document.getElementById('music'), btn = document.getElementById('play');
   const seek = document.getElementById('seek'), time = document.getElementById('time');
-  const isRender = new URLSearchParams(location.search).has('render');
+  const isRender = params.has('render');
+  audio.src = `efeitos-${NAME}.wav`; seek.max = DURATION;
   if (isRender) document.body.classList.add('render');
 
   const A = await loadAssets();

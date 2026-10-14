@@ -4,6 +4,7 @@
 // Nada aqui toca no DOM no carregamento do módulo, assim o music.js (Node)
 // importa a mesma linha do tempo e a trilha fica sincronizada com os cortes.
 
+export const NAME = 'foco-no-pet';
 export const W = 1080, H = 1920, FPS = 30, BPM = 120, BEAT = 60 / BPM, DURATION = 27;
 
 // Cenas (segundos)
@@ -67,6 +68,10 @@ export const CUES = [
   { t: S.end + 2.3, type: 'stamp' },
   { t: S.end + 2.55, type: 'stamp' },
   { t: S.end + 2.9, type: 'pop', i: 6 },
+  // viradas de cena
+  { t: 1.2, type: 'riser', dur: S.cards - 1.2 }, { t: S.cards, type: 'crash', g: 0.7 },
+  { t: S.rush, type: 'riser', dur: S.grid - S.rush - 0.25 }, { t: S.grid, type: 'impact' }, { t: S.grid, type: 'crash', g: 0.8 },
+  { t: S.end - 1.2, type: 'riser', dur: 1.2 }, { t: S.end, type: 'impact' }, { t: S.end, type: 'crash', g: 0.8 },
 ];
 const SHAKES = [
   [STAMPS[0], 26], [STAMPS[1], 20], [STAMPS[2], 34],
@@ -571,3 +576,10 @@ export async function loadAssets(base = './assets/') {
   const logo = Object.fromEntries(await Promise.all(['aperture', 'paw', 'text', 'full'].map(async (n) => [n, await img(`${base}logo/logo_${n}.png`)])));
   return { photos, logo };
 }
+
+// Peças reaproveitadas por outros modelos (ex.: fds.js)
+export {
+  ORANGE, ORANGE_D, DARK, CREAM, WHITE, TAU, FOCUS, focus, clamp, lerp, outCubic, inOutCubic, outBack, prog, beatPulse, hash,
+  anton, mont, fitFont, drawCover, rrect, flash, iris, paw, floatingPaws, stickerText, staggerText, pill, popIn, drawLogo,
+  orangeBg, darkBg,
+};

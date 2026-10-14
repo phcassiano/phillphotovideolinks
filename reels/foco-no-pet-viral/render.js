@@ -1,5 +1,6 @@
 // Renderiza o reel quadro a quadro no Chromium (Playwright) e junta com a trilha no ffmpeg.
-// Uso: npm install && npm run render  →  foco-no-pet-reels.mp4 (1080x1920, 30 fps, H.264 + AAC)
+// Uso: npm install && npm run render (ou render:fds)  →  MP4 1080x1920, 30 fps, H.264 + AAC
+// node render.js [reel|fds] [saida.mp4]
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
@@ -8,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
-const OUT = process.argv[2] || join(ROOT, 'foco-no-pet-reels.mp4');
+const REEL = process.argv[2] || 'reel';
+const { NAME } = await import(`./${REEL}.js`);
+const OUT = process.argv[3] || join(ROOT, REEL === 'reel' ? 'foco-no-pet-reels.mp4' : `foco-no-pet-${REEL}.mp4`);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png', '.woff2': 'font/woff2', '.wav': 'audio/wav' };
 
 const server = createServer(async (req, res) => {
@@ -18,7 +21,7 @@ const server = createServer(async (req, res) => {
   catch { res.writeHead(404).end(); }
 }).listen(0, '127.0.0.1');
 await new Promise((ok) => server.once('listening', ok));
-const url = `http://127.0.0.1:${server.address().port}/index.html?render`;
+const url = `http://127.0.0.1:${server.address().port}/index.html?render&reel=${REEL}`;
 
 const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
 const page = await browser.newPage({ viewport: { width: 1080, height: 1920 } });
@@ -30,7 +33,7 @@ const frames = Math.round(DURATION * FPS);
 
 const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error',
   '-f', 'image2pipe', '-framerate', String(FPS), '-c:v', 'mjpeg', '-i', '-',
-  '-i', join(ROOT, 'efeitos-foco-no-pet.wav'),
+  '-i', join(ROOT, `efeitos-${NAME}.wav`),
   '-c:v', 'libx264', '-preset', 'slow', '-crf', '18', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
   '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT], { stdio: ['pipe', 'inherit', 'inherit'] });
 

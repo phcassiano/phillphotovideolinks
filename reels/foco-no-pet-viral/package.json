@@ -6,6 +6,7 @@
   "scripts": {
     "efeitos": "node efeitos.js",
     "render": "node efeitos.js && node render.js",
+    "render:fds": "node efeitos.js fds && node render.js fds",
     "preview": "npx --yes serve -l 8080 ."
   },
   "devDependencies": {
