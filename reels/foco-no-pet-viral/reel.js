@@ -24,10 +24,16 @@ export const CARDS = [
   { img: 'p10', word: 'LINGUINHA', emoji: '😛' },
 ];
 // Sequência rápida, meia batida cada
-export const RUSH = ['p03', 'p07', 'p08', 'p11', 'p00', 'p04', 'p06', 'p02'];
+export const RUSH = ['p03', 'p07', 'p08', 'p11', 'p00', 'p04', 'p05', 'p02'];
 // Grade "qual é o seu favorito?" (números 1..12)
 export const GRID = ['p01', 'p04', 'p02', 'p06', 'p09', 'p00', 'p05', 'p11', 'p03', 'p10', 'p08', 'p07'];
-const PICK = 6; // onde a roleta para (Nº 7)
+const PICK = 6;
+// Onde fica o rosto em cada foto (0..1). O enquadramento nunca corta essa região.
+const FOCUS = {
+  p00: [0.28, 0.43], p01: [0.67, 0.4], p02: [0.6, 0.34], p03: [0.48, 0.43], p04: [0.63, 0.55], p05: [0.33, 0.28],
+  p06: [0.44, 0.46], p07: [0.48, 0.55], p08: [0.74, 0.46], p09: [0.52, 0.43], p10: [0.52, 0.4], p11: [0.41, 0.49],
+};
+const focus = (name) => FOCUS[name] || [0.5, 0.4]; // onde a roleta para (Nº 7)
 
 // Roleta: batidas que desaceleram até parar no PICK
 export const ROULETTE = (() => {
@@ -303,18 +309,24 @@ function orangeBg(ctx, t) {
 }
 
 // ---------- cena 2: polaroids empilhando ----------
-const CARD_W = 920, CARD_H = 830, CARD_Y = 880;
+const CARD_Y = 850, BORDER = 18;
+function cardSize(img) { // foto inteira dentro de 860x940
+  let h = 940, w = h * img.width / img.height;
+  if (w > 860) { w = 860; h = w * img.height / img.width; }
+  return [w + BORDER * 2, h + BORDER * 2];
+}
 const DIRS = [[-1, 0.2], [1, -0.1], [0, 1], [-0.6, -1], [1, 0.5], [-1, -0.4], [0.3, 1], [1, -0.8]];
 function cardPose(k) {
   return { x: W / 2 + (hash(k + 1) - 0.5) * 50, y: CARD_Y + (hash(k + 2) - 0.5) * 40, r: (k % 2 ? 1 : -1) * (0.035 + hash(k + 4) * 0.03) };
 }
-function polaroid(ctx, img, x, y, rot, sc, zoom, dim) {
+function polaroid(ctx, img, x, y, rot, sc, zoom, dim, f = [0.5, 0.4]) {
+  const [CARD_W, CARD_H] = cardSize(img);
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(sc, sc);
   ctx.shadowColor = 'rgba(40,10,0,0.5)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 26;
   ctx.fillStyle = WHITE; rrect(ctx, -CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 22); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.save(); rrect(ctx, -CARD_W / 2 + 18, -CARD_H / 2 + 18, CARD_W - 36, CARD_H - 36, 12); ctx.clip();
-  drawCover(ctx, img, -CARD_W / 2 + 18, -CARD_H / 2 + 18, CARD_W - 36, CARD_H - 36, zoom, 0.5, 0.4);
+  drawCover(ctx, img, -CARD_W / 2 + 18, -CARD_H / 2 + 18, CARD_W - 36, CARD_H - 36, zoom, f[0], f[1]);
   if (dim > 0) { ctx.fillStyle = `rgba(20,8,0,${dim})`; ctx.fillRect(-CARD_W, -CARD_H, CARD_W * 2, CARD_H * 2); }
   ctx.restore(); ctx.restore();
 }
@@ -324,10 +336,10 @@ function sceneCards(ctx, A, t) {
   orangeBg(ctx, t);
   const k = Math.min(CARDS.length - 1, Math.floor(u));
   for (let j = Math.max(0, k - 2); j <= k; j++) {
-    const pose = cardPose(j), img = A.photos[CARDS[j].img];
+    const pose = cardPose(j), img = A.photos[CARDS[j].img], f = focus(CARDS[j].img);
     const age = u - j;
     if (j < k) {
-      polaroid(ctx, img, pose.x, pose.y, pose.r, 1 - 0.035 * (k - j), 1.12, 0.18 * (k - j));
+      polaroid(ctx, img, pose.x, pose.y, pose.r, 1 - 0.035 * (k - j), 1, 0.18 * (k - j), f);
     } else {
       const q = prog(age, 0, 0.22), e = outCubic(q), [dx, dy] = DIRS[j % DIRS.length];
       const x = pose.x + dx * (1 - e) * 1400, y = pose.y + dy * (1 - e) * 1700;
@@ -336,14 +348,15 @@ function sceneCards(ctx, A, t) {
         for (let g = 3; g >= 1; g--) {
           const eg = outCubic(prog(age - g * 0.025, 0, 0.22));
           ctx.save(); ctx.globalAlpha = 0.12;
-          polaroid(ctx, img, pose.x + dx * (1 - eg) * 1400, pose.y + dy * (1 - eg) * 1700, pose.r * 3, lerp(1.35, 1, eg), 1.2, 0);
+          polaroid(ctx, img, pose.x + dx * (1 - eg) * 1400, pose.y + dy * (1 - eg) * 1700, pose.r * 3, lerp(1.35, 1, eg), 1, 0, f);
           ctx.restore();
         }
       }
-      polaroid(ctx, img, x, y, lerp(pose.r * 3, pose.r, e), sc, 1.2 - 0.08 * prog(age, 0, 1), 0);
+      polaroid(ctx, img, x, y, lerp(pose.r * 3, pose.r, e), sc, 1 + 0.04 * prog(age, 0, 1), 0, f);
       // flash de câmera no pouso
       const fl = 1 - prog(age, 0.2, 0.18);
       if (age >= 0.2 && fl > 0) {
+        const [CARD_W, CARD_H] = cardSize(img);
         ctx.save(); ctx.globalAlpha = fl * 0.85; ctx.translate(x, y); ctx.rotate(pose.r);
         ctx.fillStyle = WHITE; rrect(ctx, -CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, 22); ctx.fill(); ctx.restore();
       }
@@ -353,7 +366,7 @@ function sceneCards(ctx, A, t) {
   const c = CARDS[k], age = u - k;
   const txt = `${c.word} ${c.emoji}`;
   const size = fitFont(ctx, txt, anton, 160, 960);
-  staggerText(ctx, txt, W / 2, 1450, anton(size), WHITE, DARK, age - 0.16);
+  staggerText(ctx, txt, W / 2, 1440, anton(size), WHITE, DARK, age - 0.16);
   // contador
   const cnt = `${String(k + 1).padStart(2, '0')}/${String(CARDS.length).padStart(2, '0')}`;
   pill(ctx, cnt, 945, 250, mont(40, 900), DARK, WHITE, 30, 20, 1 + 0.12 * Math.exp(-age * 10));
@@ -366,7 +379,7 @@ function sceneCards(ctx, A, t) {
 function sceneRush(ctx, A, t) {
   const u = t - S.rush, i = Math.min(RUSH.length - 1, Math.floor(u / 0.25)), ph = u - i * 0.25;
   if (u < 1.75) {
-    drawCover(ctx, A.photos[RUSH[i]], 0, 0, W, H, lerp(1.22, 1.08, outCubic(ph / 0.25)), 0.5, 0.45);
+    drawCover(ctx, A.photos[RUSH[i]], 0, 0, W, H, lerp(1.06, 1, outCubic(ph / 0.25)), focus(RUSH[i])[0], 0.2);
     if (i % 2) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(225,90,10,0.55)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
     ctx.fillStyle = 'rgba(10,10,10,0.25)'; ctx.fillRect(0, 0, W, H);
     // moldura que pisca na batida
@@ -377,12 +390,12 @@ function sceneRush(ctx, A, t) {
   const pulse = 1 + 0.07 * Math.exp(-ph * 10);
   const a1 = popIn(ctx, 0, u, 0.3), a2 = popIn(ctx, 0.5, u, 0.3);
   if (u < 1.75 && a1.a > 0) {
-    ctx.save(); ctx.globalAlpha = a1.a; ctx.translate(W / 2, 830); ctx.scale(a1.s * pulse, a1.s * pulse);
+    ctx.save(); ctx.globalAlpha = a1.a; ctx.translate(W / 2, 1330); ctx.scale(a1.s * pulse, a1.s * pulse);
     stickerText(ctx, 'CADA PET', 0, 0, anton(200), WHITE, DARK, 10); ctx.restore();
   }
   if (a2.a > 0) {
     const zoom = u >= 1.75 ? 1 + 0.5 * outCubic(prog(u, 1.75, 0.25)) : 1;
-    ctx.save(); ctx.globalAlpha = a2.a; ctx.translate(W / 2, 1060); ctx.scale(a2.s * pulse * zoom, a2.s * pulse * zoom); ctx.rotate(-0.03);
+    ctx.save(); ctx.globalAlpha = a2.a; ctx.translate(W / 2, u >= 1.75 ? 960 : 1545); ctx.scale(a2.s * pulse * zoom, a2.s * pulse * zoom); ctx.rotate(-0.03);
     ctx.font = anton(210); const w = ctx.measureText('É ÚNICO').width + 70;
     ctx.fillStyle = ORANGE; rrect(ctx, -w / 2, -125, w * outCubic(prog(u, 0.5, 0.2)), 240, 20); ctx.fill();
     stickerText(ctx, 'É ÚNICO', 0, 6, anton(210), WHITE, ORANGE_D, 10); ctx.restore();
@@ -391,8 +404,8 @@ function sceneRush(ctx, A, t) {
 }
 
 // ---------- cena 4: grade "qual é o seu favorito?" ----------
-const TW = 280, TH = 252, TG = 14, GX = (W - (TW * 3 + TG * 2)) / 2, GY = 470;
-function tileRect(i) { return [GX + (i % 3) * (TW + TG), GY + Math.floor(i / 3) * (TH + TG), TW, TH]; }
+const TW = 236, TH = Math.round(236 * 1290 / 1080), TG = 18, GX = (W - (TW * 4 + TG * 3)) / 2, GY = 480;
+function tileRect(i) { return [GX + (i % 4) * (TW + TG), GY + Math.floor(i / 4) * (TH + TG), TW, TH]; }
 
 function darkBg(ctx, t) {
   ctx.fillStyle = '#141413'; ctx.fillRect(0, 0, W, H);
@@ -440,7 +453,7 @@ function sceneGrid(ctx, A, t) {
     ctx.fillStyle = hl === i ? WHITE : '#2a2a28'; rrect(ctx, -w / 2 - 6, -h / 2 - 6, w + 12, h + 12, 20); ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.save(); rrect(ctx, -w / 2, -h / 2, w, h, 16); ctx.clip();
-    drawCover(ctx, A.photos[name], -w / 2, -h / 2, w, h, 1.05, 0.5, 0.4);
+    drawCover(ctx, A.photos[name], -w / 2, -h / 2, w, h, 1, ...focus(name));
     if (dim) { ctx.fillStyle = `rgba(10,10,10,${dim})`; ctx.fillRect(-w / 2, -h / 2, w, h); }
     ctx.restore();
     const b = popIn(ctx, 0.8 + i * 0.03, u, 0.35);
@@ -459,16 +472,16 @@ function sceneGrid(ctx, A, t) {
   if (c.a > 0 && zoomQ < 1) {
     ctx.save(); ctx.globalAlpha = c.a * (1 - zoomQ);
     const bob = Math.sin(u * Math.PI * 2) * 8;
-    pill(ctx, 'COMENTA O NÚMERO 👇', W / 2, 1585 + bob, mont(48, 900), ORANGE, WHITE, 46, 28, c.s * (1 + 0.05 * beatPulse(t)));
+    pill(ctx, 'COMENTA O NÚMERO 👇', W / 2, 1500 + bob, mont(48, 900), ORANGE, WHITE, 46, 28, c.s * (1 + 0.05 * beatPulse(t)));
     ctx.restore();
   }
 
   // a foto escolhida cresce até a tela cheia
   if (zoomQ > 0) {
     const [x, y, w, h] = tileRect(PICK);
-    const rx = lerp(x, 0, zoomQ), ry = lerp(y, 0, zoomQ), rw = lerp(w, W, zoomQ), rh = lerp(h, H, zoomQ);
+    const fh = W * 1290 / 1080, rx = lerp(x, 0, zoomQ), ry = lerp(y, (H - fh) / 2, zoomQ), rw = lerp(w, W, zoomQ), rh = lerp(h, fh, zoomQ);
     ctx.save(); rrect(ctx, rx, ry, rw, rh, lerp(16, 0, zoomQ)); ctx.clip();
-    drawCover(ctx, A.photos[GRID[PICK]], rx, ry, rw, rh, 1.05, 0.5, 0.4); ctx.restore();
+    drawCover(ctx, A.photos[GRID[PICK]], rx, ry, rw, rh, 1, ...focus(GRID[PICK])); ctx.restore();
   }
   flash(ctx, 0.9 * (1 - prog(u, 0, 0.14)));
   flash(ctx, 0.5 * (done ? 1 - prog(t, last, 0.2) : 0), ORANGE);
