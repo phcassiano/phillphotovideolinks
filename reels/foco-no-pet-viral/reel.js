@@ -379,9 +379,19 @@ function sceneCards(ctx, A, t) {
 function sceneRush(ctx, A, t) {
   const u = t - S.rush, i = Math.min(RUSH.length - 1, Math.floor(u / 0.25)), ph = u - i * 0.25;
   if (u < 1.75) {
-    drawCover(ctx, A.photos[RUSH[i]], 0, 0, W, H, lerp(1.06, 1, outCubic(ph / 0.25)), focus(RUSH[i])[0], 0.2);
+    // fundo: a mesma foto desfocada; na frente, a foto inteira numa moldura
+    const img = A.photos[RUSH[i]], e = outCubic(ph / 0.25);
+    ctx.save(); ctx.filter = 'blur(38px) saturate(1.2)'; drawCover(ctx, img, -60, -60, W + 120, H + 120, lerp(1.12, 1.04, e)); ctx.restore();
     if (i % 2) { ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(225,90,10,0.55)'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
-    ctx.fillStyle = 'rgba(10,10,10,0.25)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(10,10,10,0.3)'; ctx.fillRect(0, 0, W, H);
+    const pw = 760, phh = pw * img.height / img.width, sc = lerp(1.1, 1, e), rot = (i % 2 ? 1 : -1) * 0.025 * (1 - e);
+    ctx.save(); ctx.translate(W / 2, 900); ctx.rotate(rot); ctx.scale(sc, sc);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 50; ctx.shadowOffsetY = 24;
+    ctx.fillStyle = WHITE; rrect(ctx, -pw / 2 - 16, -phh / 2 - 16, pw + 32, phh + 32, 22); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    rrect(ctx, -pw / 2, -phh / 2, pw, phh, 12); ctx.clip();
+    ctx.drawImage(img, -pw / 2, -phh / 2, pw, phh);
+    ctx.restore();
     // moldura que pisca na batida
     ctx.save(); ctx.strokeStyle = i % 2 ? WHITE : ORANGE; ctx.lineWidth = 34 * Math.exp(-ph * 9) + 6; ctx.strokeRect(0, 0, W, H); ctx.restore();
   } else {
@@ -390,12 +400,12 @@ function sceneRush(ctx, A, t) {
   const pulse = 1 + 0.07 * Math.exp(-ph * 10);
   const a1 = popIn(ctx, 0, u, 0.3), a2 = popIn(ctx, 0.5, u, 0.3);
   if (u < 1.75 && a1.a > 0) {
-    ctx.save(); ctx.globalAlpha = a1.a; ctx.translate(W / 2, 1330); ctx.scale(a1.s * pulse, a1.s * pulse);
-    stickerText(ctx, 'CADA PET', 0, 0, anton(200), WHITE, DARK, 10); ctx.restore();
+    ctx.save(); ctx.globalAlpha = a1.a; ctx.translate(W / 2, 290); ctx.scale(a1.s * pulse, a1.s * pulse);
+    stickerText(ctx, 'CADA PET', 0, 0, anton(180), WHITE, DARK, 10); ctx.restore();
   }
   if (a2.a > 0) {
     const zoom = u >= 1.75 ? 1 + 0.5 * outCubic(prog(u, 1.75, 0.25)) : 1;
-    ctx.save(); ctx.globalAlpha = a2.a; ctx.translate(W / 2, u >= 1.75 ? 960 : 1545); ctx.scale(a2.s * pulse * zoom, a2.s * pulse * zoom); ctx.rotate(-0.03);
+    ctx.save(); ctx.globalAlpha = a2.a; ctx.translate(W / 2, u >= 1.75 ? 960 : 1565); ctx.scale(a2.s * pulse * zoom, a2.s * pulse * zoom); ctx.rotate(-0.03);
     ctx.font = anton(210); const w = ctx.measureText('É ÚNICO').width + 70;
     ctx.fillStyle = ORANGE; rrect(ctx, -w / 2, -125, w * outCubic(prog(u, 0.5, 0.2)), 240, 20); ctx.fill();
     stickerText(ctx, 'É ÚNICO', 0, 6, anton(210), WHITE, ORANGE_D, 10); ctx.restore();

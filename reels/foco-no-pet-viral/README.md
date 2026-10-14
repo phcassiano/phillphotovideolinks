@@ -6,7 +6,7 @@ Reels 1080×1920, 30 fps, 25 s, com motion graphics em Canvas 2D e trilha origin
 |---|---|---|
 | 0–2,5 s | Golden em tela cheia, "ISSO NÃO É IA." palavra a palavra com tremida, "São fotos REAIS do seu pet" | Gancho de quebra de padrão + "espera até o final 👀" |
 | 2,5–10,5 s | 8 polaroids caindo e se empilhando sobre fundo laranja, flash de câmera e palavra de personalidade (ESTILOSO 😎, SORRISÃO 😁…) | Corte a cada 2 batidas, contador 01/08 |
-| 10,5–12,5 s | Sequência rápida em meia batida, "CADA PET É ÚNICO", respiro antes do drop | Aceleração |
+| 10,5–12,5 s | Sequência rápida em meia batida: foto inteira emoldurada sobre a mesma foto desfocada, "CADA PET É ÚNICO", respiro antes do drop | Aceleração |
 | 12,5–18,5 s | Grade 4×3 com as 12 fotos inteiras e numeradas, "QUAL É O SEU FAVORITO?", roleta, "COMENTA O NÚMERO 👇" | Comentários |
 | 18,5–25 s | Logo animada (obturador gira, pata, nome), "AGENDE O ENSAIO DO SEU PET", "LINK NA BIO", "Marca quem tem um pet assim 🐾" | CTA + marcação; a íris fecha e emenda no início (loop) |
 
