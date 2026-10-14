@@ -1,0 +1,14 @@
+{
+  "name": "foco-no-pet-reels",
+  "private": true,
+  "type": "module",
+  "description": "Reels viral da Foco no Pet: motion graphics em Canvas, trilha sintetizada e render para MP4 1080x1920",
+  "scripts": {
+    "music": "node music.js",
+    "render": "node music.js && node render.js",
+    "preview": "npx --yes serve -l 8080 ."
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
