@@ -1,0 +1,26 @@
+{
+  "name": "foco-no-pet-bf",
+  "private": true,
+  "description": "Stories de pré-venda Black Friday da Foco no Pet (Remotion, 1080x1920, 18 s)",
+  "scripts": {
+    "studio": "remotion studio",
+    "stills": "tsx scripts/stills.ts",
+    "render": "remotion render FocoNoPetBF out/foco-no-pet-bf.mp4 --codec=h264",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.535",
+    "@remotion/cli": "4.0.535",
+    "@remotion/google-fonts": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@remotion/transitions": "4.0.535",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.535"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3"
+  }
+}
