@@ -1,7 +1,7 @@
 {
   "name": "foco-no-pet-bf",
   "private": true,
-  "description": "Stories de pré-venda Black Friday da Foco no Pet (Remotion, 1080x1920, 18 s)",
+  "description": "Stories de pré-venda Black Friday da Foco no Pet (Remotion, 1080x1920, 25 s)",
   "scripts": {
     "studio": "remotion studio",
     "stills": "tsx scripts/stills.ts",

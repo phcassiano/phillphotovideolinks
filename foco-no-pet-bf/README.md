@@ -1,19 +1,19 @@
 # Foco no Pet · Stories Black Friday (Remotion)
 
-Vídeo vertical para Instagram Stories: 1080×1920, 30 fps, 18 s, H.264, sem áudio.
+Vídeo vertical para Instagram Stories: 1080×1920, 30 fps, 25 s, H.264, sem áudio.
 Saída: `out/foco-no-pet-bf.mp4`.
 
 | Tempo | Cena |
 |---|---|
-| 0–3 s | Gancho: foto em tela cheia com zoom lento · "Black Friday Foco no Pet" · "Sem desconto. Com presente." |
-| 3–7 s | Oferta: "Ensaio de Natal Pet" + 20 min de sessão · cenário natalino · 5 fotos tratadas |
-| 7–10 s | Bônus do lote Black Friday: foto impressa na hora · R$ 50 de crédito pro ensaio de aniversário |
-| 10–13 s | Escassez: "Só 15 vagas" · vendas de 23 a 30/11 · sessões em 5–6 e 12–13/12 · Sobradinho |
-| 13–15 s | Vale-presente válido até fev/2027 |
-| 15–18 s | CTA: "Garanta sua vaga" + WhatsApp. A base fica livre para o sticker de link |
+| 0–4 s | Gancho: foto em tela cheia com zoom lento · "Black Friday Foco no Pet" · "Sem desconto. Com presente." |
+| 4–9 s | Oferta: "Ensaio de Natal Pet" + 20 min de sessão · cenário natalino · 5 fotos tratadas |
+| 9–13 s | Bônus do lote Black Friday: foto impressa na hora · R$ 50 de crédito pro ensaio de aniversário |
+| 13–17 s | Escassez: "Só 15 vagas" · vendas de 23 a 30/11 · sessões em 5–6 e 12–13/12 · Sobradinho |
+| 17–20 s | Vale-presente válido até fev/2027 |
+| 20–25 s | CTA: "Garanta sua vaga" + WhatsApp. A base fica livre para o sticker de link |
 
 ## Editar
-Tudo fica em **`src/config.ts`**: textos, preço, datas, número de vagas, WhatsApp, cores (`colors.accent`: dourado `#D9B45A` ou vermelho `#D4283C`), duração de cada cena, fotos e o ponto do rosto de cada foto (`photoFocus`).
+Tudo fica em **`src/config.ts`**: textos, preço, datas, número de vagas, WhatsApp, cores (`colors.accent`: dourado `#D9B45A` ou vermelho `#D4283C`), duração de cada cena (`sceneSeconds`; a soma é a duração total), fotos e o ponto do rosto de cada foto (`photoFocus`).
 
 Para trocar uma foto, coloque o arquivo em `public/photos/` e aponte o caminho em `CONFIG.photos`.
 

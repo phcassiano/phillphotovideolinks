@@ -9,14 +9,14 @@ export const CONFIG = {
   width: 1080,
   height: 1920,
   fps: 30,
-  // Duração de cada cena em segundos (a soma é a duração total: 18 s)
+  // Duração de cada cena em segundos (a soma é a duração total: 25 s)
   sceneSeconds: {
-    hook: 3,
-    oferta: 4,
-    bonus: 3,
-    escassez: 3,
-    presente: 2,
-    cta: 3,
+    hook: 4,
+    oferta: 5,
+    bonus: 4,
+    escassez: 4,
+    presente: 3,
+    cta: 5,
   },
   // Duração da transição (fade) entre cenas, em frames
   transitionFrames: 12,
