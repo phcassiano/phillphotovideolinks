@@ -8,7 +8,7 @@ Saída: `out/foco-no-pet-bf.mp4`.
 | 0–4 s | Gancho: foto em tela cheia com zoom lento · "Black Friday Foco no Pet" · "Sem desconto. Com presente." |
 | 4–9 s | Oferta: "Ensaio de Natal Pet" + 20 min de sessão · cenário natalino · 5 fotos tratadas |
 | 9–13 s | Bônus do lote Black Friday: foto impressa na hora · R$ 50 de crédito pro ensaio de aniversário |
-| 13–17 s | Escassez: "Só 15 vagas" · vendas de 23 a 30/11 · sessões em 5–6 e 12–13/12 · Sobradinho |
+| 13–17 s | Escassez: "Só 15 vagas" · vendas de 23 a 30/11 · ensaios nos domingos 6 e 13/12 · Sobradinho |
 | 17–20 s | Vale-presente válido até fev/2027 |
 | 20–25 s | CTA: "Garanta sua vaga" + WhatsApp. A base fica livre para o sticker de link |
 

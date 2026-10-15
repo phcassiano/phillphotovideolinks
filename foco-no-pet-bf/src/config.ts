@@ -71,7 +71,7 @@ export const CONFIG = {
     number: 15,
     after: 'vagas',
     vendas: 'Vendas de 23 a 30/11',
-    sessoes: 'Sessões em 5–6 e 12–13/12',
+    sessoes: 'Ensaios nos domingos 6 e 13/12',
     local: 'Sobradinho',
   },
   presente: {
