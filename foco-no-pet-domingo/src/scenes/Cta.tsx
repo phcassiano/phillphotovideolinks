@@ -14,7 +14,7 @@ export const Cta: React.FC = () => {
       <SafeArea style={{ justifyContent: 'space-between', paddingBottom: 20 }}>
         <Reveal from="pop">
           <div style={{ transform: 'rotate(-2deg)' }}>
-            <Cover width={450} blank={CONFIG.cta.capaVazia} />
+            <Cover width={390} blank={CONFIG.cta.capaVazia} />
           </div>
         </Reveal>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18 }}>

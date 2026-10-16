@@ -12,6 +12,7 @@ export const CONFIG = {
   // Data do próximo domingo (aparece no gancho, nas capas e na chamada)
   domingo: '18/10',
   horario: 'A partir das 7h',
+  local: 'Parque dos Jequitibás',
   cidade: 'Sobradinho-DF',
   whatsapp: '(61) 99989-0604',
   palavraComentario: 'CAPA', // palavra que a pessoa comenta para receber as informações

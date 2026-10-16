@@ -22,7 +22,8 @@ export const Data: React.FC = () => {
           <div style={{ color: C.accent, fontSize: 74, fontWeight: 900, padding: '0 0 26px' }}>⏰ {CONFIG.horario}</div>
         </div>
         <Reveal delay={16}>
-          <div style={{ fontSize: 72, fontWeight: 900 }}>📍 {CONFIG.cidade}</div>
+          <div style={{ fontSize: 68, fontWeight: 900, lineHeight: 1.1 }}>📍 {CONFIG.local}</div>
+          <div style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.1 }}>{CONFIG.cidade}</div>
         </Reveal>
         <Reveal delay={24}>
           <div style={{ fontSize: 56, fontWeight: 800, lineHeight: 1.15, color: '#fff' }}>{D.aviso}</div>

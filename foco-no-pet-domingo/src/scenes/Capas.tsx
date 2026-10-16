@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { CONFIG } from '../config';
-import { Cover, Flash, Photo } from '../components/ui';
+import { Cover, coverHeight, Flash, Photo } from '../components/ui';
 
 const C = CONFIG.colors;
 const Z = CONFIG.safeZone;
@@ -14,9 +14,9 @@ export const Capas: React.FC = () => {
   const k = Math.min(CONFIG.capas.length - 1, Math.floor(f / per));
   const local = f - k * per;
   const cur = CONFIG.capas[k];
-  const width = 820;
+  const width = 720;
   const cx = Z.side + (CONFIG.width - Z.side - Z.right) / 2;
-  const top = Z.top + (CONFIG.height - Z.top - Z.bottom - (width * 4) / 3) / 2;
+  const top = Z.top + (CONFIG.height - Z.top - Z.bottom - coverHeight(width)) / 2;
   const enter = spring({ frame: local, fps, config: { damping: 14, mass: 0.6 } });
   const dir = k % 2 ? -1 : 1;
   return (

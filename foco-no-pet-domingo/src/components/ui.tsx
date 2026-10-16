@@ -59,26 +59,39 @@ const Barcode: React.FC<{ s: number }> = ({ s }) => (
 /** Capa de revista "FOCO no Pet": título numa faixa no topo, chamada numa faixa embaixo,
  *  e a foto numa janela entre as duas — nenhum texto fica sobre o rosto do pet.
  *  Sem `photo` vira a capa vazia "seu pet aqui?". */
+// Proporção da janela da foto = formato vertical das fotos (1080x1290): a foto entra inteira, sem corte.
+const PHOTO_RATIO = 1290 / 1080;
+export const coverHeight = (width: number) => width * (230 / 860 + PHOTO_RATIO + 220 / 860);
+
 export const Cover: React.FC<{
   width: number; photo?: string; focus?: { x: number; y: number }; headline?: string; sub?: string; zoom?: number; blank?: string;
 }> = ({ width, photo, focus = { x: 0.5, y: 0.4 }, headline, sub, zoom = 1, blank }) => {
   const s = width / 860;
-  const height = (width * 4) / 3, topBand = 290 * s, bottomBand = 240 * s;
+  const topBand = 230 * s, bottomBand = 220 * s, height = coverHeight(width);
   return (
     <div style={{ width, height, position: 'relative', overflow: 'hidden', borderRadius: 14 * s, background: CONFIG.colors.paper, boxShadow: '0 40px 90px rgba(0,0,0,0.6)', fontFamily: SANS }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: topBand }}>
         <div style={{ position: 'absolute', top: 20 * s, left: 34 * s, right: 34 * s, display: 'flex', justifyContent: 'space-between', color: C.dark, fontSize: 30 * s, fontWeight: 800, letterSpacing: 2 * s }}>
           <span>EDIÇÃO DE DOMINGO</span><span>{CONFIG.domingo}</span>
         </div>
-        <div style={{ position: 'absolute', top: 44 * s, left: 0, right: 0, textAlign: 'center', fontFamily: SERIF, fontSize: 230 * s, lineHeight: 1, color: C.dark, letterSpacing: -5 * s }}>
+        <div style={{ position: 'absolute', top: 40 * s, left: 0, right: 0, textAlign: 'center', fontFamily: SERIF, fontSize: 180 * s, lineHeight: 1, color: C.dark, letterSpacing: -5 * s }}>
           {CONFIG.revista.masthead}
         </div>
-        <div style={{ position: 'absolute', bottom: 16 * s, right: 60 * s, fontSize: 36 * s, fontWeight: 900, letterSpacing: 12 * s, color: '#fff', background: C.accent, padding: `${3 * s}px ${14 * s}px` }}>
+        <div style={{ position: 'absolute', bottom: 12 * s, right: 90 * s, fontSize: 32 * s, fontWeight: 900, letterSpacing: 12 * s, color: '#fff', background: C.accent, padding: `${3 * s}px ${14 * s}px` }}>
           {CONFIG.revista.sub}
         </div>
       </div>
       <div style={{ position: 'absolute', top: topBand, left: 0, right: 0, bottom: bottomBand, overflow: 'hidden', background: C.dark }}>
-        {photo ? <Photo src={photo} focus={focus} zoom={zoom} /> : (
+        {photo ? (
+          <>
+            {/* fundo: a própria foto desfocada (só aparece se a foto tiver outro formato) */}
+            <AbsoluteFill style={{ filter: 'blur(30px) brightness(0.7)', transform: 'scale(1.2)' }}>
+              <Photo src={photo} focus={focus} zoom={zoom} />
+            </AbsoluteFill>
+            {/* a foto inteira, sem corte */}
+            <Img src={staticFile(photo)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' }} />
+          </>
+        ) : (
           <AbsoluteFill style={{ background: `radial-gradient(70% 60% at 50% 50%, #3a2416 0%, ${C.dark} 80%)`, alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ fontFamily: SERIF, fontSize: 400 * s, color: C.accentSoft, lineHeight: 1 }}>?</div>
           </AbsoluteFill>
