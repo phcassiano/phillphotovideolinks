@@ -26,13 +26,14 @@ export const VENDA = {
   // 3. Virada
   virada: 'Agora olha isso 👇',
 
-  // 4. Montagem rápida: uma foto por batida (troque `photo` por `video: 'clips/x.mp4'` para usar um clipe animado)
+  // 4. Montagem: clipes animados (Veo, em public/clips) ficam 1 s; fotos paradas 0,4 s.
+  //    A soma dos `dur` deve ser igual a sceneSeconds.montagem.
   montagem: [
-    { photo: 'photos/p13.jpg' }, { photo: 'photos/p01.jpg' }, { photo: 'photos/p04.jpg' }, { photo: 'photos/p06.jpg' },
-    { photo: 'photos/p12.jpg' }, { photo: 'photos/p09.jpg' }, { photo: 'photos/p05.jpg' }, { photo: 'photos/p10.jpg' },
-    { photo: 'photos/p08.jpg' }, { photo: 'photos/p00.jpg' },
-  ] as { photo?: string; video?: string }[],
-  selos: ['📸 Estúdio montado no parque', '🎨 Fundo colorido', '💡 Luz profissional', '🐾 Todo porte, toda raça'],
+    { video: 'clips/p01.mp4', dur: 1 }, { photo: 'photos/p12.jpg', dur: 0.4 }, { photo: 'photos/p09.jpg', dur: 0.4 },
+    { video: 'clips/p04.mp4', dur: 1 }, { photo: 'photos/p05.jpg', dur: 0.4 }, { photo: 'photos/p10.jpg', dur: 0.4 },
+    { video: 'clips/p06.mp4', dur: 1 }, { photo: 'photos/p08.jpg', dur: 0.4 },
+  ] as { photo?: string; video?: string; dur: number }[],
+  selos: ['📸 Estúdio no parque', '🎨 Fundo colorido', '💡 Luz profissional', '🐾 Todo porte, toda raça'],
 
   // 5. Oferta
   oferta: { titulo: 'Ensaio Foco no Pet', foto: 'photos/p13.jpg' },
@@ -40,8 +41,9 @@ export const VENDA = {
   // 6. Urgência (verdadeira, sem inventar números)
   urgencia: ['Quem chama primeiro', 'escolhe o horário ⏳'],
 
-  // 7. Fechamento emocional
+  // 7. Fechamento emocional (clipe animado do cane corso)
   emocao: ['Seu pet não vai ser', 'filhote pra sempre.', 'A foto vai. 🐾'],
+  emocaoClip: 'clips/p13.mp4',
 
   // 8. Chamada
   cta: { titulo: 'Garanta o horário do seu pet', whats: 'Chama no WhatsApp', comenta: 'ou comenta', palavra: 'QUERO' },
@@ -52,3 +54,8 @@ export const VENDA_SCENES: VendaKey[] = ['hook', 'dor', 'virada', 'montagem', 'o
 export const vFrames = (k: VendaKey) => Math.round(VENDA.sceneSeconds[k] * CONFIG.fps);
 export const vStart = (k: VendaKey) => VENDA_SCENES.slice(0, VENDA_SCENES.indexOf(k)).reduce((s, x) => s + vFrames(x), 0);
 export const vTotal = VENDA_SCENES.reduce((s, k) => s + vFrames(k), 0);
+// início e duração (em frames, relativos à cena) de cada item da montagem
+export const montagemTimeline = () => {
+  let acc = 0;
+  return VENDA.montagem.map((m) => { const start = Math.round(acc * CONFIG.fps); acc += m.dur; return { start, dur: Math.round(acc * CONFIG.fps) - start }; });
+};

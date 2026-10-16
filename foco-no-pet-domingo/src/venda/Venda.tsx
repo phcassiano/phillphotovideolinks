@@ -3,7 +3,7 @@ import { AbsoluteFill, Audio, Img, interpolate, OffthreadVideo, Sequence, spring
 import { CONFIG } from '../config';
 import { SANS } from '../fonts';
 import { Flash, SafeArea, SafeZoneGuides } from '../components/ui';
-import { VENDA, VENDA_SCENES, VendaKey, vFrames, vStart } from './config';
+import { montagemTimeline, VENDA, VENDA_SCENES, VendaKey, vFrames, vStart } from './config';
 import { SHAKES } from './cues';
 
 const C = CONFIG.colors;
@@ -14,7 +14,7 @@ const pop = (frame: number, delay: number, fps: number, damping = 11) => spring(
 
 const Fill: React.FC<{ src?: string; video?: string; fit?: 'cover' | 'contain'; pos?: string; style?: React.CSSProperties }> = ({ src, video, fit = 'cover', pos = '50% 35%', style }) =>
   video ? (
-    <OffthreadVideo src={staticFile(video)} muted style={{ width: '100%', height: '100%', objectFit: fit, objectPosition: pos, ...style }} />
+    <OffthreadVideo src={staticFile(video)} muted startFrom={10} style={{ width: '100%', height: '100%', objectFit: fit, objectPosition: pos, ...style }} />
   ) : (
     <Img src={staticFile(src!)} style={{ width: '100%', height: '100%', objectFit: fit, objectPosition: pos, ...style }} />
   );
@@ -124,10 +124,12 @@ const Montagem: React.FC = () => {
   const f = useCurrentFrame();
   const { fps } = useVideoConfig();
   const M = VENDA.montagem;
-  const per = Math.round(vFrames('montagem') / M.length);
-  const k = Math.min(M.length - 1, Math.floor(f / per));
-  const local = f - k * per;
-  const layout = k % 3; // 0 = foto inteira, 1 = dividida em 2, 2 = foto inteira com zoom
+  const TL = montagemTimeline();
+  const k = Math.max(0, TL.findIndex((t) => f >= t.start && f < t.start + t.dur));
+  const { start, dur: per } = TL[k];
+  const local = f - start;
+  // clipe animado: tela cheia por 1 s; foto parada: alterna inteira / dividida em 2
+  const layout = M[k].video ? 0 : k % 2 ? 1 : 0;
   const punch = interpolate(local, [0, 4, per], [1.12, 1.02, 1], { extrapolateRight: 'clamp' });
   const selo = VENDA.selos[Math.floor((k / M.length) * VENDA.selos.length)];
   const sp = pop(local, 0, fps, 12);
@@ -136,7 +138,7 @@ const Montagem: React.FC = () => {
     <AbsoluteFill style={{ background: '#000' }}>
       <AbsoluteFill style={{ filter: 'blur(36px) brightness(0.45)', transform: 'scale(1.25)' }}><Fill src={a.photo} video={a.video} /></AbsoluteFill>
       {/* área das fotos: abaixo da faixa do selo, sem texto por cima */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: PH_TOP, height: PH_H }}>
+      <Sequence from={start} durationInFrames={per} style={{ top: PH_TOP, height: PH_H, bottom: 'auto' }}>
         {layout === 1 ? (
           <>
             <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '50%', overflow: 'hidden', borderBottom: `8px solid ${C.accent}` }}>
@@ -147,15 +149,15 @@ const Montagem: React.FC = () => {
             </div>
           </>
         ) : (
-          <AbsoluteFill style={{ overflow: 'hidden' }}><WholePhoto src={a.photo} video={a.video} zoom={punch} /></AbsoluteFill>
+          <AbsoluteFill style={{ overflow: 'hidden' }}><WholePhoto src={a.photo} video={a.video} zoom={a.video ? 1 : punch} /></AbsoluteFill>
         )}
-      </div>
+      </Sequence>
       <div style={{ position: 'absolute', top: CONFIG.safeZone.top, left: CONFIG.safeZone.side, right: CONFIG.safeZone.right, display: 'flex', justifyContent: 'center', fontFamily: SANS }}>
         <div key={selo} style={{ background: '#fff', color: C.dark, borderRadius: 999, padding: '12px 30px', fontSize: 52, fontWeight: 900, whiteSpace: 'nowrap', transform: `scale(${0.9 + 0.1 * pop(local, 0, fps, 10)})` }}>
           {selo}
         </div>
       </div>
-      <Flash at={k * per} frames={3} strength={0.5} />
+      <Flash at={start} frames={3} strength={0.5} />
     </AbsoluteFill>
   );
 };
@@ -215,9 +217,9 @@ const Emocao: React.FC = () => {
   const z = interpolate(f, [0, vFrames('emocao')], [1, 1.08]);
   return (
     <AbsoluteFill style={{ background: '#000' }}>
-      <AbsoluteFill style={{ filter: 'blur(36px) brightness(0.4)', transform: 'scale(1.25)' }}><Fill src="photos/p12.jpg" /></AbsoluteFill>
+      <AbsoluteFill style={{ filter: 'blur(36px) brightness(0.4)', transform: 'scale(1.25)' }}><Fill src="photos/p13.jpg" /></AbsoluteFill>
       <div style={{ position: 'absolute', left: 0, right: 0, top: CONFIG.safeZone.top, height: 1150 - CONFIG.safeZone.top, overflow: 'hidden' }}>
-        <AbsoluteFill style={{ transform: `scale(${z})` }}><Fill src="photos/p12.jpg" fit="contain" /></AbsoluteFill>
+        <AbsoluteFill style={{ transform: `scale(${z})` }}><Fill video={VENDA.emocaoClip} fit="contain" /></AbsoluteFill>
       </div>
       <SafeArea style={{ justifyContent: 'flex-end' }}>
         {VENDA.emocao.map((l, i) => {

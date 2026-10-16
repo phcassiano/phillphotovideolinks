@@ -48,10 +48,10 @@ Saída: `out/foco-no-pet-venda.mp4` · Render: `npm run render:venda` · Copy e 
 | 0–3,2 s | Rolo da câmera rolando, "📱 2.347 fotos": "Você tem 2.000 fotos do seu pet no celular… e **NENHUMA** pra pendurar na parede." | Dor universal + identificação |
 | 3,2–5,8 s | "Foto de celular 😩": TREMIDA · ESCURA · CORTOU A ORELHA, com X vermelho | Agitação |
 | 5,8–7,2 s | "Agora olha isso 👇" | Virada / curiosidade |
-| 7,2–12,2 s | 10 fotos do ensaio, uma por batida, inteiras e sem texto no rosto, com selos: estúdio montado no parque · fundo colorido · luz profissional · todo porte, toda raça | Prova e desejo |
+| 7,2–12,2 s | 3 clipes animados com Veo (1 s cada) intercalados com 5 fotos (0,4 s cada), inteiras e sem texto no rosto, com selos: estúdio montado no parque · fundo colorido · luz profissional · todo porte, toda raça | Prova e desejo |
 | 12,2–15,8 s | Domingo 18/10 · ⏰ a partir das 7h · 📍 Parque dos Jequitibás · Sobradinho-DF | Oferta concreta |
 | 15,8–18 s | "Quem chama primeiro escolhe o horário ⏳" | Urgência verdadeira |
-| 18–19,8 s | "Seu pet não vai ser filhote pra sempre. A foto vai. 🐾" | Emoção |
+| 18–19,8 s | Cane corso animado (Veo) + "Seu pet não vai ser filhote pra sempre. A foto vai. 🐾" | Emoção |
 | 19,8–23,4 s | "Garanta o horário do seu pet" + WhatsApp + "ou comenta QUERO" | Ação |
 
 ## Legenda
@@ -81,7 +81,10 @@ Saída: `out/foco-no-pet-venda.mp4` · Render: `npm run render:venda` · Copy e 
 
 > Preencha `[forma de confirmação/sinal]` com a regra real de vocês (Pix de sinal, confirmação por mensagem etc.).
 
-## Clipes animados com IA (Veo / Flow), opcional
+## Clipes animados com IA (Veo 3.1)
+Os clipes em `public/clips/` (p01 lulu, p04 golden, p06 shih tzu, p13 cane corso) foram gerados com o **Veo 3.1 Fast** (Gemini API) a partir das fotos do ensaio, 4 s cada, só com movimento sutil (respirar, piscar, virar a cabeça). Na montagem cada clipe fica 1 s na tela; o do cane corso aparece no fechamento.
+
+### Como gerar mais clipes
 A montagem aceita clipes no lugar das fotos: salve o `.mp4` em `public/clips/` e troque, em `src/venda/config.ts`, `{ photo: 'photos/p13.jpg' }` por `{ video: 'clips/p13.mp4' }`. A foto continua inteira na tela, com a mesma foto desfocada nas laterais.
 
 Prompt sugerido no Flow/Veo (modo *imagem para vídeo*, 9:16, use a foto como primeiro quadro):
