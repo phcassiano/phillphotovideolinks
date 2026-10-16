@@ -1,0 +1,27 @@
+{
+  "name": "foco-no-pet-domingo",
+  "private": true,
+  "description": "Reels 'Seu pet na capa' da Foco no Pet para vender ensaios do próximo domingo (Remotion, 1080x1920)",
+  "scripts": {
+    "studio": "remotion studio",
+    "sfx": "tsx scripts/sfx.ts",
+    "stills": "tsx scripts/stills.ts",
+    "render": "tsx scripts/sfx.ts && remotion render FocoNoPetDomingo out/foco-no-pet-domingo.mp4 --codec=h264",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.535",
+    "@remotion/cli": "4.0.535",
+    "@remotion/google-fonts": "4.0.535",
+    "@remotion/renderer": "4.0.535",
+    "@remotion/transitions": "4.0.535",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.535"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3"
+  }
+}
