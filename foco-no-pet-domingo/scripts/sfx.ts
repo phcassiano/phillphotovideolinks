@@ -6,10 +6,12 @@ import { CONFIG, totalFrames } from '../src/config';
 import { CUES as CUES_DOMINGO } from '../src/cues';
 import { CUES as CUES_VENDA } from '../src/venda/cues';
 import { vTotal } from '../src/venda/config';
+import { CUES as CUES_FALA } from '../src/fala/cues';
+import { fTotal } from '../src/fala/config';
 
-const VENDA_MODE = process.argv[2] === 'venda';
-const CUES = VENDA_MODE ? CUES_VENDA : CUES_DOMINGO;
-const SR = 44100, DURATION = (VENDA_MODE ? vTotal : totalFrames) / CONFIG.fps, N = Math.ceil(DURATION * SR), TAU = Math.PI * 2;
+const MODE = process.argv[2] || 'domingo'; // domingo | venda | fala
+const CUES = MODE === 'venda' ? CUES_VENDA : MODE === 'fala' ? CUES_FALA : CUES_DOMINGO;
+const SR = 44100, DURATION = (MODE === 'venda' ? vTotal : MODE === 'fala' ? fTotal : totalFrames) / CONFIG.fps, N = Math.ceil(DURATION * SR), TAU = Math.PI * 2;
 const L = new Float32Array(N), R = new Float32Array(N);
 let seed = 12345;
 const noise = () => ((seed = (seed * 16807) % 2147483647) / 1073741823.5 - 1);
@@ -49,6 +51,6 @@ for (let i = 0; i < N; i++) {
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i] * k)) * 32767), 44 + i * 4);
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * k)) * 32767), 46 + i * 4);
 }
-const out = path.resolve(__dirname, '..', 'public', VENDA_MODE ? 'sfx-venda.wav' : 'sfx.wav');
+const out = path.resolve(__dirname, '..', 'public', MODE === 'domingo' ? 'sfx.wav' : `sfx-${MODE}.wav`);
 writeFileSync(out, buf);
 console.log(`${path.basename(out)}: ${DURATION.toFixed(1)} s, ${CUES.length} efeitos`);

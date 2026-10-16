@@ -10,9 +10,9 @@ const C = CONFIG.colors;
 const FPS = CONFIG.fps;
 
 // ---------- peças ----------
-const pop = (frame: number, delay: number, fps: number, damping = 11) => spring({ frame: frame - delay, fps, config: { damping, mass: 0.6 } });
+export const pop = (frame: number, delay: number, fps: number, damping = 11) => spring({ frame: frame - delay, fps, config: { damping, mass: 0.6 } });
 
-const Fill: React.FC<{ src?: string; video?: string; fit?: 'cover' | 'contain'; pos?: string; style?: React.CSSProperties }> = ({ src, video, fit = 'cover', pos = '50% 35%', style }) =>
+export const Fill: React.FC<{ src?: string; video?: string; fit?: 'cover' | 'contain'; pos?: string; style?: React.CSSProperties }> = ({ src, video, fit = 'cover', pos = '50% 35%', style }) =>
   video ? (
     <OffthreadVideo src={staticFile(video)} muted startFrom={10} style={{ width: '100%', height: '100%', objectFit: fit, objectPosition: pos, ...style }} />
   ) : (
@@ -20,18 +20,18 @@ const Fill: React.FC<{ src?: string; video?: string; fit?: 'cover' | 'contain'; 
   );
 
 /** Foto inteira (sem corte) sobre a mesma foto desfocada. */
-const WholePhoto: React.FC<{ src?: string; video?: string; zoom?: number }> = ({ src, video, zoom = 1 }) => (
+export const WholePhoto: React.FC<{ src?: string; video?: string; zoom?: number }> = ({ src, video, zoom = 1 }) => (
   <AbsoluteFill>
     <AbsoluteFill style={{ filter: 'blur(36px) brightness(0.55)', transform: 'scale(1.25)' }}><Fill src={src} video={video} /></AbsoluteFill>
     <AbsoluteFill style={{ transform: `scale(${zoom})` }}><Fill src={src} video={video} fit="contain" /></AbsoluteFill>
   </AbsoluteFill>
 );
 
-const Big: React.FC<{ children: React.ReactNode; size?: number; color?: string; style?: React.CSSProperties }> = ({ children, size = 96, color = C.text, style }) => (
+export const Big: React.FC<{ children: React.ReactNode; size?: number; color?: string; style?: React.CSSProperties }> = ({ children, size = 96, color = C.text, style }) => (
   <div style={{ fontSize: size, fontWeight: 900, lineHeight: 1.05, letterSpacing: -2, color, textShadow: '0 6px 30px rgba(0,0,0,0.55)', ...style }}>{children}</div>
 );
 
-const Hi: React.FC<{ children: React.ReactNode; rot?: number }> = ({ children, rot = -2 }) => (
+export const Hi: React.FC<{ children: React.ReactNode; rot?: number }> = ({ children, rot = -2 }) => (
   <span style={{ background: C.accent, padding: '0 20px', borderRadius: 14, display: 'inline-block', transform: `rotate(${rot}deg)` }}>{children}</span>
 );
 

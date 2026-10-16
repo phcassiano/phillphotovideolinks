@@ -91,3 +91,35 @@ Prompt sugerido no Flow/Veo (modo *imagem para vídeo*, 9:16, use a foto como pr
 > Keep the exact same dog, studio backdrop, lighting and framing from the image. The dog gently pants with its tongue out, blinks once and slightly tilts its head, ears moving naturally. Static camera, no zoom, no new objects, photorealistic, 4 seconds.
 
 Fotos que mais ganham com animação: `p13` (cane corso deitado), `p01` (lulu de óculos), `p04` (golden), `p06` (shih tzu), `p09` (lulu "toca aqui").
+
+---
+
+# Reels "Se o seu pet pudesse falar" (`FocoNoPetFala`): engraçado + emocional
+
+23 s · `npm run render:fala` → `out/foco-no-pet-fala.mp4` · Falas, clipes e tempos em `src/fala/config.ts`.
+Os pets "falam" em balões ("🔊 tradução do latido"), sempre acima deles, sem cobrir o rosto. Clipes novos do Veo 3.1: `fala-p04` (golden "falando"), `fala-p05` (lulu num bocejo dramático), `fala-p12` (cane corso com olhar pidão).
+
+| Tempo | Pet | Fala |
+|---|---|---|
+| 0–3 s | Golden mexendo a boca | "Humano, a gente precisa conversar. 😤" |
+| 3–6,2 s | Lulu de óculos | "Você tira 300 fotos minhas por dia…" → o clipe treme e borra ("📱 foto de celular") → "…e TODAS saem tremidas. 😑" |
+| 6,2–9 s | Lulu bocejando | "Eu sou um MODELO. 💅" → "Mereço um ensaio de verdade." |
+| 9–11,8 s | Shih tzu | "Domingo tem estúdio no Parque dos Jequitibás…" → "…e eu já treinei a pose. 😌" |
+| 11,8–16 s | Cane corso olhando pra câmera (tela escurece) | "Eu cresço rápido, sabia? 🥺" → "Um dia eu não vou mais caber no seu colo." → "Mas essa foto vai durar pra sempre. 🤍" |
+| 16–19,4 s | (pedido) | "Me leva? 🥺" · Domingo 18/10 · ⏰ a partir das 7h · 📍 Parque dos Jequitibás · Sobradinho-DF |
+| 19,4–23,4 s | (chamada) | "Marca o humano que me deve esse ensaio 😂" · WhatsApp · "ou comenta EU QUERO 🐾" · "Quem chama primeiro escolhe o horário ⏳" |
+
+## Legenda
+> Ele pediu pra eu postar isso. 🐶📝
+>
+> "Humano, você tira 300 fotos minhas por dia e todas saem tremidas. Eu sou um MODELO." 💅
+>
+> Domingo agora (18/10) tem ensaio Foco no Pet no Parque dos Jequitibás, em Sobradinho, a partir das 7h. 📸
+> Porque eles crescem rápido demais… e um dia não cabem mais no colo. 🥺🤍
+>
+> 📲 WhatsApp (61) 99989-0604, ou comenta **EU QUERO** que a gente te chama.
+> ⏳ Quem chama primeiro escolhe o horário.
+>
+> Marca o humano que tá devendo esse ensaio pro pet 😂👇
+>
+> #FocoNoPet #EnsaioPet #FotografiaPet #SeMeuCachorroFalasse #ParqueDosJequitibas #Sobradinho #SobradinhoDF #Brasilia #PetLovers #DogsOfInstagram

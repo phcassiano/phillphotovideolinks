@@ -4,6 +4,8 @@ import { CONFIG, totalFrames } from './config';
 import { Main, MainProps } from './Main';
 import { Venda, VendaProps } from './venda/Venda';
 import { vTotal } from './venda/config';
+import { FalaReel, FalaProps } from './fala/Fala';
+import { fTotal } from './fala/config';
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -24,6 +26,15 @@ export const RemotionRoot: React.FC = () => (
     width={CONFIG.width}
     height={CONFIG.height}
     defaultProps={{ showSafeZones: false } satisfies VendaProps}
+  />
+  <Composition
+    id="FocoNoPetFala"
+    component={FalaReel}
+    durationInFrames={fTotal}
+    fps={CONFIG.fps}
+    width={CONFIG.width}
+    height={CONFIG.height}
+    defaultProps={{ showSafeZones: false } satisfies FalaProps}
   />
   </>
 );
