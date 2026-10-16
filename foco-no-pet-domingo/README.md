@@ -5,14 +5,14 @@ Objetivo: vender ensaios e agendamentos para o próximo domingo. Saída: `out/fo
 
 | Tempo | Cena | Função |
 |---|---|---|
-| 0–3 s | O cane corso em tela cheia com o título "FOCO" de revista: "Domingo agora seu pet vira **capa de revista** 📸" | Gancho: flash de câmera e promessa clara |
-| 3–10,5 s | 5 capas da revista "FOCO no Pet" entrando no ritmo (ESTILO, SORRISO, OLHAR, ATITUDE, TOCA AQUI) | Prova visual e desejo; formato que o pessoal compartilha |
+| 0–3 s | Título "FOCO" de revista no topo, o cane corso logo abaixo e, sobre o peito: "Domingo agora seu pet vira capa **de revista** 📸" | Gancho: flash de câmera e promessa clara |
+| 3–10,5 s | 5 capas (título no topo, foto livre no meio, chamada embaixo) da revista "FOCO no Pet" entrando no ritmo (ESTILO, SORRISO, OLHAR, ATITUDE, TOCA AQUI) | Prova visual e desejo; formato que o pessoal compartilha |
 | 10,5–14 s | Como garantir: 1. chama no WhatsApp · 2. escolhe o horário de domingo · 3. seu pet vira capa | Tira a fricção |
-| 14–17 s | Calendário carimbando: "Neste DOMINGO 18/10 · Sobradinho-DF · agenda aberta, horários por ordem de agendamento" | Urgência sem inventar números |
+| 14–17 s | Calendário carimbando: "Neste DOMINGO 18/10 · ⏰ A partir das 7h · Sobradinho-DF · agenda aberta, horários por ordem de agendamento" | Urgência sem inventar números |
 | 17–21 s | Capa vazia "SEU PET AQUI?" + "Comenta **CAPA** 👇 que a gente te manda os horários" + WhatsApp | Comentário com palavra-chave (impulsiona o alcance) e contato direto |
 
 ## Toda semana
-Edite **`src/config.ts`**: troque `domingo` (ex.: `'25/10'`) e, se quiser, as capas, os textos, as cores ou os tempos. Depois:
+Edite **`src/config.ts`**: troque `domingo` (ex.: `'25/10'`) e `horario` e, se quiser, as capas, os textos, as cores ou os tempos. Depois:
 
 ```bash
 npm install          # uma vez
@@ -27,7 +27,7 @@ Safe zones do Reels respeitadas: nada nos 220 px do topo, nos 420 px da base (le
 ## Legenda sugerida
 > Domingo agora seu pet vira capa de revista 📸🐾
 >
-> Ensaio Foco no Pet neste domingo (18/10) em Sobradinho-DF. Agenda aberta, horários por ordem de agendamento.
+> Ensaio Foco no Pet neste domingo (18/10), a partir das 7h, em Sobradinho-DF. Agenda aberta, horários por ordem de agendamento.
 >
 > 👇 Comenta **CAPA** que a gente te manda os horários
 > 📲 Ou chama no WhatsApp (61) 99989-0604

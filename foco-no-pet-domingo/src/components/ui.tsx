@@ -56,41 +56,50 @@ const Barcode: React.FC<{ s: number }> = ({ s }) => (
   </div>
 );
 
-/** Capa de revista "FOCO no Pet". Sem `photo` vira a capa vazia "seu pet aqui?". */
+/** Capa de revista "FOCO no Pet": título numa faixa no topo, chamada numa faixa embaixo,
+ *  e a foto numa janela entre as duas — nenhum texto fica sobre o rosto do pet.
+ *  Sem `photo` vira a capa vazia "seu pet aqui?". */
 export const Cover: React.FC<{
   width: number; photo?: string; focus?: { x: number; y: number }; headline?: string; sub?: string; zoom?: number; blank?: string;
 }> = ({ width, photo, focus = { x: 0.5, y: 0.4 }, headline, sub, zoom = 1, blank }) => {
   const s = width / 860;
-  const height = width * 4 / 3;
+  const height = (width * 4) / 3, topBand = 290 * s, bottomBand = 240 * s;
   return (
-    <div style={{ width, height, position: 'relative', overflow: 'hidden', borderRadius: 14 * s, background: C.dark, boxShadow: '0 40px 90px rgba(0,0,0,0.6)', fontFamily: SANS }}>
-      {photo ? <Photo src={photo} focus={focus} zoom={zoom} /> : (
-        <AbsoluteFill style={{ background: `radial-gradient(70% 55% at 50% 58%, #3a2416 0%, ${C.dark} 75%)`, alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontFamily: SERIF, fontSize: 520 * s, color: C.accentSoft, lineHeight: 1, marginTop: 120 * s }}>?</div>
-        </AbsoluteFill>
-      )}
-      <AbsoluteFill style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.75) 100%)' }} />
-      <div style={{ position: 'absolute', top: 26 * s, left: 34 * s, right: 34 * s, display: 'flex', justifyContent: 'space-between', color: '#fff', fontSize: 30 * s, fontWeight: 800, letterSpacing: 2 * s }}>
-        <span>EDIÇÃO DE DOMINGO</span><span>{CONFIG.domingo}</span>
-      </div>
-      <div style={{ position: 'absolute', top: 40 * s, left: 0, right: 0, textAlign: 'center', fontFamily: SERIF, fontSize: 300 * s, lineHeight: 1, color: '#fff', letterSpacing: -6 * s, textShadow: '0 6px 30px rgba(0,0,0,0.35)' }}>
-        {CONFIG.revista.masthead}
-      </div>
-      <div style={{ position: 'absolute', top: 318 * s, right: 70 * s, fontSize: 40 * s, fontWeight: 900, letterSpacing: 12 * s, color: C.accent, background: '#fff', padding: `${4 * s}px ${14 * s}px` }}>
-        {CONFIG.revista.sub}
-      </div>
-      <div style={{ position: 'absolute', top: 430 * s, left: 34 * s, background: C.accent, color: '#fff', fontSize: 34 * s, fontWeight: 900, padding: `${8 * s}px ${18 * s}px`, transform: 'rotate(-4deg)' }}>
-        EXCLUSIVO
-      </div>
-      {blank ? (
-        <div style={{ position: 'absolute', left: 34 * s, right: 34 * s, bottom: 50 * s, color: '#fff', fontSize: 92 * s, fontWeight: 900, lineHeight: 1, textAlign: 'left' }}>{blank}</div>
-      ) : (
-        <div style={{ position: 'absolute', left: 34 * s, right: 200 * s, bottom: 46 * s, color: '#fff', textAlign: 'left' }}>
-          <div style={{ fontSize: 128 * s, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3 * s }}>{headline}</div>
-          <div style={{ fontSize: 50 * s, fontWeight: 800, color: C.accentSoft, lineHeight: 1.1, marginTop: 10 * s }}>{sub}</div>
+    <div style={{ width, height, position: 'relative', overflow: 'hidden', borderRadius: 14 * s, background: CONFIG.colors.paper, boxShadow: '0 40px 90px rgba(0,0,0,0.6)', fontFamily: SANS }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: topBand }}>
+        <div style={{ position: 'absolute', top: 20 * s, left: 34 * s, right: 34 * s, display: 'flex', justifyContent: 'space-between', color: C.dark, fontSize: 30 * s, fontWeight: 800, letterSpacing: 2 * s }}>
+          <span>EDIÇÃO DE DOMINGO</span><span>{CONFIG.domingo}</span>
         </div>
-      )}
-      {!blank && <div style={{ position: 'absolute', right: 30 * s, bottom: 46 * s }}><Barcode s={s} /></div>}
+        <div style={{ position: 'absolute', top: 44 * s, left: 0, right: 0, textAlign: 'center', fontFamily: SERIF, fontSize: 230 * s, lineHeight: 1, color: C.dark, letterSpacing: -5 * s }}>
+          {CONFIG.revista.masthead}
+        </div>
+        <div style={{ position: 'absolute', bottom: 16 * s, right: 60 * s, fontSize: 36 * s, fontWeight: 900, letterSpacing: 12 * s, color: '#fff', background: C.accent, padding: `${3 * s}px ${14 * s}px` }}>
+          {CONFIG.revista.sub}
+        </div>
+      </div>
+      <div style={{ position: 'absolute', top: topBand, left: 0, right: 0, bottom: bottomBand, overflow: 'hidden', background: C.dark }}>
+        {photo ? <Photo src={photo} focus={focus} zoom={zoom} /> : (
+          <AbsoluteFill style={{ background: `radial-gradient(70% 60% at 50% 50%, #3a2416 0%, ${C.dark} 80%)`, alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: SERIF, fontSize: 400 * s, color: C.accentSoft, lineHeight: 1 }}>?</div>
+          </AbsoluteFill>
+        )}
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: bottomBand, background: C.dark, display: 'flex', alignItems: 'center', padding: `0 ${30 * s}px 0 ${34 * s}px`, gap: 20 * s }}>
+        {blank ? (
+          <div style={{ color: '#fff', fontSize: 92 * s, fontWeight: 900, lineHeight: 1, textAlign: 'left' }}>{blank}</div>
+        ) : (
+          <>
+            <div style={{ flex: 1, color: '#fff', textAlign: 'left' }}>
+              <div style={{ fontSize: 92 * s, fontWeight: 900, lineHeight: 0.95, letterSpacing: -3 * s, whiteSpace: 'nowrap' }}>{headline}</div>
+              <div style={{ fontSize: 44 * s, fontWeight: 800, color: C.accentSoft, lineHeight: 1.1, marginTop: 8 * s }}>{sub}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 * s }}>
+              <div style={{ background: C.accent, color: '#fff', fontSize: 30 * s, fontWeight: 900, padding: `${6 * s}px ${14 * s}px`, transform: 'rotate(-4deg)' }}>EXCLUSIVO</div>
+              <Barcode s={s} />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };

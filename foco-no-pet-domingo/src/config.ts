@@ -11,6 +11,7 @@ export const CONFIG = {
 
   // Data do próximo domingo (aparece no gancho, nas capas e na chamada)
   domingo: '18/10',
+  horario: 'A partir das 7h',
   cidade: 'Sobradinho-DF',
   whatsapp: '(61) 99989-0604',
   palavraComentario: 'CAPA', // palavra que a pessoa comenta para receber as informações
@@ -32,7 +33,7 @@ export const CONFIG = {
   hook: {
     photo: 'photos/p13.jpg',
     focus: { x: 0.52, y: 0.2 },
-    lines: ['Domingo agora', 'seu pet vira', 'capa de revista 📸'], // a última linha sai em destaque
+    lines: ['Domingo agora', 'seu pet vira capa', 'de revista 📸'], // a última linha sai em destaque
   },
 
   // ---------- 2. capas (uma a cada 1,5 s) ----------
