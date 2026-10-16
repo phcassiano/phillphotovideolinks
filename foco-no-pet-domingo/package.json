@@ -7,6 +7,7 @@
     "sfx": "tsx scripts/sfx.ts",
     "stills": "tsx scripts/stills.ts",
     "render": "tsx scripts/sfx.ts && remotion render FocoNoPetDomingo out/foco-no-pet-domingo.mp4 --codec=h264",
+    "render:venda": "tsx scripts/sfx.ts venda && remotion render FocoNoPetVenda out/foco-no-pet-venda.mp4 --codec=h264",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

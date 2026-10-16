@@ -1,11 +1,15 @@
 // Gera public/sfx.wav (efeitos sonoros sintetizados, sem música) nos momentos de src/cues.ts.
-// Uso: npm run sfx  (o npm run render já roda este passo antes)
+// Uso: npm run sfx  (o npm run render já roda este passo antes) · tsx scripts/sfx.ts venda → public/sfx-venda.wav
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { CONFIG, totalFrames } from '../src/config';
-import { CUES } from '../src/cues';
+import { CUES as CUES_DOMINGO } from '../src/cues';
+import { CUES as CUES_VENDA } from '../src/venda/cues';
+import { vTotal } from '../src/venda/config';
 
-const SR = 44100, DURATION = totalFrames / CONFIG.fps, N = Math.ceil(DURATION * SR), TAU = Math.PI * 2;
+const VENDA_MODE = process.argv[2] === 'venda';
+const CUES = VENDA_MODE ? CUES_VENDA : CUES_DOMINGO;
+const SR = 44100, DURATION = (VENDA_MODE ? vTotal : totalFrames) / CONFIG.fps, N = Math.ceil(DURATION * SR), TAU = Math.PI * 2;
 const L = new Float32Array(N), R = new Float32Array(N);
 let seed = 12345;
 const noise = () => ((seed = (seed * 16807) % 2147483647) / 1073741823.5 - 1);
@@ -45,6 +49,6 @@ for (let i = 0; i < N; i++) {
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, L[i] * k)) * 32767), 44 + i * 4);
   buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, R[i] * k)) * 32767), 46 + i * 4);
 }
-const out = path.resolve(__dirname, '..', 'public', 'sfx.wav');
+const out = path.resolve(__dirname, '..', 'public', VENDA_MODE ? 'sfx-venda.wav' : 'sfx.wav');
 writeFileSync(out, buf);
-console.log(`public/sfx.wav: ${DURATION.toFixed(1)} s, ${CUES.length} efeitos`);
+console.log(`${path.basename(out)}: ${DURATION.toFixed(1)} s, ${CUES.length} efeitos`);
