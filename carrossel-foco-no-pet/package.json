@@ -1,0 +1,10 @@
+{
+  "name": "carrossel-foco-no-pet",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "python3 build.py",
+    "export": "python3 build.py && node export.mjs"
+  },
+  "devDependencies": { "playwright": "1.56.1" }
+}
