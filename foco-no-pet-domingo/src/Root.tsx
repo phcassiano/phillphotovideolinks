@@ -6,6 +6,8 @@ import { Venda, VendaProps } from './venda/Venda';
 import { vTotal } from './venda/config';
 import { FalaReel, FalaProps } from './fala/Fala';
 import { fTotal } from './fala/config';
+import { EstrelaReel, EstrelaProps } from './estrela/Estrela';
+import { eTotal } from './estrela/config';
 
 export const RemotionRoot: React.FC = () => (
   <>
@@ -35,6 +37,15 @@ export const RemotionRoot: React.FC = () => (
     width={CONFIG.width}
     height={CONFIG.height}
     defaultProps={{ showSafeZones: false } satisfies FalaProps}
+  />
+  <Composition
+    id="FocoNoPetEstrela"
+    component={EstrelaReel}
+    durationInFrames={eTotal}
+    fps={CONFIG.fps}
+    width={CONFIG.width}
+    height={CONFIG.height}
+    defaultProps={{ showSafeZones: false } satisfies EstrelaProps}
   />
   </>
 );

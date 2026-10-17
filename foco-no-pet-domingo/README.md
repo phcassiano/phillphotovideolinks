@@ -123,3 +123,27 @@ Os pets "falam" em balões ("🔊 tradução do latido"), sempre acima deles, se
 > Marca o humano que tá devendo esse ensaio pro pet 😂👇
 >
 > #FocoNoPet #EnsaioPet #FotografiaPet #SeMeuCachorroFalasse #ParqueDosJequitibas #Sobradinho #SobradinhoDF #Brasilia #PetLovers #DogsOfInstagram
+
+---
+
+# Reels "Se o seu pet ainda não tem fotos assim…" (`FocoNoPetEstrela`)
+
+18 s, sem áudio (para colocar uma música em alta pelo Instagram, como na referência) · `npm run render:estrela` → `out/foco-no-pet-estrela.mp4` · Cortes, ordem e textos em `src/estrela/config.ts`.
+
+Mesmo formato do Reels de referência:
+| Tempo | O que aparece |
+|---|---|
+| 0–3,5 s | Cortes a cada 0,5 s (clipes do Veo e fotos com o rosto no alto) com o texto fixo "SE O SEU PET AINDA NÃO TEM FOTOS ASSIM… **PRECISAMOS CONVERSAR.**" sobre o corpo, nunca no rosto |
+| 3,5–13,5 s | Montagem sem texto, um retrato em tela cheia a cada 0,5 s: 20 cortes, intercalando fotos e clipes animados |
+| 13,5–18 s | Cane corso animado olhando pra câmera + "AGENDA ABERTA PRO DOMINGO!" · "A estrela é quem você traz ✨" · data, horário e local · selo Foco no Pet · WhatsApp |
+
+**Dica:** os cortes estão em 0,5 s = 120 BPM. No Instagram, escolha uma música em alta e ajuste o início para o primeiro corte cair na batida.
+
+## Legenda
+> Se o seu pet ainda não tem fotos assim… precisamos conversar. 📸🐾
+>
+> Domingo (18/10) a agenda está aberta: ensaio Foco no Pet no Parque dos Jequitibás, em Sobradinho, a partir das 7h. A estrela é quem você traz ✨
+>
+> 📲 WhatsApp (61) 99989-0604, ou comenta **EU QUERO** que a gente te chama.
+>
+> #FocoNoPet #EnsaioPet #FotografiaPet #ParqueDosJequitibas #Sobradinho #SobradinhoDF #Brasilia #PetLovers #DogsOfInstagram
