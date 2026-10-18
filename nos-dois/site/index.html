@@ -262,6 +262,23 @@ details summary::-webkit-details-marker{display:none}
 .weekbars span{font-size:11px;color:var(--faint);font-weight:600}
 .weekbars .now span{color:var(--fg)}
 .weekbars .now i.h0{outline:2px dashed var(--accent);outline-offset:-2px;background:transparent}
+/* Plano: cadeados, faixa do teste e tela do Premium */
+.tile.locked .ic svg:last-child,.secrow.locked > svg:last-child{display:none}
+.lockpill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--coral);background:var(--coral-soft);border-radius:999px;padding:3px 8px}
+.lockpill svg{width:12px;height:12px}
+.trialbar{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px}
+.trialbar .meter{height:6px;border-radius:99px;background:var(--line-2);overflow:hidden;margin-top:6px}
+.trialbar .meter i{display:block;height:100%;background:linear-gradient(90deg,#2BB592,#F2785C)}
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.plan{border-radius:20px;padding:16px;border:1px solid var(--line);background:var(--surface);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);display:flex;flex-direction:column;gap:4px;text-align:left}
+.plan b{font-family:var(--display);font-size:22px;font-weight:700}
+.plan.best{border:2px solid var(--accent)}
+.checks{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.checks li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}
+.checks li svg{width:18px;height:18px;color:var(--accent);flex:none;margin-top:1px}
+.steps3{counter-reset:st;display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.steps3 li{counter-increment:st;display:flex;gap:12px;align-items:flex-start}
+.steps3 li::before{content:counter(st);flex:none;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:grid;place-items:center;font-size:14px}
 /* Pop-up de novidade do outro (topo da tela) */
 .pop{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:40;width:calc(100% - 24px);max-width:436px;display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:22px;background:var(--surface-solid);border:1px solid var(--line);box-shadow:0 16px 40px rgba(20,50,44,.22);animation:popin .28s cubic-bezier(.2,.9,.3,1.2)}
 .pop .grow{display:flex;flex-direction:column;gap:3px}
@@ -515,7 +532,7 @@ async function api(body){
   let r; try{ r = await fetch("/api/space", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body)}); }
   catch(e){ const er = new Error("offline"); er.code = "unavailable"; throw er; }
   const j = await r.json().catch(()=>({}));
-  if(!r.ok){ const er = new Error(j.error || "Não deu certo. Tente de novo."); er.code = (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : r.status===400 ? "bad" : "unavailable"; throw er; }
+  if(!r.ok){ const er = new Error(j.error || "Não deu certo. Tente de novo."); er.code = r.status===402 ? "premium" : body.op==="redeem" ? "bad" : (r.status===401||r.status===404) ? "auth" : r.status===413 ? "quota_exceeded" : r.status===400 ? "bad" : "unavailable"; throw er; }
   return j;
 }
 function ensureSpace(){
@@ -530,6 +547,7 @@ async function pull(){
   if(!cloud || inflight > 0) return;
   try{
     const r = await api({op:"get", id:cloud.id, key:cloud.key, since:cloudVer});
+    if(r.plan){ const before = JSON.stringify(plan); setPlan(r.plan); if(before!==JSON.stringify(plan)) scheduleBg(); }
     if(inflight > 0) return;
     if(r.changed){ const fresh = {...blank(), ...r.data}; const wasLoaded = loaded.has("meta") && cloudVer > 0; cloudVer = r.v;
       if(mode==="demo"){ if(savedReal) savedReal.S = fresh; } else { const old = S; S = fresh; if(wasLoaded) announce(remoteEvents(old, fresh)); }
@@ -567,6 +585,7 @@ function onWriteError(e){
   else if(code==="quota_exceeded"){ toast("O espaço de vocês está cheio. Apaguem itens antigos para continuar."); }
   else if(code==="unavailable"){ toast("Sem conexão agora. Tente de novo em instantes."); }
   else if(code==="auth"){ cloudLost(); }
+  else if(code==="premium"){ toast("Essa parte é do Premium. O teste grátis acabou."); lockedFrom = view; view = "assinar"; cloudVer = 0; pull(); schedule(); }
   else { toast("Não foi possível salvar. Tente de novo."); }
 }
 function put(c, id, data){
@@ -590,6 +609,79 @@ function del(c, id){
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).delete());
   else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"del", col:c, doc:id}));
   else saveLocal();
+}
+
+/* ===================== Plano: teste de 7 dias, grátis e Premium ===================== */
+// O servidor decide o plano (teste, grátis, premium ou fundador). Fora do modo nuvem tudo fica liberado.
+let plan = null, contact = null;
+try{ plan = JSON.parse(lsGet("nd-plan") || "null"); }catch(e){ plan = null; }
+const PRICE_M = "R$ 9,90", PRICE_Y = "R$ 69,90";
+const PREMIUM_VIEWS = {contas:"Contas da casa", familia:"Família", recado:"Recado na tela", bomsaber:"Bom saber", decidir:"Decidir juntos", radar:"Radar de presentes", notas:"Notas", planos:"Planos", capsulas:"Cápsulas", cofre:"Cofre", cartoes:"Cartões", numeros:"O nosso ano", desejos:"Desejos"};
+const planOn = () => mode==="cloud" && plan && plan.status;
+const isLocked = v => planOn() && plan.status==="free" && !!PREMIUM_VIEWS[v];
+const daysLeft = t => Math.max(0, Math.ceil((t - Date.now()) / 86400000));
+const fmtTs = (t, o={day:"numeric",month:"short",year:"numeric"}) => new Date(t).toLocaleDateString("pt-BR", o);
+function setPlan(p){
+  if(!p) return; const was = plan && plan.status; plan = p; lsSet("nd-plan", JSON.stringify(p));
+  if(was==="trial" && p.status==="free" && lsGet("nd-trial-ended")!==String(p.trialEnds)){ lsSet("nd-trial-ended", String(p.trialEnds)); setTimeout(trialEndedSheet, 400); }
+}
+// Marca com cadeado os atalhos de partes do Premium quando o casal está no grátis
+function markLocks(html){
+  if(!(planOn() && plan.status==="free")) return html;
+  const pill = `<span class="lockpill">${ic("lock")} Premium</span>`;
+  return html.replace(/<button class="(tile|secrow)([^"]*)" data-act="go" data-v="(\w+)">([\s\S]*?)<\/button>/g, (m, cls, rest, v, inner) => {
+    if(!PREMIUM_VIEWS[v]) return m;
+    if(cls==="tile") inner = inner.replace(/(<span class="ic">[\s\S]*?)<\/span>/, `$1${pill}</span>`);
+    else inner = inner + pill;
+    return `<button class="${cls}${rest} locked" data-act="go" data-v="${v}">${inner}</button>`;
+  });
+}
+function trialBar(){
+  if(!planOn()) return "";
+  if(plan.status==="trial"){ const d = daysLeft(plan.trialEnds), pct = Math.min(100, Math.max(4, (7-d)/7*100));
+    return `<section class="card trialbar"><div class="grow"><b>${d<=1 ? "Último dia do teste grátis" : `Teste grátis: faltam ${d} dias`}</b><p class="small muted">Tudo liberado até ${esc(fmtTs(plan.trialEnds,{day:"numeric",month:"long"}))}.</p><div class="meter"><i style="width:${pct}%"></i></div></div><button class="btn sm ${d<=2?"coral":"ghost"}" data-act="go" data-v="assinar">Ver planos</button></section>`; }
+  if(plan.status==="free") return `<section class="card trialbar"><div class="grow"><b>Plano grátis</b><p class="small muted">Pergunta do dia, tarefas, listas e datas. O resto volta com o Premium.</p></div><button class="btn sm coral" data-act="go" data-v="assinar">Assinar</button></section>`;
+  return "";
+}
+function trialEndedSheet(){
+  const pn = nameOf(other(me));
+  openSheet("O teste grátis acabou", `<p>Foram 7 dias com tudo liberado. A partir de agora vocês seguem no <b>plano grátis</b>, com a pergunta do dia, as tarefas, as listas e as datas.</p>
+    <p class="muted">Nada do que vocês criaram foi apagado. Contas, família, recados, cofre e o resto voltam assim que um dos dois assinar, e a assinatura vale para você e ${esc(pn)}.</p>`, null,
+    {extra:`<button type="button" class="btn coral block" data-act="go" data-v="assinar">Ver planos</button><button type="button" class="btn ghost block" data-act="closeSheet">Continuar no grátis</button>`});
+}
+function assinar(){
+  const pn = nameOf(other(me)); const want = PREMIUM_VIEWS[lockedFrom] ? lockedFrom : null;
+  const st = planOn() ? plan.status : "founder";
+  const msg = t => `Oi! Quero assinar o Nós Dois (${t}). Código do nosso espaço: ${cloud ? cloud.id.slice(0,8).toUpperCase() : "—"}`;
+  const wa1 = contact && contact.whatsapp ? `https://wa.me/${contact.whatsapp}?text=${encodeURIComponent(msg("anual, " + PRICE_Y))}` : null;
+  const head = st==="premium" ? `<section class="card stack" style="gap:6px"><span class="lockpill" style="color:var(--accent);background:var(--accent-soft);align-self:flex-start">${ic("check")} Premium ativo</span><b>Tudo liberado até ${esc(fmtTs(plan.premiumUntil))}</b><p class="small muted">Para renovar antes, é só ativar outro código: os meses se somam.</p></section>`
+    : st==="founder" ? `<section class="card"><b>Vocês são casal fundador</b><p class="small muted">Este espaço foi criado antes do teste e continua com tudo liberado.</p></section>`
+    : st==="trial" ? `<section class="card"><b>Teste grátis: faltam ${daysLeft(plan.trialEnds)} ${daysLeft(plan.trialEnds)===1?"dia":"dias"}</b><p class="small muted">Assinando agora, o Premium começa a contar só quando o teste acabar.</p></section>`
+    : want ? `<section class="card row" style="gap:12px"><span class="iconbtn" style="color:var(--coral);background:var(--coral-soft);border-color:transparent;box-shadow:none">${ic("lock")}</span><div class="grow"><b>${esc(PREMIUM_VIEWS[want])} é do Premium</b><p class="small muted">O teste de 7 dias acabou. O que vocês criaram continua guardado.</p></div></section>` : "";
+  return `${topBack("Nós Dois Premium", "Uma assinatura para os dois")}
+  <div class="stack">${head}
+  <div class="plans">
+    <div class="plan"><span class="small muted">Mensal</span><b>${PRICE_M}</b><span class="small muted">por mês, para o casal</span></div>
+    <div class="plan best"><span class="small" style="color:var(--accent);font-weight:700">Anual · economize 41%</span><b>${PRICE_Y}</b><span class="small muted">por ano (R$ 5,83/mês)</span></div>
+  </div>
+  <section class="card stack"><b>O que o Premium libera</b><ul class="checks">
+    ${["Contas da casa: fixas, gastos e quem deve quanto","Família: gestação, rotina do bebê, filhos e nomes","Recado na tela e Decidir juntos","Bom saber, Radar de presentes e Desejos","Cofre cifrado, notas, planos, cápsulas e cartões","O nosso ano em números"].map(t=>`<li>${ic("check")}<span>${t}</span></li>`).join("")}
+  </ul><p class="small muted">Sempre grátis: pergunta do dia, tarefas, listas, datas e avisos.</p></section>
+  ${st==="founder" ? "" : `<section class="card stack"><b>Como assinar</b><ol class="steps3">
+    <li><div class="grow">Pague por Pix o plano escolhido.${contact && contact.pix ? `<div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap"><span class="tag num">${esc(contact.pix)}</span><button class="btn sm ghost" data-act="copyText" data-t="${esc(contact.pix)}">Copiar chave</button></div>` : ""}</div></li>
+    <li><div class="grow">Mande o comprovante pelo WhatsApp.${wa1 ? `<div style="margin-top:6px"><a class="btn sm" href="${wa1}" target="_blank" rel="noopener">${ic("chat")} Falar no WhatsApp</a></div>` : ""}</div></li>
+    <li><div class="grow">Você recebe um código de ativação. Digite aqui:</div></li>
+  </ol>
+  <form class="inline" data-form="redeem"><input type="text" id="actCode" name="code" required autocomplete="off" autocapitalize="characters" placeholder="ND-XXXX-XXXX" style="text-transform:uppercase;letter-spacing:.05em"><button class="btn" type="submit">Ativar</button></form>
+  <p class="small muted">Vale para você e ${esc(pn)}, cada um no seu celular.</p></section>`}
+  </div>`;
+}
+let lockedFrom = null;
+async function redeemCode(raw){
+  if(!cloud){ toast("Crie o espaço de vocês primeiro."); return; }
+  try{ const r = await api({op:"redeem", id:cloud.id, key:cloud.key, code:raw}); setPlan(r.plan); clearIds.add("actCode"); lockedFrom = null; schedule();
+    toast(`Premium ativo até ${fmtTs(r.plan.premiumUntil)}. Obrigado! ❤`); }
+  catch(e){ toast(e.message || "Não deu para ativar. Tente de novo."); }
 }
 
 /* ===================== Avisos entre os dois ===================== */
@@ -753,7 +845,7 @@ async function boot(){
   } else if(/^https?:/.test(location.protocol)){
     const m = location.hash.match(/^#entrar-([a-f0-9]{8,32})-([a-f0-9]{16,64})$/);
     if(m){ lsSet(CLOUD_KEY, JSON.stringify({id:m[1], key:m[2]})); lsSet("nd-me", null); me = null; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
-    let avail = false, offline = false; try{ avail = !!(await api({op:"ping"})).storage; }catch(e){ offline = true; }
+    let avail = false, offline = false; try{ const pg = await api({op:"ping"}); avail = !!pg.storage; contact = pg.contact || null; }catch(e){ offline = true; }
     try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
     if(avail || (offline && cloud)){
       mode = "cloud";
@@ -941,8 +1033,10 @@ function screen(){
   if(!C()) return onboarding();
   if(!me){ const ms = C().members||{}; if(myId){ if(ms.a===myId) me="a"; else if(ms.b===myId) me="b"; } }
   if(!me) return whoPicker();
-  const views = {home, pergunta, tarefas, listas, familia, datas, ideias, desejos, ajustes, contas, secoes, recado, bomsaber, decidir, radar, notas, planos, capsulas, cofre, cartoes, numeros};
-  const body = (views[view]||home)();
+  const views = {home, pergunta, tarefas, listas, familia, datas, ideias, desejos, ajustes, contas, secoes, recado, bomsaber, decidir, radar, notas, planos, capsulas, cofre, cartoes, numeros, assinar};
+  if(isLocked(view)){ lockedFrom = view; view = "assinar"; }
+  let body = (views[view]||home)();
+  body = markLocks(body);
   const banner = mode==="demo" ? `<div class="banner"><span>Modo demonstração: nada é salvo.</span><button class="btn sm ghost" data-act="exitDemo">Sair</button></div>` : "";
   return banner + body + tabbar();
 }
@@ -1033,6 +1127,7 @@ function home(){
     <div><div class="eyebrow">Nós</div><h1 style="margin-top:4px">${esc(nameOf("a"))} <em class="acc">&amp;</em> ${esc(nameOf("b"))}</h1></div>
     <button class="iconbtn" data-act="go" data-v="ajustes" aria-label="Ajustes">${ic("gear")}</button>
   </div>
+  ${trialBar()}
   <div class="stack" style="gap:14px">
     ${rec && (rec.text || recImg) ? `<section class="card recado" aria-label="Recado de ${esc(pn)}">
       <div class="row between"><span class="eyebrow row" style="gap:6px">${avatar(other(me),"xs")} Recado de ${esc(pn)}</span><span class="small muted">${rec.at ? esc(inDaysText(diff(rec.at.slice(0,10), today())).toLowerCase()) : ""}</span></div>
@@ -1740,6 +1835,7 @@ function ajustes(){
     <label class="field"><span>Data prevista do parto (se estiverem esperando)</span><input type="date" id="cfDue" name="due" value="${esc(c.dueDate||"")}"></label>
     <button class="btn block" type="submit">Salvar ajustes</button>
   </form>
+  ${planOn() ? `<div class="section"><h3>Plano</h3><section class="card row" style="gap:12px"><div class="grow"><b>${plan.status==="premium" ? "Premium" : plan.status==="trial" ? "Teste grátis" : plan.status==="free" ? "Grátis" : "Casal fundador"}</b><p class="small muted">${plan.status==="premium" ? `Tudo liberado até ${esc(fmtTs(plan.premiumUntil))}.` : plan.status==="trial" ? `Tudo liberado por mais ${pl(daysLeft(plan.trialEnds),"dia","dias")}.` : plan.status==="free" ? "Pergunta do dia, tarefas, listas e datas." : "Tudo liberado, sem prazo."}</p></div>${plan.status==="founder" ? "" : `<button class="btn sm ${plan.status==="free"?"coral":"ghost"}" data-act="go" data-v="assinar">${plan.status==="premium" ? "Renovar" : "Ver planos"}</button>`}</section></div>` : ""}
   ${mode==="cloud" && cloud ? `<div class="section"><h3>Avisos</h3><section class="card">${pushCard()}</section></div>` : ""}
   <div class="section"><h3>Sua foto</h3><section class="card row" style="gap:14px">${avatar(me)}<div class="grow small muted">Aparece no início e nos recados, para ${esc(nameOf(other(me)))} também.</div><button class="btn sm ghost" data-act="setPhoto">${photoOf(me)?"Trocar":"Escolher foto"}</button>${photoOf(me)?`<button class="hbtn" data-act="delPhoto" aria-label="Tirar foto">${ic("trash")}</button>`:""}</section></div>
   <div class="section"><h3>Quem está usando este aparelho</h3>
@@ -1781,7 +1877,7 @@ function toast(msg){ const t = document.getElementById("toast"); t.textContent =
 function armed(el){ if(el.dataset.armed) return true; el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo para excluir`; return false; }
 
 const ACT = {
-  go: el => { if(el.dataset.v==="contas" && view!=="contas") billMonth = null; view = el.dataset.v; if(view!=="listas") openList = null; editingAnswer = false; schedule(); },
+  go: el => { if(el.dataset.v==="contas" && view!=="contas") billMonth = null; if(el.dataset.v!=="assinar") lockedFrom = null; if(!sheetEl.hidden) closeSheet(); view = el.dataset.v; if(view!=="listas") openList = null; editingAnswer = false; schedule(); },
   iam: el => { me = el.dataset.s; lsSet("nd-me", me); if(mode==="db" && myId){ const ms = (C().members)||{}; const upd = {[me]:myId}; if(ms[other(me)]===myId) upd[other(me)] = null; patch("meta","couple",{members:upd}); } schedule(); },
   demo: () => startDemo(),
   exitDemo: () => exitDemo(),
@@ -1981,6 +2077,7 @@ function kidForm(k){ return `<label class="field"><span>Nome</span><input type="
 const FORMS = {
   recado: (fd, f) => { const text = String(fd.text||"").trim(); if(!text && !recadoPhoto){ toast("Escreva algo ou escolha uma foto."); return; }
     put("meta","recado_"+me,{text, photo:recadoPhoto||null, at:new Date().toISOString()}); recadoPhoto = null; clearIds.add("recText"); f.reset(); toast(`Recado na tela de ${nameOf(other(me))}`); },
+  redeem: fd => { redeemCode(fd.code); },
   about: fd => { const o = {}; ABOUT_FIELDS.forEach(([k]) => { const v = String(fd[k]||"").trim(); if(v) o[k] = v; }); put("about", me, {...o, at:new Date().toISOString()}); toast("Salvo"); },
   vaultUnlock: (fd, f) => { const raw = fromB32(fd.code); if(raw.length < 20){ toast("Código incompleto. Confira as letras."); return; }
     importKey(raw.slice(0,20)).then(key => unseal(key, S.meta.vault.check).then(() => { lsSet(vaultSlot(), b64(raw.slice(0,20))); vaultKey = key; vaultPlain = {}; toast("Cofre aberto neste celular"); schedule(); }))
