@@ -1,17 +1,42 @@
 {
   "rewrites": [
-    { "source": "/manifest.webmanifest", "destination": "/site/manifest.webmanifest" },
-    { "source": "/sw.js", "destination": "/site/sw.js" },
-    { "source": "/icon.svg", "destination": "/site/icon.svg" },
-    { "source": "/icons/:file", "destination": "/site/icons/:file" }
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "/site/manifest.webmanifest"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/site/sw.js"
+    },
+    {
+      "source": "/icon.svg",
+      "destination": "/site/icon.svg"
+    },
+    {
+      "source": "/icons/:file",
+      "destination": "/site/icons/:file"
+    },
+    {
+      "source": "/admin",
+      "destination": "/site/admin.html"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "no-referrer" },
-        { "key": "X-Frame-Options", "value": "DENY" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "no-referrer"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     }
   ]

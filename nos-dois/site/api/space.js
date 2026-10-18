@@ -107,6 +107,30 @@ function deepMerge(a, b) {
   return o;
 }
 
+// Planos: espaços criados a partir do teste ganham 7 dias com tudo liberado; depois, plano grátis
+// (pergunta do dia, tarefas, listas, datas) até ativarem um código. Espaços antigos (sem plano) seguem completos.
+const TRIAL_DAYS = 7;
+const DAY = 86400000;
+const PREMIUM_COLS = new Set(["bills","fixed","kids","journal","names","logs","about","polls","notes","plans","capsules","vault","cards","wishes"]);
+const PREMIUM_META = /^(recado_[ab]|vault)$/;
+function planStatus(raw) {
+  if (!raw) return { status: "founder" };
+  let p = {}; try { p = JSON.parse(raw); } catch {}
+  const now = Date.now();
+  if (p.premiumUntil && p.premiumUntil > now) return { status: "premium", premiumUntil: p.premiumUntil, trialEnds: p.trialEnds };
+  if (p.trialEnds && p.trialEnds > now) return { status: "trial", trialEnds: p.trialEnds };
+  return { status: "free", trialEnds: p.trialEnds, premiumUntil: p.premiumUntil || null };
+}
+const unlocked = (ps) => ps.status !== "free";
+function adminOk(given) {
+  const want = process.env.NOS_DOIS_ADMIN_KEY || "";
+  return want.length >= 10 && sameHash(sha(String(given || "")), sha(want));
+}
+const contactInfo = () => ({
+  whatsapp: String(process.env.NOS_DOIS_WHATSAPP || "").replace(/\D/g, "") || null,
+  pix: String(process.env.NOS_DOIS_PIX || "").trim() || null,
+});
+
 // Chave VAPID do servidor: criada uma vez e guardada no próprio Redis (nada para configurar no Vercel).
 let vapidCache = null;
 async function vapidKey(st) {
@@ -123,7 +147,7 @@ module.exports = async (req, res) => {
   let body = req.body || {};
   if (typeof body === "string") { try { body = JSON.parse(body || "{}"); } catch { return res.status(400).json({ error: "JSON inválido." }); } }
   const st = storage();
-  if (body.op === "ping") return res.status(200).json({ ok: true, storage: !!st });
+  if (body.op === "ping") return res.status(200).json({ ok: true, storage: !!st, contact: contactInfo() });
   if (!st) return res.status(503).json({ error: "Armazenamento não configurado." });
 
   try {
@@ -132,6 +156,8 @@ module.exports = async (req, res) => {
       const key = crypto.randomBytes(20).toString("hex");
       const [ok] = await redis(st, ["SET", `nd:${id}:auth`, sha(key), "NX"], ["SET", `nd:${id}:v`, "1", "NX"]);
       if (ok !== "OK") return res.status(409).json({ error: "Tente de novo." });
+      const now = Date.now();
+      await redis(st, ["SET", `nd:${id}:plan`, JSON.stringify({ createdAt: now, trialEnds: now + TRIAL_DAYS * DAY })], ["INCR", "nd:stats:created"]);
       return res.status(200).json({ id, key });
     }
 
@@ -150,6 +176,37 @@ module.exports = async (req, res) => {
       return res.status(200).json({ id: o.id, key: o.key, slot: o.slot });
     }
 
+    if (body.op === "admin") {
+      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
+      const [fails] = await redis(st, ["GET", `nd:af:${ip}`]);
+      if (Number(fails || 0) >= 10) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      if (!process.env.NOS_DOIS_ADMIN_KEY) return res.status(503).json({ error: "Falta configurar NOS_DOIS_ADMIN_KEY no Vercel." });
+      if (!adminOk(body.admin)) { await redis(st, ["INCR", `nd:af:${ip}`], ["EXPIRE", `nd:af:${ip}`, "3600"]); return res.status(401).json({ error: "Senha de administrador errada." }); }
+      if (body.action === "generate") {
+        const months = body.months === 12 ? 12 : 1;
+        const n = Math.max(1, Math.min(20, Number(body.count) || 1));
+        const note = String(body.note || "").slice(0, 60);
+        const out = [];
+        for (let i = 0; i < n; i++) {
+          for (let tries = 0; tries < 5; tries++) {
+            const c = "ND" + newCode();
+            const [ok] = await redis(st, ["SET", `nd:act:${c}`, JSON.stringify({ months, note, createdAt: Date.now() }), "NX"]);
+            if (ok === "OK") { out.push(c); await redis(st, ["LPUSH", "nd:acts", c], ["LTRIM", "nd:acts", "0", "199"]); break; }
+          }
+        }
+        return res.status(200).json({ codes: out, months });
+      }
+      // lista: últimos códigos e se já foram usados
+      const [list, created] = await redis(st, ["LRANGE", "nd:acts", "0", "49"], ["GET", "nd:stats:created"]);
+      const codes = [];
+      for (const c of list || []) {
+        const [v] = await redis(st, ["GET", `nd:act:${c}`]);
+        let o = {}; try { o = JSON.parse(v || "{}"); } catch {}
+        codes.push({ code: c, months: o.months || 1, note: o.note || "", createdAt: o.createdAt || null, usedAt: o.usedAt || null });
+      }
+      return res.status(200).json({ codes, created: Number(created || 0) });
+    }
+
     if (body.op === "vapid") return res.status(200).json({ key: push.vapidPublic(await vapidKey(st)) });
 
     const { id, key } = body;
@@ -158,10 +215,11 @@ module.exports = async (req, res) => {
     if (!auth || !sameHash(auth, sha(key))) return res.status(404).json({ error: "Espaço não encontrado." });
     const H = `nd:${id}:data`, V = `nd:${id}:v`;
 
+    const PL = `nd:${id}:plan`;
     if (body.op === "get") {
-      const [v] = await redis(st, ["GET", V]);
-      const ver = Number(v || 0);
-      if (Number(body.since || 0) === ver) return res.status(200).json({ changed: false, v: ver });
+      const [v, planRaw] = await redis(st, ["GET", V], ["GET", PL]);
+      const ver = Number(v || 0); const plan = planStatus(planRaw);
+      if (Number(body.since || 0) === ver) return res.status(200).json({ changed: false, v: ver, plan });
       const [flat] = await redis(st, ["HGETALL", H]);
       const data = {};
       const pairs = Array.isArray(flat) ? flat : Object.entries(flat || {}).flat();
@@ -169,7 +227,27 @@ module.exports = async (req, res) => {
         const [col, doc] = String(pairs[i]).split("/");
         try { (data[col] = data[col] || {})[doc] = JSON.parse(pairs[i + 1]); } catch {}
       }
-      return res.status(200).json({ changed: true, v: ver, data });
+      return res.status(200).json({ changed: true, v: ver, data, plan });
+    }
+
+    if (body.op === "redeem") {
+      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
+      const [fails] = await redis(st, ["GET", `nd:rf:${ip}`]);
+      if (Number(fails || 0) >= 20) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const [raw] = code.length === 10 ? await redis(st, ["GET", `nd:act:${code}`]) : [null];
+      let act = null; try { act = raw ? JSON.parse(raw) : null; } catch {}
+      if (!act) { await redis(st, ["INCR", `nd:rf:${ip}`], ["EXPIRE", `nd:rf:${ip}`, "3600"]); return res.status(404).json({ error: "Código de ativação não encontrado. Confira as letras." }); }
+      if (act.usedAt) return res.status(409).json({ error: "Este código já foi usado." });
+      const [claimed] = await redis(st, ["SET", `nd:act:${code}:lock`, id, "NX"]);
+      if (claimed !== "OK") return res.status(409).json({ error: "Este código já foi usado." });
+      const [planRaw] = await redis(st, ["GET", PL]);
+      let p = {}; try { p = planRaw ? JSON.parse(planRaw) : {}; } catch {}
+      const base = Math.max(Date.now(), p.premiumUntil || 0, p.trialEnds || 0);
+      const until = new Date(base); until.setMonth(until.getMonth() + (act.months === 12 ? 12 : 1));
+      p.premiumUntil = until.getTime(); p.lastCode = code;
+      await redis(st, ["SET", PL, JSON.stringify(p)], ["SET", `nd:act:${code}`, JSON.stringify({ ...act, usedAt: Date.now(), space: id })]);
+      return res.status(200).json({ plan: planStatus(JSON.stringify(p)) });
     }
 
     if (body.op === "codes") {
@@ -236,7 +314,7 @@ module.exports = async (req, res) => {
     if (body.op === "wipe") {
       const [ca, cb] = await redis(st, ["GET", `nd:${id}:code:a`], ["GET", `nd:${id}:code:b`]);
       const extra = [ca, cb].filter(Boolean).map((c) => `nd:code:${c}`);
-      await redis(st, ["DEL", H, V, `nd:${id}:push`, `nd:${id}:auth`, `nd:${id}:code:a`, `nd:${id}:code:b`, ...extra]);
+      await redis(st, ["DEL", H, V, PL, `nd:${id}:push`, `nd:${id}:auth`, `nd:${id}:code:a`, `nd:${id}:code:b`, ...extra]);
       return res.status(200).json({ ok: true });
     }
 
@@ -250,6 +328,10 @@ module.exports = async (req, res) => {
     }
 
     if (body.op === "put" || body.op === "merge") {
+      if (PREMIUM_COLS.has(col) || (col === "meta" && PREMIUM_META.test(doc))) {
+        const [planRaw] = await redis(st, ["GET", PL]);
+        if (!unlocked(planStatus(planRaw))) return res.status(402).json({ error: "Esta parte é do Premium. O teste grátis acabou.", premium: true });
+      }
       if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) return res.status(400).json({ error: "Dados inválidos." });
       let value = body.data;
       if (body.op === "merge") {

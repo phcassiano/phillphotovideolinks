@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nós Dois · Admin</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+/* Painel do dono: gera códigos de ativação do Premium e mostra quais já foram usados. */
+:root{--bg:#EAF4EF;--card:#FFFFFF;--fg:#1F2B28;--muted:#5E6E69;--line:#DCE9E3;--accent:#16846B;--accent-soft:#E0F2EB;--coral:#C24A2A;--coral-soft:#FCE5D8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0F1917;--card:#1B2725;--fg:#EAF3F0;--muted:#A7B9B3;--line:#2C3B37;--accent:#5FD4B6;--accent-soft:#16332C;--coral:#FF9479;--coral-soft:#3A2219}}
+:root[data-theme="dark"]{--bg:#0F1917;--card:#1B2725;--fg:#EAF3F0;--muted:#A7B9B3;--line:#2C3B37;--accent:#5FD4B6;--accent-soft:#16332C;--coral:#FF9479;--coral-soft:#3A2219}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:560px;margin:0 auto;padding:20px 16px 60px;display:flex;flex-direction:column;gap:14px}
+h1{font-size:24px;margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px}
+label{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:13px;color:var(--muted)}
+input,select{font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:44px;width:100%}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row > *{flex:1;min-width:0}
+button{font:inherit;font-weight:600;border:0;border-radius:999px;padding:11px 18px;min-height:44px;background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button.sm{min-height:34px;padding:6px 12px;font-size:13px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.code{font-family:ui-monospace,Menlo,monospace;font-size:17px;letter-spacing:.06em}
+.item{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.tag{font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.tag.used{background:var(--coral-soft);color:var(--coral)}
+.err{color:var(--coral);font-weight:600}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Nós Dois · Admin</h1>
+  <p class="muted small">Gere um código depois de receber o Pix e mande para o casal pelo WhatsApp. Cada código vale uma vez.</p>
+
+  <form class="card" id="login">
+    <label>Senha de administrador<input type="password" id="pw" autocomplete="current-password" required></label>
+    <button type="submit">Entrar</button>
+    <p class="err small" id="loginErr" hidden></p>
+  </form>
+
+  <div id="panel" hidden style="display:flex;flex-direction:column;gap:14px">
+    <form class="card" id="gen">
+      <div class="row">
+        <label>Plano<select id="months"><option value="12">Anual (12 meses)</option><option value="1">Mensal (1 mês)</option></select></label>
+        <label>Quantos<input type="number" id="count" min="1" max="20" value="1"></label>
+      </div>
+      <label>Anotação (opcional)<input type="text" id="note" maxlength="60" placeholder="Ex.: Ana e Rafa, Pix 18/10"></label>
+      <button type="submit">Gerar código</button>
+      <div id="fresh"></div>
+    </form>
+    <section class="card">
+      <div class="row" style="justify-content:space-between"><b style="flex:none">Últimos códigos</b><span class="muted small" id="stats" style="flex:none"></span></div>
+      <div id="list"></div>
+    </section>
+    <button class="ghost" id="logout" type="button">Sair</button>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = c => c.slice(0, 2) + "-" + c.slice(2, 6) + "-" + c.slice(6);
+const when = t => t ? new Date(t).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+let pw = ""; try { pw = sessionStorage.getItem("nd-admin") || ""; } catch (e) {}
+async function call(body) {
+  const r = await fetch("/api/space", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "admin", admin: pw, ...body }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Não deu certo.");
+  return j;
+}
+const msgFor = (c, m) => `Oi! Aqui está o seu código do Nós Dois Premium (${m === 12 ? "anual" : "mensal"}): ${fmt(c)}\n\nAbra o app › Ajustes › Plano › Ver planos e digite o código em "Ativar". Vale para vocês dois. Obrigado! ❤`;
+function copy(t, btn) { navigator.clipboard.writeText(t).then(() => { const o = btn.textContent; btn.textContent = "Copiado"; setTimeout(() => btn.textContent = o, 1500); }).catch(() => prompt("Copie:", t)); }
+async function load() {
+  const j = await call({ action: "list" });
+  $("stats").textContent = `${j.created} espaços criados no teste`;
+  $("list").innerHTML = j.codes.length ? j.codes.map(c => `<div class="item"><div><div class="code">${esc(fmt(c.code))}</div><div class="muted small">${c.months === 12 ? "Anual" : "Mensal"}${c.note ? " · " + esc(c.note) : ""} · ${esc(when(c.createdAt))}</div></div>
+    ${c.usedAt ? `<span class="tag used">Usado ${esc(when(c.usedAt))}</span>` : `<button class="ghost sm" data-copy="${esc(msgFor(c.code, c.months))}">Copiar mensagem</button>`}</div>`).join("") : `<p class="muted small">Nenhum código ainda.</p>`;
+}
+async function enter() {
+  try { await load(); $("login").hidden = true; $("panel").hidden = false; try { sessionStorage.setItem("nd-admin", pw); } catch (e) {} }
+  catch (e) { $("loginErr").textContent = e.message; $("loginErr").hidden = false; pw = ""; try { sessionStorage.removeItem("nd-admin"); } catch (er) {} }
+}
+$("login").addEventListener("submit", e => { e.preventDefault(); pw = $("pw").value; enter(); });
+$("gen").addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    const j = await call({ action: "generate", months: Number($("months").value), count: Number($("count").value), note: $("note").value });
+    $("fresh").innerHTML = j.codes.map(c => `<div class="item"><span class="code">${esc(fmt(c))}</span><button class="sm" data-copy="${esc(msgFor(c, j.months))}">Copiar mensagem</button></div>`).join("");
+    $("note").value = ""; load();
+  } catch (err) { $("fresh").innerHTML = `<p class="err small">${esc(err.message)}</p>`; }
+});
+document.addEventListener("click", e => { const b = e.target.closest("[data-copy]"); if (b) copy(b.dataset.copy, b); });
+$("logout").addEventListener("click", () => { try { sessionStorage.removeItem("nd-admin"); } catch (e) {} location.reload(); });
+if (pw) enter();
+</script>
+</body>
+</html>
