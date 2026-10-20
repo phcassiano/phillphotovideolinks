@@ -1,0 +1,24 @@
+# /etc/systemd/system/linknabio.service
+[Unit]
+Description=Link na bio (Node)
+After=network.target
+
+[Service]
+Type=simple
+User=linknabio
+Group=linknabio
+WorkingDirectory=/srv/linknabio/bio
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=2
+Environment=NODE_ENV=production
+
+# Endurecimento: só a pasta data/ é gravável.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/srv/linknabio/bio/data
+
+[Install]
+WantedBy=multi-user.target
