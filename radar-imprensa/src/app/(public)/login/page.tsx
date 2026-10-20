@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Entrar" };
+export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   if (!isSupabaseConfigured()) redirect("/configuracao-necessaria");

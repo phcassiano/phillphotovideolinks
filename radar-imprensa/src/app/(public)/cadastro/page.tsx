@@ -5,6 +5,8 @@ import { SignupForm } from "@/components/forms/signup-form";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Criar conta" };
+// Avaliado a cada requisição: a configuração do Supabase pode mudar sem novo build.
+export const dynamic = "force-dynamic";
 
 export default function SignupPage() {
   if (!isSupabaseConfigured()) redirect("/configuracao-necessaria");

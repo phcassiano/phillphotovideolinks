@@ -120,7 +120,7 @@ begin
         nullif(btrim(p_change ->> 'job_title'), ''),
         nullif(p_change ->> 'start_date', '')::date,
         true,
-        case when p_evidence_id is not null or p_source = 'admin' then 'confirmado' else 'provavel' end,
+        case when p_evidence_id is not null or p_source = 'admin' then 'confirmado' else 'provavel' end::public.verification_status,
         case when p_evidence_id is not null or p_source = 'admin' then now() end,
         p_evidence_id
       )
@@ -288,7 +288,7 @@ begin
     insert into public.source_evidence
       (journalist_id, related_entity_type, source_url, source_title, evidence_type, evidence_summary, created_by, collected_at)
     values (p_journalist_id, 'journalist', p_source_url, 'Fonte indicada em sugestão de correção',
-            case when v_owner then 'declaracao_titular' else 'cadastro_manual' end,
+            case when v_owner then 'declaracao_titular' else 'cadastro_manual' end::public.evidence_type,
             left(p_description, 2000), v_uid, now())
     on conflict do nothing
     returning id into v_evidence;
@@ -710,7 +710,17 @@ begin
   select coalesce(array_agg(id), '{}') into v_ids from upd;
   v_moved := v_moved || jsonb_build_object('contacts', to_jsonb(v_ids));
 
-  with upd as (update public.source_evidence set journalist_id = s.id where journalist_id = m.id returning id)
+  -- Evidências com a mesma URL já presentes no sobrevivente permanecem no registro unificado.
+  with upd as (
+    update public.source_evidence e set journalist_id = s.id
+     where e.journalist_id = m.id
+       and (e.source_url is null or not exists (
+         select 1 from public.source_evidence e2
+          where e2.journalist_id = s.id and e2.source_url = e.source_url
+            and e2.related_entity_type is not distinct from e.related_entity_type
+            and coalesce(e2.related_entity_id, '00000000-0000-0000-0000-000000000000'::uuid)
+              = coalesce(e.related_entity_id, '00000000-0000-0000-0000-000000000000'::uuid)))
+    returning e.id)
   select coalesce(array_agg(id), '{}') into v_ids from upd;
   v_moved := v_moved || jsonb_build_object('evidence', to_jsonb(v_ids));
 
@@ -730,19 +740,19 @@ begin
   select coalesce(array_agg(topic_id), '{}') into v_ids from ins;
   v_moved := v_moved || jsonb_build_object('topics_copied', to_jsonb(v_ids));
 
-  v_moved := v_moved || jsonb_build_object('favorites_copied', coalesce((
-    with ins as (
-      insert into public.favorites (user_id, journalist_id)
-      select f.user_id, s.id from public.favorites f where f.journalist_id = m.id
-      on conflict do nothing returning user_id)
-    select jsonb_agg(user_id) from ins), '[]'::jsonb));
+  with ins as (
+    insert into public.favorites (user_id, journalist_id)
+    select f.user_id, s.id from public.favorites f where f.journalist_id = m.id
+    on conflict do nothing returning user_id)
+  select coalesce(array_agg(user_id), '{}') into v_ids from ins;
+  v_moved := v_moved || jsonb_build_object('favorites_copied', to_jsonb(v_ids));
 
-  v_moved := v_moved || jsonb_build_object('mailing_members_copied', coalesce((
-    with ins as (
-      insert into public.mailing_list_members (mailing_list_id, journalist_id, notes, added_by)
-      select mm.mailing_list_id, s.id, mm.notes, mm.added_by from public.mailing_list_members mm where mm.journalist_id = m.id
-      on conflict do nothing returning mailing_list_id)
-    select jsonb_agg(mailing_list_id) from ins), '[]'::jsonb));
+  with ins as (
+    insert into public.mailing_list_members (mailing_list_id, journalist_id, notes, added_by)
+    select mm.mailing_list_id, s.id, mm.notes, mm.added_by from public.mailing_list_members mm where mm.journalist_id = m.id
+    on conflict do nothing returning mailing_list_id)
+  select coalesce(array_agg(mailing_list_id), '{}') into v_ids from ins;
+  v_moved := v_moved || jsonb_build_object('mailing_members_copied', to_jsonb(v_ids));
 
   if m.claimed_by is not null then
     v_moved := v_moved || jsonb_build_object('claimed_by_transferred', m.claimed_by);

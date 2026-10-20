@@ -43,8 +43,11 @@ const LEGAL_BASES = [
   },
 ];
 
-export default async function PrivacyPage() {
+export default async function PrivacyPage({ searchParams }: PageProps<"/privacidade">) {
   const user = await getSessionUser();
+  const sp = await searchParams;
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const journalistId = typeof sp.jornalista === "string" && UUID_RE.test(sp.jornalista) ? sp.jornalista : undefined;
   let requests: { id: string; request_type: PrivacyRequestType; status: PrivacyRequestStatus; created_at: string; resolution_notes: string | null }[] = [];
   if (user) {
     const supabase = await createClient();
@@ -145,7 +148,7 @@ export default async function PrivacyPage() {
           <h2>7. Fazer uma solicitação</h2>
           {user ? (
             <div className="mt-4 grid gap-8 md:grid-cols-2">
-              <PrivacyRequestForm defaultEmail={user.email} />
+              <PrivacyRequestForm defaultEmail={user.email} journalistId={journalistId} />
               <div>
                 <h3 className="font-medium">Minhas solicitações</h3>
                 {requests.length === 0 ? (

@@ -3,6 +3,7 @@ import { Database } from "lucide-react";
 import { isSupabaseConfigured } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Configuração necessária" };
+export const dynamic = "force-dynamic";
 
 export default function SetupRequiredPage() {
   const configured = isSupabaseConfigured();

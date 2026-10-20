@@ -44,3 +44,6 @@ next-env.d.ts
 # supabase cli
 supabase/.branches
 supabase/.temp
+tests/e2e/.env.e2e
+test-results/
+playwright-report/

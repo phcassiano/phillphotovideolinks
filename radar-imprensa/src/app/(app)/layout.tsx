@@ -11,6 +11,9 @@ import { ROLE_LABELS } from "@/lib/domain/labels";
 import { serverEnv } from "@/lib/env.server";
 import { signOut } from "@/app/actions/auth";
 
+// Toda a área autenticada depende da sessão: nunca pré-renderizar no build.
+export const dynamic = "force-dynamic";
+
 function sectionsFor(user: SessionUser): NavSection[] {
   return NAV_SECTIONS.map((section) => ({
     ...section,

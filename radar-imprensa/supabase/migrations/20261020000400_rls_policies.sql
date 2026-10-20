@@ -180,8 +180,18 @@ create policy favorites_own on public.favorites for all to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid() and app_private.journalist_is_visible(journalist_id));
 
+-- Expressão sobre a própria linha (e não uma consulta por id), para que
+-- INSERT ... RETURNING funcione: a linha recém-criada ainda não é visível
+-- para consultas feitas dentro do mesmo comando.
 create policy mailing_lists_select on public.mailing_lists for select to authenticated
-  using (app_private.can_access_mailing(id));
+  using (
+    owner_id = auth.uid()
+    or (
+      visibility = 'organizacao'
+      and organization_id is not null
+      and organization_id = app_private.current_org_id()
+    )
+  );
 create policy mailing_lists_insert on public.mailing_lists for insert to authenticated
   with check (
     owner_id = auth.uid()
