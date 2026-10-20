@@ -1,0 +1,55 @@
+{
+  "name": "radar-imprensa",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --project unit",
+    "test:db": "vitest run --project db",
+    "test:all": "vitest run",
+    "db:reset:local": "node scripts/db-local.mjs reset --seed",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.2",
+    "@radix-ui/react-dialog": "^1.3.1",
+    "@radix-ui/react-label": "^2.1.17",
+    "@radix-ui/react-slot": "^1.5.0",
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "geist": "^1.8.1",
+    "lucide-react": "^1.60.0",
+    "next": "16.4.2",
+    "papaparse": "^5.7.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "^7.90.0",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "^4",
+    "@types/node": "^22.20.5",
+    "@types/papaparse": "^5.5.2",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "pg": "^8.23.1",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^5.0.5"
+  },
+  "engines": {
+    "node": ">=20.9"
+  }
+}
