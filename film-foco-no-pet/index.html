@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Foco no Pet · o obturador</title>
+<meta name="viewport" content="width=1080, height=1920">
+<style>
+/* ACCENT = "o pet olhou" (laranja da pata). Só na palavra "olha" e na pata da logo. */
+@font-face { font-family: "Montserrat"; font-weight: 700; src: url(./assets/montserrat-latin-700-normal.woff2) format("woff2"); }
+@font-face { font-family: "Montserrat"; font-weight: 800; src: url(./assets/montserrat-latin-800-normal.woff2) format("woff2"); }
+:root {
+  --shutter: #1E1E1C;   /* grafite das lâminas da logo */
+  --cream: #FFF4EA;     /* chão da marca no fim */
+  --ink: #FFF8F0;       /* texto sobre as fotos */
+  --accent: #E15A0A;    /* a pata */
+  --font: "Montserrat", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+#main { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; overflow: hidden; background: #141210; color: var(--ink); font-family: var(--font); font-weight: 700; }
+.scene { position: absolute; inset: 0; overflow: hidden; }
+.cam { position: absolute; inset: 0; }
+.media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.framed { top: 80px; bottom: auto; height: 1290px; -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 70px, #000 1130px, transparent 1290px); mask-image: linear-gradient(180deg, transparent 0, #000 70px, #000 1130px, transparent 1290px); }
+.bg { filter: blur(38px) brightness(.5) saturate(1.1); transform: scale(1.15); }
+/* luz de baixo para o texto: sombra quente, não uma barra */
+.scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,8,6,0) 52%, rgba(10,8,6,.55) 78%, rgba(10,8,6,.7) 100%); pointer-events: none; }
+.line { position: absolute; left: 0; width: 1080px; text-align: center; font-size: 100px; line-height: 116px; white-space: pre; letter-spacing: -2px;
+        text-shadow: 0 4px 0 rgba(0,0,0,.18), 0 8px 40px rgba(0,0,0,.45); }
+/* obturador: 6 lâminas (semiplanos) cujas bordas formam a abertura hexagonal da logo */
+#iris { position: absolute; inset: 0; z-index: 50; transform-origin: 540px 960px; }
+.bw { position: absolute; inset: 0; transform-origin: 540px 960px; }
+.blade { position: absolute; left: -2200px; top: 960px; width: 5480px; height: 3200px;
+         background: linear-gradient(180deg, #2b2a27 0%, var(--shutter) 18%, #151413 100%);
+         border-top: 5px solid rgba(255,244,234,.22); box-shadow: 0 -12px 40px rgba(0,0,0,.35); }
+#s5 { background: radial-gradient(70% 45% at 50% 38%, #FFFDF8 0%, var(--cream) 60%, #F3E3D2 100%); }
+</style>
+</head>
+<body>
+<div id="main">
+
+  <!-- BEAT 1 HOOK (0-90): a foto "de celular" (a foto real, borrada e tremida: ilustrativa) -->
+  <section id="s1" class="scene">
+    <div id="cam1" class="cam"><img class="media bg" src="./assets/p11.jpg"><img class="media framed" src="./assets/p11.jpg" style="object-position:45% 40%;filter:blur(6px) brightness(.58) saturate(.55) contrast(.9);"></div>
+    <div class="scrim"></div>
+    <div id="h1a" class="line" style="top:1470px">Ele nunca olha</div>
+    <div id="h1b" class="line" style="top:1586px">pro celular.</div>
+  </section>
+
+  <!-- BEAT 2 TURN (90-156): o obturador abre no golden nítido olhando pra câmera -->
+  <section id="s2" class="scene" style="visibility:hidden">
+    <div id="cam2" class="cam"><img class="media bg" src="./assets/p04v_bg.jpg"><video class="media framed" src="./assets/p04.webm" data-start="3" data-media-start="0.3" muted playsinline style="object-position:55% 40%"></video></div>
+    <div class="scrim"></div>
+    <div id="h2a" class="line" style="top:1470px">Pra gente,</div>
+    <div id="h2b" class="line" style="top:1586px">ele olha.</div>
+  </section>
+
+  <!-- BEAT 3 PROOF (156-372): 8 planos reais, a frase atravessa os cortes -->
+  <section id="s3" class="scene" style="visibility:hidden">
+    <div id="sh0" class="scene"><div id="c0" class="cam"><img class="media bg" src="./assets/p01_bg.jpg"><video class="media framed" src="./assets/p01.webm" data-start="5.2" data-media-start="0.4" muted playsinline style="object-position:60% 35%"></video></div></div>
+    <div id="sh1" class="scene"><div id="c1" class="cam"><img class="media bg" src="./assets/p02.jpg"><img class="media framed" src="./assets/p02.jpg" style="object-position:62% 40%"></div></div>
+    <div id="sh2" class="scene"><div id="c2" class="cam"><video class="media" src="./assets/p13.webm" data-start="6.999" data-media-start="0.6" muted playsinline style="object-position:50% 30%"></video></div></div>
+    <div id="sh3" class="scene"><div id="c3" class="cam"><img class="media bg" src="./assets/fala-p05_bg.jpg"><video class="media framed" src="./assets/fala-p05.webm" data-start="7.9" data-media-start="0.5" muted playsinline style="object-position:40% 30%"></video></div></div>
+    <div id="sh4" class="scene"><div id="c4" class="cam"><img class="media bg" src="./assets/p12.jpg"><img class="media framed" src="./assets/p12.jpg" style="object-position:45% 40%"></div></div>
+    <div id="sh5" class="scene"><div id="c5" class="cam"><img class="media bg" src="./assets/p10.jpg"><img class="media framed" src="./assets/p10.jpg" style="object-position:52% 40%"></div></div>
+    <div id="sh6" class="scene"><div id="c6" class="cam"><img class="media bg" src="./assets/p00.jpg"><img class="media framed" src="./assets/p00.jpg" style="object-position:30% 45%"></div></div>
+    <div id="sh7" class="scene"><div id="c7" class="cam"><img class="media bg" src="./assets/p04.jpg"><img class="media framed" src="./assets/p04.jpg" style="object-position:62% 50%"></div></div>
+    <div class="scrim"></div>
+    <div id="p0" class="line" style="top:1500px">Fundo colorido,</div>
+    <div id="p1" class="line" style="top:1500px">luz de estúdio,</div>
+    <div id="p2" class="line" style="top:1500px">no Parque</div>
+    <div id="p3" class="line" style="top:1500px">dos Jequitibás.</div>
+  </section>
+
+  <!-- BEAT 4 CTA (372-447): o cane corso olhando; o obturador fecha -->
+  <section id="s4" class="scene" style="visibility:hidden">
+    <div id="cam4" class="cam"><video class="media" src="./assets/fala-p12.webm" data-start="12.4" data-media-start="0.2" muted playsinline style="object-position:50% 42%"></video></div>
+    <div class="scrim"></div>
+    <div id="d1" class="line" style="top:1490px">Domingo,</div>
+    <div id="d2" class="line" style="top:1606px">a partir das 7h.</div>
+    <div id="w1" class="line" style="top:1490px;font-size:88px">Chama no WhatsApp</div>
+    <div id="w2" class="line" style="top:1606px">(61) 99989-0604</div>
+  </section>
+
+  <!-- FIM (447-480): o clique produz a marca (a logo real, PNG) -->
+  <section id="s5" class="scene" style="visibility:hidden">
+    <div id="endcam" class="cam" style="transform-origin:540px 960px">
+      <div id="mark" style="position:absolute;left:290px;top:610px;width:500px;height:493px">
+        <img src="./assets/logo_aperture.png" style="position:absolute;inset:0;width:100%;height:100%">
+        <img id="paw" src="./assets/logo_paw.png" style="position:absolute;inset:0;width:100%;height:100%;transform-origin:50% 50%">
+      </div>
+      <img id="wm" src="./assets/logo_text.png" style="position:absolute;left:215px;top:1160px;width:650px">
+    </div>
+  </section>
+
+  <!-- o obturador (lâminas na gramática da logo) -->
+  <div id="iris" style="visibility:hidden">
+    <div class="bw" style="transform:rotate(0deg)"><div class="blade"></div></div>
+    <div class="bw" style="transform:rotate(60deg)"><div class="blade"></div></div>
+    <div class="bw" style="transform:rotate(120deg)"><div class="blade"></div></div>
+    <div class="bw" style="transform:rotate(180deg)"><div class="blade"></div></div>
+    <div class="bw" style="transform:rotate(240deg)"><div class="blade"></div></div>
+    <div class="bw" style="transform:rotate(300deg)"><div class="blade"></div></div>
+  </div>
+</div>
+
+<script src="./runtime/vendor/gsap.min.js"></script>
+<script src="./runtime/motion.js"></script>
+<script>
+const M = Motion.film({ fps: 30, duration: 16, width: 1080, height: 1920, clock: 'smooth' });
+const ACCENT = '#E15A0A';
+const OPEN = 1150; // apótema da abertura: além do canto do quadro
+
+/* ---------- obturador: fecha acelerando, abre desacelerando ---------- */
+const blades = [...document.querySelectorAll('.blade')];
+blades.forEach((b) => M.kf(b, 'y', [[0, OPEN], [82, OPEN], [90, 0, 'accelExit'], [104, OPEN, 'softLand'], [438, OPEN], [446, 0, 'accelExit']]));
+M.kf('#iris', 'rotation', [[0, 0], [82, 0], [90, 24, 'accelExit'], [104, 0, 'softLand'], [438, 0], [446, 24, 'accelExit']]);
+M.show('#iris', 82, 105);
+M.show('#iris', 438, 447);
+M.mark(89, 'press', 'clique 1');
+M.mark(445, 'press', 'clique 2');
+
+/* ---------- BEAT 1 HOOK ---------- */
+M.kf('#cam1', 'scale', [[0, 1.14], [90, 1.2]]);
+M.kf('#cam1', 'x', [[0, -16], [11, 12], [24, -8], [38, 14], [53, -10], [67, 8], [82, -5], [90, 4]], { ease: 'softInOut' });
+M.kf('#cam1', 'y', [[0, 8], [14, -10], [29, 6], [44, -12], [60, 9], [75, -6], [90, 3]], { ease: 'softInOut' });
+M.kf('#cam1', 'rotation', [[0, -3.2], [22, -1.4], [47, -3.8], [71, -2], [90, -2.8]], { ease: 'softInOut' });
+M.words('#h1a', { at: 3, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+M.words('#h1b', { at: 16, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+
+/* ---------- BEAT 2 TURN (o ponto) ---------- */
+M.cut(90, { hide: ['#s1'], show: ['#s2'] });
+M.kf('#cam2', 'scale', [[90, 1.12], [104, 1.03, 'softLand'], [156, 1.0]]);
+M.words('#h2a', { at: 106, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+M.words('#h2b', { at: 116, mech: 'rise', dist: 60, gaps: 5, frames: 12, ease: 'softLand', accent: { color: ACCENT, frames: 60, word: -1 } });
+
+/* ---------- BEAT 3 PROOF: 8 planos de 27 f, deriva contínua, cortes no movimento ---------- */
+M.cut(156, { hide: ['#s2'], show: ['#s3'] });
+const SHOT = 27, P0 = 156;
+for (let k = 0; k < 8; k++) {
+  const a = P0 + k * SHOT, b = a + SHOT;
+  M.show('#sh' + k, a, b);
+  M.kf('#c' + k, 'scale', [[a, 1.1], [b, 1.0, 'glide']]);
+  M.kf('#c' + k, 'x', [[a, k % 2 ? -28 : 28], [b, k % 2 ? 22 : -22, 'glide']]);
+}
+['#p0', '#p1', '#p2', '#p3'].forEach((el, j) => {
+  const a = P0 + j * SHOT * 2;
+  M.show(el, a, a + SHOT * 2);
+  M.words(el, { at: a + 2, mech: 'rise', dist: 56, gaps: 4, frames: 11, ease: 'softLand' });
+});
+
+/* ---------- BEAT 4 CTA ---------- */
+M.cut(372, { hide: ['#s3'], show: ['#s4'] });
+M.kf('#cam4', 'scale', [[372, 1.08], [446, 1.0, 'glide']]);
+M.show('#d1', 372, 406); M.show('#d2', 372, 406);
+M.words('#d1', { at: 376, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+M.words('#d2', { at: 384, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+M.show('#w1', 406); M.show('#w2', 406);
+M.words('#w1', { at: 406, mech: 'rise', dist: 60, gaps: 4, frames: 12, ease: 'softLand' });
+M.words('#w2', { at: 412, mech: 'rise', dist: 60, gaps: 3, frames: 12, ease: 'softLand' });
+
+/* ---------- FIM: o clique produz a marca ---------- */
+M.cut(447, { hide: ['#s4'], show: ['#s5'] });
+M.enter('#mark', { at: 447, frames: 18, ease: 'snapSettle', from: { scale: 3.2, blur: 10 } });
+M.enter('#paw', { at: 452, frames: 14, ease: 'crashIn', from: { scale: 0.55 } });     // a única mola do filme
+M.enter('#wm', { at: 458, frames: 12, ease: 'softLand', from: { y: 44 } });
+M.drift('#endcam', { prop: 'scale', from: 1, to: 0.93, start: 462, end: 480 });
+
+window.__ready = Motion.loaded().then(() => { if (/selftest/.test(location.search)) Motion.selfTest(M, { samples: 24 }); });
+</script>
+</body>
+</html>
