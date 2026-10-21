@@ -503,6 +503,9 @@ const appUrl = () => {
   if(real==="local" && /^https?:/.test(location.protocol)) return location.href.split("#")[0];
   return ARTIFACT_URL;
 };
+// Páginas legais: no site ficam em /privacidade e /termos; fora dele (versão no Claude) apontam para o site publicado.
+const SITE_URL = "https://phillphotovideolinks-nos-dois.vercel.app";
+const legalUrl = page => (/^https?:/.test(location.protocol) && mode !== "db" ? "" : SITE_URL) + "/" + page;
 const wa = text => "https://wa.me/?text=" + encodeURIComponent(text);
 const waBtn = (text, label, cls="btn sm soft") => `<a class="${cls}" href="${wa(text)}" target="_blank" rel="noopener">${ic("chat")} ${label}</a>`;
 function gcalUrl(e){ const d = e.date.replace(/-/g,""), n = addDays(e.date,1).replace(/-/g,""); let u = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(e.title)}&dates=${d}/${n}&details=${encodeURIComponent("Criado no Nós Dois")}`; if(e.yearly) u += "&recur=" + encodeURIComponent("RRULE:FREQ=YEARLY"); return u; }
@@ -1068,12 +1071,12 @@ function onboarding(){
         <div class="seg">${Object.entries(STAGES).map(([k,v])=>`<label><input type="checkbox" name="st_${k}" id="st_${k}"><span>${v}</span></label>`).join("")}</div>
         <span class="small muted" style="font-weight:400">Podem marcar mais de uma opção e mudar depois.</span>
       </div>
-      <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" id="sTerms" name="terms" required style="width:22px;height:22px;margin-top:1px;flex:none"><span>Li e aceito a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="/termos" target="_blank" rel="noopener">Termos de Uso</a>, inclusive o uso de dados de gestação e dos filhos que eu escolher guardar.</span></label>
+      <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" id="sTerms" name="terms" required style="width:22px;height:22px;margin-top:1px;flex:none"><span>Li e aceito a <a href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos de Uso</a>, inclusive o uso de dados de gestação e dos filhos que eu escolher guardar.</span></label>
       <button class="btn block" type="submit">Criar o nosso espaço</button>
     </form>
     ${mode==="cloud" ? `<form class="card stack" data-form="join" style="border-color:var(--accent)">
       <h3>Tenho um código</h3>
-      <p class="small muted">Se a outra pessoa já criou o espaço de vocês, digite o código que ela mandou. Ao entrar, você aceita a <a href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="/termos" target="_blank" rel="noopener">Termos</a>.</p>
+      <p class="small muted">Se a outra pessoa já criou o espaço de vocês, digite o código que ela mandou. Ao entrar, você aceita a <a href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos</a>.</p>
       <div class="inline"><input type="text" id="joinCode" name="code" required maxlength="9" autocomplete="off" autocapitalize="characters" placeholder="ABCD-2345" aria-label="Código do casal" style="text-transform:uppercase;letter-spacing:.08em"><button class="btn" type="submit">Entrar</button></div>
     </form>` : ""}
     <button class="btn ghost block" data-act="demo">Ver uma demonstração antes</button>
@@ -1850,7 +1853,7 @@ function ajustes(){
   <div class="section"><h3>Privacidade</h3><section class="card stack">
     <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com os códigos de entrada de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
     <p class="small muted">A pergunta do dia esconde a resposta da outra pessoa até você responder; isso é uma regra da tela, não criptografia.</p>
-    <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm ghost" href="/privacidade" target="_blank" rel="noopener">Política de Privacidade</a><a class="btn sm ghost" href="/termos" target="_blank" rel="noopener">Termos de Uso</a></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm ghost" href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a><a class="btn sm ghost" href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos de Uso</a></div>
     ${mode!=="demo" ? `<button class="btn ghost block" data-act="exportData">${ic("list")} Baixar uma cópia dos dados</button>` : ""}
     ${mode!=="demo" ? `<button class="btn danger" data-act="wipeAll">${ic("trash")} Apagar todos os dados de vocês</button>` : ""}
   </section></div>
