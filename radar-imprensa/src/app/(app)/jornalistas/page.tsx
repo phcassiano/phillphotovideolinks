@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SearchX, TriangleAlert } from "lucide-react";
+import { FiltersPanel } from "@/components/journalists/filters-panel";
 import { SearchFiltersForm } from "@/components/journalists/search-filters";
 import { SearchResults } from "@/components/journalists/search-results";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -51,7 +52,9 @@ export default async function JournalistsPage({ searchParams }: PageProps<"/jorn
         description="Combine editoria, localização, veículo e cargo. Os critérios de vínculo são aplicados ao mesmo vínculo profissional e, por padrão, apenas aos vínculos atuais."
       />
       <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
-        <aside className="h-fit rounded-lg border bg-surface p-4 lg:sticky lg:top-20">
+        <FiltersPanel
+          activeCount={[filters.q, filters.editoria, filters.subeditoria, filters.uf, filters.cidade, filters.veiculo, filters.cargo, filters.contato, filters.verificados, !filters.atual].filter(Boolean).length + filters.tipo.length}
+        >
           <SearchFiltersForm
             filters={filters}
             options={{
@@ -64,7 +67,7 @@ export default async function JournalistsPage({ searchParams }: PageProps<"/jorn
               outlets: outlets.map((o) => ({ id: o.id, name: o.name })),
             }}
           />
-        </aside>
+        </FiltersPanel>
         <section aria-labelledby="resultados" className="min-w-0 space-y-4">
           <h2 id="resultados" className="sr-only">Resultados</h2>
           {error ? (

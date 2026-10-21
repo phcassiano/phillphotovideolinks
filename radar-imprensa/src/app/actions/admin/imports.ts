@@ -4,17 +4,15 @@ import { z } from "zod";
 import { requirePermission } from "@/lib/auth/session";
 import {
   buildPreview,
-  IMPORT_FIELDS,
+  mappingSchema,
   MAX_IMPORT_BYTES,
   parseCsv,
   REQUIRED_FIELDS,
-  type ColumnMapping,
   type ExistingCandidate,
 } from "@/lib/csv/import";
 import { actionError, type ActionResult } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 
-const mappingSchema = z.record(z.enum(IMPORT_FIELDS), z.string().max(200)).transform((m) => m as ColumnMapping);
 
 export async function createImportPreview(input: {
   fileName: string;

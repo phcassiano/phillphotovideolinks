@@ -3,22 +3,23 @@ import { normalizeText } from "@/lib/identity/names";
 import type { ExtractedClaim, ExtractedEvidence, KnownOutlet, SearchResultItem, SourceExtractor } from "./types";
 import { domainOf } from "./url";
 
-const JOB_TITLES = [
-  "editor-chefe",
-  "editora-chefe",
-  "chefe de reportagem",
-  "reporter",
-  "editor",
-  "editora",
-  "colunista",
-  "correspondente",
-  "apresentador",
-  "apresentadora",
-  "produtor",
-  "produtora",
-  "comentarista",
-  "redator",
-  "redatora",
+// Termo normalizado (sem acento) -> forma de exibição.
+const JOB_TITLES: [string, string][] = [
+  ["editor-chefe", "Editor-chefe"],
+  ["editora-chefe", "Editora-chefe"],
+  ["chefe de reportagem", "Chefe de reportagem"],
+  ["reporter", "Repórter"],
+  ["editor", "Editor"],
+  ["editora", "Editora"],
+  ["colunista", "Colunista"],
+  ["correspondente", "Correspondente"],
+  ["apresentador", "Apresentador"],
+  ["apresentadora", "Apresentadora"],
+  ["produtor", "Produtor"],
+  ["produtora", "Produtora"],
+  ["comentarista", "Comentarista"],
+  ["redator", "Redator"],
+  ["redatora", "Redatora"],
 ];
 
 const EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
@@ -46,7 +47,7 @@ export class SnippetExtractor implements SourceExtractor {
     const sourceDomain = domainOf(result.url);
     const claims: ExtractedClaim[] = [];
 
-    const jobTitle = JOB_TITLES.find((t) => new RegExp(`\\b${t}\\b`).test(text)) ?? null;
+    const jobTitle = JOB_TITLES.find(([t]) => new RegExp(`\\b${t}\\b`).test(text))?.[1] ?? null;
     for (const outlet of context.knownOutlets) {
       const outletName = normalizeText(outlet.name);
       const outletDomain = domainOf(outlet.website);

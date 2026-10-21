@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { autoMapColumns, buildPreview, normalizePhone, parseCsv, parseDate, validateRow } from "@/lib/csv/import";
+import { autoMapColumns, mappingSchema, buildPreview, normalizePhone, parseCsv, parseDate, validateRow } from "@/lib/csv/import";
 import { resolveStateCode } from "@/lib/csv/states";
 
 const CATEGORIES = [
@@ -31,6 +31,11 @@ describe("importação CSV", () => {
       source: "Fonte",
       verified_at: "Data da verificação",
     });
+  });
+
+  it("aceita mapeamento parcial de colunas e rejeita campos desconhecidos", () => {
+    expect(mappingSchema.safeParse({ full_name: "Nome", outlet_name: "Veículo" }).success).toBe(true);
+    expect(mappingSchema.safeParse({ full_name: "Nome", senha: "x" }).success).toBe(false);
   });
 
   it("detecta separador ; e remove BOM", () => {

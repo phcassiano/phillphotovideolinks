@@ -1,5 +1,5 @@
 "use client";
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileSpreadsheet, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { FormMessage } from "@/components/ui/form-message";
 import { autoMapColumns, IMPORT_FIELD_LABELS, IMPORT_FIELDS, MAX_IMPORT_BYTES, parseCsv, REQUIRED_FIELDS, type ColumnMapping } from "@/lib/csv/import";
 import { createImportPreview } from "@/app/actions/admin/imports";
 
+const noopSubscribe = () => () => {};
+
 export function ImportUploader() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -19,6 +21,8 @@ export function ImportUploader() {
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [visibility, setVisibility] = useState<"restrito" | "assinantes">("restrito");
   const [error, setError] = useState<string | null>(null);
+  // O campo só é habilitado após a hidratação (antes disso o onChange não existe).
+  const ready = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   const onFile = async (f: File | undefined) => {
     setError(null);
@@ -46,7 +50,7 @@ export function ImportUploader() {
     <div className="space-y-5">
       <div>
         <Label htmlFor="csv-file">Arquivo CSV (UTF-8, separado por vírgula ou ponto e vírgula)</Label>
-        <Input id="csv-file" type="file" accept=".csv,text/csv" className="mt-1.5" onChange={(e) => onFile(e.target.files?.[0])} />
+        <Input id="csv-file" type="file" accept=".csv,text/csv" className="mt-1.5" disabled={!ready} onChange={(e) => onFile(e.target.files?.[0])} />
         <p className="mt-1 text-xs text-muted-foreground">
           Modelo: <a href="/exemplos/importacao-exemplo.csv" download className="text-info hover:underline">importacao-exemplo.csv</a> (dados fictícios).
         </p>

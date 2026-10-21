@@ -57,6 +57,9 @@ const ALIASES: Record<ImportField, string[]> = {
 
 export type ColumnMapping = Partial<Record<ImportField, string>>;
 
+// Mapeamento parcial: só as colunas presentes no arquivo são informadas.
+export const mappingSchema = z.partialRecord(z.enum(IMPORT_FIELDS), z.string().max(200)).transform((m) => m as ColumnMapping);
+
 export function autoMapColumns(headers: string[]): ColumnMapping {
   const mapping: ColumnMapping = {};
   const used = new Set<string>();

@@ -12,6 +12,7 @@
     "test:db": "vitest run --project db",
     "test:all": "vitest run",
     "db:reset:local": "node scripts/db-local.mjs reset --seed",
+    "test:e2e": "bash scripts/e2e.sh",
     "check": "npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {
@@ -35,6 +36,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.20.5",
     "@types/papaparse": "^5.5.2",

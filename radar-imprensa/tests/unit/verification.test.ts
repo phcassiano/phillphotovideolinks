@@ -42,7 +42,7 @@ describe("extrator e resolvedor", () => {
     const e = extractor.extract(result("https://portal-exemplo-pi.example/equipe", "Equipe", "Ana Ribeiro, repórter. Contato: ana.nova@portal-exemplo-pi.example"), { knownOutlets: OUTLETS });
     expect(e.evidenceType).toBe("expediente");
     expect(e.claims).toEqual(expect.arrayContaining([
-      expect.objectContaining({ kind: "employment", outletId: "o-portal-pi", jobTitle: "reporter" }),
+      expect.objectContaining({ kind: "employment", outletId: "o-portal-pi", jobTitle: "Repórter" }),
       { kind: "contact", contactType: "email_profissional", value: "ana.nova@portal-exemplo-pi.example" },
     ]));
   });
@@ -82,7 +82,7 @@ describe("detector de mudanças", () => {
 
   it("propõe novo vínculo sem apagar o atual quando há só uma fonte", () => {
     const d = detector.detect(snapshot(), resolved([result("https://diario-exemplo-carioca.example/equipe", "Ana Ribeiro é a nova editora", "Ana Ribeiro, editora do Diário Exemplo Carioca")]));
-    expect(d.changes).toEqual([{ op: "add_employment", media_outlet_id: "o-diario-rj", job_title: "editora" }]);
+    expect(d.changes).toEqual([{ op: "add_employment", media_outlet_id: "o-diario-rj", job_title: "Editora" }]);
     expect(d.changes.some((c) => c.op === "end_employment")).toBe(false);
   });
 

@@ -31,12 +31,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[260px_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col gap-6 overflow-y-auto bg-primary p-4 lg:flex">
+      <div className="hidden bg-primary lg:block">
+      <aside className="sticky top-0 flex h-screen flex-col gap-6 overflow-y-auto p-4">
         <Link href="/dashboard" className="px-2 py-1" aria-label="Radar de Imprensa — visão geral">
           <Logo inverted />
         </Link>
         <AppNav sections={sections} />
       </aside>
+      </div>
       <div className="flex min-w-0 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-surface/95 px-4 backdrop-blur lg:px-8">
           <div className="flex items-center gap-2">
