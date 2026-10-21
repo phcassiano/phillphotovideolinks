@@ -1854,7 +1854,7 @@ function ajustes(){
     <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com os códigos de entrada de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
     <p class="small muted">A pergunta do dia esconde a resposta da outra pessoa até você responder; isso é uma regra da tela, não criptografia.</p>
     <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm ghost" href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a><a class="btn sm ghost" href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos de Uso</a></div>
-    ${mode!=="demo" ? `<button class="btn ghost block" data-act="exportData">${ic("list")} Baixar uma cópia dos dados</button>` : ""}
+    ${mode!=="demo" && mode!=="db" ? `<button class="btn ghost block" data-act="exportData">${ic("list")} Baixar uma cópia dos dados</button>` : ""}
     ${mode!=="demo" ? `<button class="btn danger" data-act="wipeAll">${ic("trash")} Apagar todos os dados de vocês</button>` : ""}
   </section></div>
   ${mode==="local" ? `<div class="section"><h3>Dados</h3><section class="card stack"><p class="small muted">Neste modo tudo fica salvo só neste navegador, sem sincronização entre celulares.</p></section></div>` : ""}`;
