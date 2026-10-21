@@ -216,6 +216,8 @@ textarea{resize:vertical;min-height:96px}
 .hr{height:1px;background:var(--line-2);margin-block:4px}
 .week{display:flex;align-items:baseline;gap:6px}
 a.btn{text-decoration:none}
+#app a:not(.btn){color:var(--accent);font-weight:600;text-underline-offset:2px}
+input[type=checkbox]{accent-color:var(--accent)}
 .av.ph{background-size:cover;background-position:center;color:transparent}
 .recado{display:flex;flex-direction:column;gap:10px}
 .recado img,.photo{width:100%;max-height:340px;object-fit:cover;border-radius:16px;display:block}
@@ -263,9 +265,9 @@ details summary::-webkit-details-marker{display:none}
 .weekbars .now span{color:var(--fg)}
 .weekbars .now i.h0{outline:2px dashed var(--accent);outline-offset:-2px;background:transparent}
 /* Plano: cadeados, faixa do teste e tela do Premium */
-.tile.locked .ic svg:last-child,.secrow.locked > svg:last-child{display:none}
+.tile.locked .ic > svg:last-of-type,.secrow.locked > svg:last-of-type{display:none}
 .lockpill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--coral);background:var(--coral-soft);border-radius:999px;padding:3px 8px}
-.lockpill svg{width:12px;height:12px}
+.lockpill svg,.tile .ic .lockpill svg{width:12px;height:12px;padding:0;border-radius:0;background:none;color:inherit}
 .trialbar{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px}
 .trialbar .meter{height:6px;border-radius:99px;background:var(--line-2);overflow:hidden;margin-top:6px}
 .trialbar .meter i{display:block;height:100%;background:linear-gradient(90deg,#2BB592,#F2785C)}
@@ -497,10 +499,13 @@ const lsGet = k => { try{ return localStorage.getItem(k); }catch(e){ return null
 const ARTIFACT_URL = "https://claude.ai/artifact/C1zfUg9TcfSupjdprCTNUp";
 const appUrl = () => {
   const real = savedReal ? savedReal.mode : mode;
-  if(real==="cloud" && cloud) return `${location.origin}${location.pathname}#entrar-${cloud.id}-${cloud.key}`;
+  if(real==="cloud") return `${location.origin}${location.pathname}`; // nunca leva a chave do espaço: quem entra usa o próprio código
   if(real==="local" && /^https?:/.test(location.protocol)) return location.href.split("#")[0];
   return ARTIFACT_URL;
 };
+// Páginas legais: no site ficam em /privacidade e /termos; fora dele (versão no Claude) apontam para o site publicado.
+const SITE_URL = "https://phillphotovideolinks-nos-dois.vercel.app";
+const legalUrl = page => (/^https?:/.test(location.protocol) && mode !== "db" ? "" : SITE_URL) + "/" + page;
 const wa = text => "https://wa.me/?text=" + encodeURIComponent(text);
 const waBtn = (text, label, cls="btn sm soft") => `<a class="${cls}" href="${wa(text)}" target="_blank" rel="noopener">${ic("chat")} ${label}</a>`;
 function gcalUrl(e){ const d = e.date.replace(/-/g,""), n = addDays(e.date,1).replace(/-/g,""); let u = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(e.title)}&dates=${d}/${n}&details=${encodeURIComponent("Criado no Nós Dois")}`; if(e.yearly) u += "&recur=" + encodeURIComponent("RRULE:FREQ=YEARLY"); return u; }
@@ -511,7 +516,7 @@ const lsSet = (k,v) => { try{ v==null?localStorage.removeItem(k):localStorage.se
 const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards"];
 const blank = () => Object.fromEntries(COLS.map(c=>[c,{}]));
 let S = blank();
-let mode = "loading";          // loading | db | local | demo
+let mode = "loading";          // loading | db | cloud | local | demo
 let db = null, user = null, myId = null, readOnly = false;
 const loaded = new Set();
 let me = lsGet("nd-me");        // 'a' | 'b'
@@ -537,12 +542,13 @@ async function api(body){
 }
 function ensureSpace(){
   if(cloud) return Promise.resolve(cloud);
-  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); startPoll(); schedule(); return cloud; })
+  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); resetPlan(); startPoll(); schedule(); return cloud; })
     .catch(e => { spacePromise = null; throw e; });
   return spacePromise;
 }
 function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
-function cloudLost(){ codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+function resetPlan(){ plan = null; lsSet("nd-plan", null); }
+function cloudLost(){ resetPlan(); codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
 async function pull(){
   if(!cloud || inflight > 0) return;
   try{
@@ -571,7 +577,7 @@ function joinWithCode(raw, inputId){
   if(code.length !== 8){ toast("O código tem 8 letras e números, como ABCD-2345."); return; }
   api({op:"join", code}).then(async r => {
     if(pollT){ clearInterval(pollT); pollT = null; }
-    cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null);
+    cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null); resetPlan();
     me = r.slot; lsSet("nd-me", r.slot); cloudVer = 0; codes = null; S = blank(); view = "home";
     if(inputId) clearIds.add(inputId);
     await pull(); startPoll(); pushCheck().then(scheduleBg); toast(`Pronto, ${nameOf(r.slot)}! Você entrou no espaço de vocês.`);
@@ -585,22 +591,22 @@ function onWriteError(e){
   else if(code==="quota_exceeded"){ toast("O espaço de vocês está cheio. Apaguem itens antigos para continuar."); }
   else if(code==="unavailable"){ toast("Sem conexão agora. Tente de novo em instantes."); }
   else if(code==="auth"){ cloudLost(); }
-  else if(code==="premium"){ toast("Essa parte é do Premium. O teste grátis acabou."); lockedFrom = view; view = "assinar"; cloudVer = 0; pull(); schedule(); }
+  else if(code==="premium"){ toast("Essa parte é do Premium. O teste grátis acabou."); lockedFrom = view; view = "assinar"; cloudVer = 0; setTimeout(pull, 0); schedule(); }
   else { toast("Não foi possível salvar. Tente de novo."); }
 }
 function put(c, id, data){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
-  const before = S[c][id]; S[c] = {...S[c], [id]:data}; schedule(); noteChange(c, id, before, data);
+  const before = S[c][id]; S[c] = {...S[c], [id]:data}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).set(data));
-  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}).then(() => noteChange(c, id, before, data)));
   else saveLocal();
 }
 function patch(c, id, part){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
   const cur = S[c][id]; const merged = deepMerge(cur||{}, part);
-  S[c] = {...S[c], [id]:merged}; schedule(); noteChange(c, id, cur, merged);
+  S[c] = {...S[c], [id]:merged}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => cur ? db.collection(c).doc(id).update(part) : db.collection(c).doc(id).set(merged));
-  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}).then(() => noteChange(c, id, cur, merged)));
   else saveLocal();
 }
 function del(c, id){
@@ -622,8 +628,8 @@ const isLocked = v => planOn() && plan.status==="free" && !!PREMIUM_VIEWS[v];
 const daysLeft = t => Math.max(0, Math.ceil((t - Date.now()) / 86400000));
 const fmtTs = (t, o={day:"numeric",month:"short",year:"numeric"}) => new Date(t).toLocaleDateString("pt-BR", o);
 function setPlan(p){
-  if(!p) return; const was = plan && plan.status; plan = p; lsSet("nd-plan", JSON.stringify(p));
-  if(was==="trial" && p.status==="free" && lsGet("nd-trial-ended")!==String(p.trialEnds)){ lsSet("nd-trial-ended", String(p.trialEnds)); setTimeout(trialEndedSheet, 400); }
+  if(!p) return; const was = plan && plan.status; const raw = JSON.stringify(p); if(raw!==JSON.stringify(plan)) lsSet("nd-plan", raw); plan = p;
+  if(mode==="cloud" && was==="trial" && p.status==="free" && lsGet("nd-trial-ended")!==String(p.trialEnds)){ lsSet("nd-trial-ended", String(p.trialEnds)); setTimeout(trialEndedSheet, 400); }
 }
 // Marca com cadeado os atalhos de partes do Premium quando o casal está no grátis
 function markLocks(html){
@@ -844,7 +850,8 @@ async function boot(){
     });
   } else if(/^https?:/.test(location.protocol)){
     const m = location.hash.match(/^#entrar-([a-f0-9]{8,32})-([a-f0-9]{16,64})$/);
-    if(m){ lsSet(CLOUD_KEY, JSON.stringify({id:m[1], key:m[2]})); lsSet("nd-me", null); me = null; try{ history.replaceState(null, "", location.pathname); }catch(e){} }
+    // links antigos com a chave não abrem mais o espaço (não dava para revogá-los); quem entra usa o próprio código
+    if(m){ try{ history.replaceState(null, "", location.pathname); }catch(e){} setTimeout(()=>toast("Esse link antigo não funciona mais. Peça o código de 8 letras e toque em \"Tenho um código\"."), 900); }
     let avail = false, offline = false; try{ const pg = await api({op:"ping"}); avail = !!pg.storage; contact = pg.contact || null; }catch(e){ offline = true; }
     try{ cloud = JSON.parse(lsGet(CLOUD_KEY) || "null"); }catch(e){ cloud = null; }
     if(avail || (offline && cloud)){
@@ -1064,16 +1071,17 @@ function onboarding(){
         <div class="seg">${Object.entries(STAGES).map(([k,v])=>`<label><input type="checkbox" name="st_${k}" id="st_${k}"><span>${v}</span></label>`).join("")}</div>
         <span class="small muted" style="font-weight:400">Podem marcar mais de uma opção e mudar depois.</span>
       </div>
+      <label class="row small" style="gap:10px;align-items:flex-start"><input type="checkbox" id="sTerms" name="terms" required style="width:22px;height:22px;margin-top:1px;flex:none"><span>Li e aceito a <a href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos de Uso</a>, inclusive o uso de dados de gestação e dos filhos que eu escolher guardar.</span></label>
       <button class="btn block" type="submit">Criar o nosso espaço</button>
     </form>
     ${mode==="cloud" ? `<form class="card stack" data-form="join" style="border-color:var(--accent)">
       <h3>Tenho um código</h3>
-      <p class="small muted">Se a outra pessoa já criou o espaço de vocês, digite o código que ela mandou.</p>
+      <p class="small muted">Se a outra pessoa já criou o espaço de vocês, digite o código que ela mandou. Ao entrar, você aceita a <a href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a> e os <a href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos</a>.</p>
       <div class="inline"><input type="text" id="joinCode" name="code" required maxlength="9" autocomplete="off" autocapitalize="characters" placeholder="ABCD-2345" aria-label="Código do casal" style="text-transform:uppercase;letter-spacing:.08em"><button class="btn" type="submit">Entrar</button></div>
     </form>` : ""}
     <button class="btn ghost block" data-act="demo">Ver uma demonstração antes</button>
     <p class="small muted row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>Sem anúncios. O que vocês escrevem fica só no espaço de vocês, não é vendido nem compartilhado, e pode ser apagado a qualquer momento em Ajustes.</span></p>
-    ${mode==="cloud" ? `<p class="small muted">Depois, mande o link de convite pelo WhatsApp: vocês dois veem e editam tudo, cada um no seu celular.</p>` : mode==="local" ? `<p class="small muted">Neste modo os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
+    ${mode==="cloud" ? `<p class="small muted">Depois, mande o código de entrada pelo WhatsApp: cada um entra no próprio celular, com o próprio código.</p>` : mode==="local" ? `<p class="small muted">Neste modo os dados ficam só neste aparelho.</p>` : `<p class="small muted">Depois, compartilhem este app entre vocês como Colaborador(a) para os dois verem e editarem tudo em tempo real.</p>`}
   </div>`;
 }
 function whoPicker(){
@@ -1607,7 +1615,7 @@ function capsulas(){
 }
 
 /* ----- Cartões ----- */
-const CARD_COLORS = ["#A62F5E","#6A4DBE","#2E7A58","#9C5A12","#2B4C7E","#3D3D3D"];
+const CARD_COLORS = ["#2E7A58","#A62F5E","#6A4DBE","#9C5A12","#2B4C7E","#3D3D3D"];
 function cartoes(){
   const cs = Object.entries(S.cards).map(([id,c])=>({...c,id})).sort((a,b)=>(a.name||"")<(b.name||"")?-1:1);
   return `${topBack("Cartões", "Fidelidade, convênios, carteirinhas")}
@@ -1618,7 +1626,7 @@ function cartoes(){
 const cardForm = (c={}) => `<label class="field"><span>Nome</span><input type="text" id="cName" name="name" required maxlength="60" value="${esc(c.name||"")}" placeholder="Ex.: Plano de saúde da Aline"></label>
   <label class="field"><span>Número</span><input type="text" id="cNum" name="number" maxlength="60" value="${esc(c.number||"")}" inputmode="numeric"></label>
   <label class="field"><span>Observação</span><input type="text" id="cNote" name="note" maxlength="140" value="${esc(c.note||"")}" placeholder="Ex.: validade 12/2027"></label>
-  <div class="field"><span>Cor</span><div class="seg">${CARD_COLORS.map((col,i)=>`<label><input type="radio" name="color" value="${col}" ${(c.color||CARD_COLORS[0])===col?"checked":""}><span style="background:${col};color:#fff;border-color:${col}">${["Amora","Violeta","Verde","Âmbar","Azul","Grafite"][i]}</span></label>`).join("")}</div></div>`;
+  <div class="field"><span>Cor</span><div class="seg">${CARD_COLORS.map((col,i)=>`<label><input type="radio" name="color" value="${col}" ${(c.color||CARD_COLORS[0])===col?"checked":""}><span style="background:${col};color:#fff;border-color:${col}">${["Verde","Amora","Violeta","Âmbar","Azul","Grafite"][i]}</span></label>`).join("")}</div></div>`;
 
 /* ----- Cofre ----- */
 let vaultShowCode = null;
@@ -1819,7 +1827,6 @@ function ajustes(){
       <div class="row between" style="flex-wrap:wrap;gap:8px"><span class="small">Seu código, para entrar em outro celular: <b class="num">${fmtCode(codes[me])}</b></span><button class="btn sm ghost" data-act="copyCode" data-s="${me}">Copiar</button></div>`
       : `<p class="small muted">Gerando os códigos de vocês…</p>${(loadCodes(), "")}`}
     <p class="small muted">Cada código dá acesso ao espaço de vocês. Mande só para quem divide a casa com você; se vazar, toque em "Gerar outro".</p>
-    <details><summary>Ou mande um link</summary><div class="stack" style="margin-top:8px"><input type="text" id="inviteLink" readonly value="${esc(appUrl())}" aria-label="Link de convite"><div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm ghost" data-act="copyInvite">Copiar link</button></div></div></details>
   </section></div>
   <div class="section"><h3>Entrar no espaço do seu par</h3>
     <form class="card stack" data-form="join">
@@ -1843,15 +1850,11 @@ function ajustes(){
   </div>
 
   ${mode==="db" ? `<div class="section"><h3>Usar a dois</h3><section class="card stack"><p class="small">1. Compartilhe este app com a outra pessoa pelo botão de compartilhar do Claude, com acesso de <b>Colaborador(a)</b>.<br>2. Mande o link pelo WhatsApp. Cada um abre no próprio celular e escolhe o seu nome.</p><div>${waBtn(`Oi! Criei um espaço só nosso no Nós Dois. Entra aqui e escolhe o seu nome: ${appUrl()}`, "Mandar convite")}</div><p class="small muted">As respostas da pergunta do dia ficam guardadas no espaço compartilhado de vocês. O app só mostra a resposta da outra pessoa depois que você responde.</p></section></div>` : ""}
-  <div class="section"><h3>Nós Dois Premium</h3><section class="card stack">
-    <p class="small">Uma assinatura para os dois: <b>R$ 9,90 por mês</b> ou <b>R$ 69,90 por ano</b>. Os 30 primeiros dias são grátis e só começam quando vocês dois tiverem entrado.</p>
-    <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px"><li>Pacote da fase de vocês: rotina do bebê e plantão da noite, gestação a dois, marcos dos filhos</li><li>Contas da casa com histórico</li><li>Todas as perguntas, por tema, e a retrospectiva do ano</li><li>Histórico completo do placar da casa</li></ul>
-    <p class="small muted">O pagamento ainda não existe neste protótipo. Tudo está liberado por enquanto.</p>
-    ${(C().interest||{})[me] ? `<span class="tag ok">${ic("tick")} Você está na lista de espera</span>` : `<button class="btn sm" data-act="interest">Quero ser avisado(a)</button>`}
-  </section></div>
   <div class="section"><h3>Privacidade</h3><section class="card stack">
-    <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com o link de convite de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
+    <p class="small row" style="gap:8px;align-items:flex-start">${ic("shield")}<span>${mode==="db" ? "Os dados de vocês ficam guardados no espaço deste app no Claude, visíveis só para quem tem acesso a ele." : mode==="cloud" ? "Os dados de vocês ficam no servidor deste site e só abrem com os códigos de entrada de vocês." : mode==="local" ? "Os dados ficam só neste navegador." : "Na demonstração nada é salvo."} Sem anúncios, sem venda ou compartilhamento de dados.</span></p>
     <p class="small muted">A pergunta do dia esconde a resposta da outra pessoa até você responder; isso é uma regra da tela, não criptografia.</p>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn sm ghost" href="${legalUrl("privacidade")}" target="_blank" rel="noopener">Política de Privacidade</a><a class="btn sm ghost" href="${legalUrl("termos")}" target="_blank" rel="noopener">Termos de Uso</a></div>
+    ${mode!=="demo" && mode!=="db" ? `<button class="btn ghost block" data-act="exportData">${ic("list")} Baixar uma cópia dos dados</button>` : ""}
     ${mode!=="demo" ? `<button class="btn danger" data-act="wipeAll">${ic("trash")} Apagar todos os dados de vocês</button>` : ""}
   </section></div>
   ${mode==="local" ? `<div class="section"><h3>Dados</h3><section class="card stack"><p class="small muted">Neste modo tudo fica salvo só neste navegador, sem sincronização entre celulares.</p></section></div>` : ""}`;
@@ -2017,7 +2020,6 @@ const ACT = {
   hideSteps: () => patch("meta","couple",{hideSteps:{[me]:true}}),
   tone: el => { patch("meta","couple",{tone:el.dataset.v}); toast(`Tom: ${TONES[el.dataset.v]}. Vale a partir da próxima pergunta.`); },
   thank: el => { const t = S.tasks[el.dataset.id]; if(!t) return; patch("tasks", el.dataset.id, {thanks:{[me]:true}}); toast(`Valeu enviado para ${nameOf(other(me))}`); },
-  interest: () => { patch("meta","couple",{interest:{[me]:true}}); toast("Pronto! Avisamos quando o Premium abrir."); },
   startNight: el => patch("meta","couple",{night:{base:today(), who:el.dataset.s}}),
   swapNight: () => { const nw = nightWho(); patch("meta","couple",{night:{base:today(), who:other(nw||me)}}); toast(`Hoje o plantão é ${other(nw||me)===me?"seu":"de "+nameOf(other(nw||me))}`); },
   logBaby: el => { const k = el.dataset.v; put("logs", uid(), {type:k, at:new Date().toISOString(), by:me});
@@ -2057,10 +2059,13 @@ const ACT = {
   pushLater: () => { lsSet("nd-push-later", today()); schedule(); },
   copyCode: el => { const c = fmtCode(codes && codes[el.dataset.s]); try{ navigator.clipboard.writeText(c).then(()=>toast(`Código ${c} copiado`)).catch(()=>toast(`Código: ${c}`)); }catch(e){ toast(`Código: ${c}`); } },
   regenCode: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.textContent = "Toque de novo: o atual para de valer"; return; } loadCodes(el.dataset.s); },
-  copyInvite: () => { const v = appUrl(); const done = () => toast("Link copiado");
-    try{ navigator.clipboard.writeText(v).then(done).catch(()=>{ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); }); }
-    catch(e){ const i = document.getElementById("inviteLink"); if(i){ i.focus(); i.select(); } toast("Selecione o link e copie"); } },
-  wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois`; return; }
+  exportData: () => {
+    const data = {app:"Nós Dois", exportadoEm:new Date().toISOString(), observacao:"Itens do cofre continuam cifrados; só abrem com o código do cofre.", dados:S};
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:"application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `nos-dois-${today()}.json`;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast("Cópia dos dados baixada."); },
+  wipeAll: el => { if(!el.dataset.armed){ el.dataset.armed = "1"; el.innerHTML = `${ic("trash")} Toque de novo: apaga tudo, dos dois${planOn() && plan.status==="premium" ? " (e o Premium)" : ""}`; return; }
     if(mode==="cloud"){ const sp = cloud; codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); lsSet("nd-me", null); me = null; view = "home";
       if(sp) api({op:"wipe", id:sp.id, key:sp.key}).then(()=>toast("Todos os dados foram apagados.")).catch(()=>toast("Não deu para apagar no servidor. Tente de novo.")); schedule(); return; }
     COLS.forEach(c => Object.keys(S[c]).forEach(id => del(c, id))); lsSet("nd-me", null); me = null; view = "home"; toast("Todos os dados foram apagados."); },

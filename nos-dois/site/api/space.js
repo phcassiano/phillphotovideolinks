@@ -126,6 +126,16 @@ function adminOk(given) {
   const want = process.env.NOS_DOIS_ADMIN_KEY || "";
   return want.length >= 10 && sameHash(sha(String(given || "")), sha(want));
 }
+const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
+// Limites por IP. Falhas (código errado, senha errada) bloqueiam por 1 hora; criar espaço também tem teto.
+// O volume geral (todo pedido, inclusive a sincronização a cada 4 s) tem uma janela de 10 minutos.
+const LIMITS = { join: [30, 3600], admin: [10, 3600], redeem: [20, 3600], create: [20, 3600] };
+const RATE_MAX = 1500, RATE_WINDOW = 600;
+const limitKey = (kind, ip) => `nd:lim:${kind}:${ip}`;
+async function overLimit(st, kind, ip) { const [n] = await redis(st, ["GET", limitKey(kind, ip)]); return Number(n || 0) >= LIMITS[kind][0]; }
+async function countHit(st, kind, ip) { const k = limitKey(kind, ip); await redis(st, ["INCR", k], ["EXPIRE", k, String(LIMITS[kind][1])]); }
+const rateCmds = (ip) => { const k = `nd:rate:${ip}:${Math.floor(Date.now() / (RATE_WINDOW * 1000))}`; return [["INCR", k], ["EXPIRE", k, String(RATE_WINDOW + 60)]]; };
+const TOO_MANY = { error: "Muitas tentativas. Tente de novo em 1 hora." };
 const contactInfo = () => ({
   whatsapp: String(process.env.NOS_DOIS_WHATSAPP || "").replace(/\D/g, "") || null,
   pix: String(process.env.NOS_DOIS_PIX || "").trim() || null,
@@ -151,25 +161,30 @@ module.exports = async (req, res) => {
   if (!st) return res.status(503).json({ error: "Armazenamento não configurado." });
 
   try {
+    const ip = clientIp(req);
+    // A sincronização ("get") conta o volume no mesmo pipeline das leituras; o resto conta aqui.
+    if (body.op !== "get") { const [n] = await redis(st, ...rateCmds(ip)); if (n > RATE_MAX) return res.status(429).json({ error: "Muitos pedidos agora. Espere alguns minutos." }); }
+
     if (body.op === "create") {
+      if (await overLimit(st, "create", ip)) return res.status(429).json(TOO_MANY);
+      await countHit(st, "create", ip);
       const id = crypto.randomBytes(8).toString("hex");
       const key = crypto.randomBytes(20).toString("hex");
-      const [ok] = await redis(st, ["SET", `nd:${id}:auth`, sha(key), "NX"], ["SET", `nd:${id}:v`, "1", "NX"]);
-      if (ok !== "OK") return res.status(409).json({ error: "Tente de novo." });
       const now = Date.now();
-      await redis(st, ["SET", `nd:${id}:plan`, JSON.stringify({ createdAt: now, trialEnds: now + TRIAL_DAYS * DAY })], ["INCR", "nd:stats:created"]);
+      // O plano vai no mesmo pipeline da chave: um espaço nunca fica sem plano (o que o tornaria "fundador").
+      const [ok] = await redis(st, ["SET", `nd:${id}:auth`, sha(key), "NX"], ["SET", `nd:${id}:v`, "1", "NX"], ["SET", `nd:${id}:plan`, JSON.stringify({ createdAt: now, trialEnds: now + TRIAL_DAYS * DAY }), "NX"]);
+      if (ok !== "OK") return res.status(409).json({ error: "Tente de novo." });
+      await redis(st, ["INCR", "nd:stats:created"]);
       return res.status(200).json({ id, key });
     }
 
     if (body.op === "join") {
-      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
       const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
       if (code.length !== 8) return res.status(400).json({ error: "O código tem 8 letras e números." });
-      const [fails] = await redis(st, ["GET", `nd:jf:${ip}`]);
-      if (Number(fails || 0) >= 30) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      if (await overLimit(st, "join", ip)) return res.status(429).json(TOO_MANY);
       const [v] = await redis(st, ["GET", `nd:code:${code}`]);
       if (!v) {
-        await redis(st, ["INCR", `nd:jf:${ip}`], ["EXPIRE", `nd:jf:${ip}`, "3600"]);
+        await countHit(st, "join", ip);
         return res.status(404).json({ error: "Código não encontrado. Confira as letras e números." });
       }
       const o = JSON.parse(v);
@@ -177,11 +192,9 @@ module.exports = async (req, res) => {
     }
 
     if (body.op === "admin") {
-      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
-      const [fails] = await redis(st, ["GET", `nd:af:${ip}`]);
-      if (Number(fails || 0) >= 10) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      if (await overLimit(st, "admin", ip)) return res.status(429).json(TOO_MANY);
       if (!process.env.NOS_DOIS_ADMIN_KEY) return res.status(503).json({ error: "Falta configurar NOS_DOIS_ADMIN_KEY no Vercel." });
-      if (!adminOk(body.admin)) { await redis(st, ["INCR", `nd:af:${ip}`], ["EXPIRE", `nd:af:${ip}`, "3600"]); return res.status(401).json({ error: "Senha de administrador errada." }); }
+      if (!adminOk(body.admin)) { await countHit(st, "admin", ip); return res.status(401).json({ error: "Senha de administrador errada." }); }
       if (body.action === "generate") {
         const months = body.months === 12 ? 12 : 1;
         const n = Math.max(1, Math.min(20, Number(body.count) || 1));
@@ -198,12 +211,12 @@ module.exports = async (req, res) => {
       }
       // lista: últimos códigos e se já foram usados
       const [list, created] = await redis(st, ["LRANGE", "nd:acts", "0", "49"], ["GET", "nd:stats:created"]);
-      const codes = [];
-      for (const c of list || []) {
-        const [v] = await redis(st, ["GET", `nd:act:${c}`]);
-        let o = {}; try { o = JSON.parse(v || "{}"); } catch {}
-        codes.push({ code: c, months: o.months || 1, note: o.note || "", createdAt: o.createdAt || null, usedAt: o.usedAt || null });
-      }
+      const ids = list || [];
+      const [vals] = ids.length ? await redis(st, ["MGET", ...ids.map((c) => `nd:act:${c}`)]) : [[]];
+      const codes = ids.map((c, i) => {
+        let o = {}; try { o = JSON.parse((vals || [])[i] || "{}"); } catch {}
+        return { code: c, months: o.months || 1, note: o.note || "", createdAt: o.createdAt || null, usedAt: o.usedAt || null };
+      });
       return res.status(200).json({ codes, created: Number(created || 0) });
     }
 
@@ -217,7 +230,8 @@ module.exports = async (req, res) => {
 
     const PL = `nd:${id}:plan`;
     if (body.op === "get") {
-      const [v, planRaw] = await redis(st, ["GET", V], ["GET", PL]);
+      const [v, planRaw, hits] = await redis(st, ["GET", V], ["GET", PL], ...rateCmds(ip));
+      if (hits > RATE_MAX) return res.status(429).json({ error: "Muitos pedidos agora. Espere alguns minutos." });
       const ver = Number(v || 0); const plan = planStatus(planRaw);
       if (Number(body.since || 0) === ver) return res.status(200).json({ changed: false, v: ver, plan });
       const [flat] = await redis(st, ["HGETALL", H]);
@@ -231,23 +245,38 @@ module.exports = async (req, res) => {
     }
 
     if (body.op === "redeem") {
-      const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
-      const [fails] = await redis(st, ["GET", `nd:rf:${ip}`]);
-      if (Number(fails || 0) >= 20) return res.status(429).json({ error: "Muitas tentativas. Tente de novo em 1 hora." });
+      if (await overLimit(st, "redeem", ip)) return res.status(429).json(TOO_MANY);
       const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
       const [raw] = code.length === 10 ? await redis(st, ["GET", `nd:act:${code}`]) : [null];
       let act = null; try { act = raw ? JSON.parse(raw) : null; } catch {}
-      if (!act) { await redis(st, ["INCR", `nd:rf:${ip}`], ["EXPIRE", `nd:rf:${ip}`, "3600"]); return res.status(404).json({ error: "Código de ativação não encontrado. Confira as letras." }); }
+      if (!act) { await countHit(st, "redeem", ip); return res.status(404).json({ error: "Código de ativação não encontrado. Confira as letras." }); }
       if (act.usedAt) return res.status(409).json({ error: "Este código já foi usado." });
-      const [claimed] = await redis(st, ["SET", `nd:act:${code}:lock`, id, "NX"]);
-      if (claimed !== "OK") return res.status(409).json({ error: "Este código já foi usado." });
-      const [planRaw] = await redis(st, ["GET", PL]);
-      let p = {}; try { p = planRaw ? JSON.parse(planRaw) : {}; } catch {}
-      const base = Math.max(Date.now(), p.premiumUntil || 0, p.trialEnds || 0);
-      const until = new Date(base); until.setMonth(until.getMonth() + (act.months === 12 ? 12 : 1));
-      p.premiumUntil = until.getTime(); p.lastCode = code;
-      await redis(st, ["SET", PL, JSON.stringify(p)], ["SET", `nd:act:${code}`, JSON.stringify({ ...act, usedAt: Date.now(), space: id })]);
-      return res.status(200).json({ plan: planStatus(JSON.stringify(p)) });
+      // Uma ativação por vez em cada espaço: evita que duas ativações simultâneas leiam o mesmo plano e uma se perca.
+      const SL = `${PL}:lock`, CL = `nd:act:${code}:lock`;
+      const [gotSpace] = await redis(st, ["SET", SL, "1", "NX", "PX", "10000"]);
+      if (gotSpace !== "OK") return res.status(409).json({ error: "Outra ativação em andamento. Tente de novo em instantes." });
+      // A trava é solta antes de responder: depois da resposta o Vercel pode congelar a função.
+      let out;
+      try {
+        const [planRaw] = await redis(st, ["GET", PL]);
+        const [claimed] = planRaw ? await redis(st, ["SET", CL, id, "NX"]) : [null];
+        // Sem plano = casal fundador (tudo liberado, sem prazo): gravar um prazo aqui o rebaixaria ao grátis quando vencesse.
+        if (!planRaw) out = [409, { error: "Este espaço já tem tudo liberado (casal fundador). Guarde o código." }];
+        else if (claimed !== "OK") out = [409, { error: "Este código já foi usado." }];
+        else {
+          try {
+            let p = {}; try { p = JSON.parse(planRaw); } catch {}
+            const base = Math.max(Date.now(), p.premiumUntil || 0, p.trialEnds || 0);
+            const until = new Date(base); const day = until.getDate();
+            until.setMonth(until.getMonth() + (act.months === 12 ? 12 : 1));
+            if (until.getDate() !== day) until.setDate(0); // 31/jan + 1 mês = 28/fev, não 3/mar
+            p.premiumUntil = until.getTime(); p.lastCode = code;
+            await redis(st, ["SET", PL, JSON.stringify(p)], ["SET", `nd:act:${code}`, JSON.stringify({ ...act, usedAt: Date.now(), space: id })]);
+            out = [200, { plan: planStatus(JSON.stringify(p)) }];
+          } catch (e) { await redis(st, ["DEL", CL]).catch(() => {}); throw e; }
+        }
+      } finally { await redis(st, ["DEL", SL]).catch(() => {}); }
+      return res.status(out[0]).json(out[1]);
     }
 
     if (body.op === "codes") {
