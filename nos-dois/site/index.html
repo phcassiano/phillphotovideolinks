@@ -263,9 +263,9 @@ details summary::-webkit-details-marker{display:none}
 .weekbars .now span{color:var(--fg)}
 .weekbars .now i.h0{outline:2px dashed var(--accent);outline-offset:-2px;background:transparent}
 /* Plano: cadeados, faixa do teste e tela do Premium */
-.tile.locked .ic svg:last-child,.secrow.locked > svg:last-child{display:none}
+.tile.locked .ic > svg:last-of-type,.secrow.locked > svg:last-of-type{display:none}
 .lockpill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--coral);background:var(--coral-soft);border-radius:999px;padding:3px 8px}
-.lockpill svg{width:12px;height:12px}
+.lockpill svg,.tile .ic .lockpill svg{width:12px;height:12px;padding:0;border-radius:0;background:none;color:inherit}
 .trialbar{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:12px}
 .trialbar .meter{height:6px;border-radius:99px;background:var(--line-2);overflow:hidden;margin-top:6px}
 .trialbar .meter i{display:block;height:100%;background:linear-gradient(90deg,#2BB592,#F2785C)}
@@ -537,12 +537,13 @@ async function api(body){
 }
 function ensureSpace(){
   if(cloud) return Promise.resolve(cloud);
-  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); startPoll(); schedule(); return cloud; })
+  if(!spacePromise) spacePromise = api({op:"create"}).then(r => { cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); resetPlan(); startPoll(); schedule(); return cloud; })
     .catch(e => { spacePromise = null; throw e; });
   return spacePromise;
 }
 function cloudWrite(body){ return ensureSpace().then(sp => api({...body, id:sp.id, key:sp.key})).then(r => { if(r && r.v) cloudVer = Math.max(cloudVer, r.v); }); }
-function cloudLost(){ codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
+function resetPlan(){ plan = null; lsSet("nd-plan", null); }
+function cloudLost(){ resetPlan(); codes = null; lsSet(CLOUD_KEY, null); lsSet(CLOUD_CACHE, null); cloud = null; cloudVer = 0; S = blank(); me = null; lsSet("nd-me", null); toast("Este espaço não existe mais ou o link de convite está errado. Crie um novo."); schedule(); }
 async function pull(){
   if(!cloud || inflight > 0) return;
   try{
@@ -571,7 +572,7 @@ function joinWithCode(raw, inputId){
   if(code.length !== 8){ toast("O código tem 8 letras e números, como ABCD-2345."); return; }
   api({op:"join", code}).then(async r => {
     if(pollT){ clearInterval(pollT); pollT = null; }
-    cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null);
+    cloud = {id:r.id, key:r.key}; lsSet(CLOUD_KEY, JSON.stringify(cloud)); lsSet(CLOUD_CACHE, null); resetPlan();
     me = r.slot; lsSet("nd-me", r.slot); cloudVer = 0; codes = null; S = blank(); view = "home";
     if(inputId) clearIds.add(inputId);
     await pull(); startPoll(); pushCheck().then(scheduleBg); toast(`Pronto, ${nameOf(r.slot)}! Você entrou no espaço de vocês.`);
@@ -585,22 +586,22 @@ function onWriteError(e){
   else if(code==="quota_exceeded"){ toast("O espaço de vocês está cheio. Apaguem itens antigos para continuar."); }
   else if(code==="unavailable"){ toast("Sem conexão agora. Tente de novo em instantes."); }
   else if(code==="auth"){ cloudLost(); }
-  else if(code==="premium"){ toast("Essa parte é do Premium. O teste grátis acabou."); lockedFrom = view; view = "assinar"; cloudVer = 0; pull(); schedule(); }
+  else if(code==="premium"){ toast("Essa parte é do Premium. O teste grátis acabou."); lockedFrom = view; view = "assinar"; cloudVer = 0; setTimeout(pull, 0); schedule(); }
   else { toast("Não foi possível salvar. Tente de novo."); }
 }
 function put(c, id, data){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
-  const before = S[c][id]; S[c] = {...S[c], [id]:data}; schedule(); noteChange(c, id, before, data);
+  const before = S[c][id]; S[c] = {...S[c], [id]:data}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => db.collection(c).doc(id).set(data));
-  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"put", col:c, doc:id, data}).then(() => noteChange(c, id, before, data)));
   else saveLocal();
 }
 function patch(c, id, part){
   if(readOnly && mode==="db"){ toast("Você só pode ver este espaço."); return; }
   const cur = S[c][id]; const merged = deepMerge(cur||{}, part);
-  S[c] = {...S[c], [id]:merged}; schedule(); noteChange(c, id, cur, merged);
+  S[c] = {...S[c], [id]:merged}; schedule();
   if(mode==="db") enqueue(c+"/"+id, () => cur ? db.collection(c).doc(id).update(part) : db.collection(c).doc(id).set(merged));
-  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}));
+  else if(mode==="cloud") enqueue(c+"/"+id, () => cloudWrite({op:"merge", col:c, doc:id, data:part}).then(() => noteChange(c, id, cur, merged)));
   else saveLocal();
 }
 function del(c, id){
@@ -622,8 +623,8 @@ const isLocked = v => planOn() && plan.status==="free" && !!PREMIUM_VIEWS[v];
 const daysLeft = t => Math.max(0, Math.ceil((t - Date.now()) / 86400000));
 const fmtTs = (t, o={day:"numeric",month:"short",year:"numeric"}) => new Date(t).toLocaleDateString("pt-BR", o);
 function setPlan(p){
-  if(!p) return; const was = plan && plan.status; plan = p; lsSet("nd-plan", JSON.stringify(p));
-  if(was==="trial" && p.status==="free" && lsGet("nd-trial-ended")!==String(p.trialEnds)){ lsSet("nd-trial-ended", String(p.trialEnds)); setTimeout(trialEndedSheet, 400); }
+  if(!p) return; const was = plan && plan.status; const raw = JSON.stringify(p); if(raw!==JSON.stringify(plan)) lsSet("nd-plan", raw); plan = p;
+  if(mode==="cloud" && was==="trial" && p.status==="free" && lsGet("nd-trial-ended")!==String(p.trialEnds)){ lsSet("nd-trial-ended", String(p.trialEnds)); setTimeout(trialEndedSheet, 400); }
 }
 // Marca com cadeado os atalhos de partes do Premium quando o casal está no grátis
 function markLocks(html){
