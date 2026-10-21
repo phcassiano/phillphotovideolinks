@@ -1,5 +1,5 @@
 // Nós Dois: guarda a "casca" do app para abrir mesmo sem internet. Nunca guarda /api.
-const CACHE = "nos-dois-v4";
+const CACHE = "nos-dois-v5";
 const SHELL = ["/", "/manifest.webmanifest", "/icon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", (e) => {
@@ -9,8 +9,8 @@ self.addEventListener("fetch", (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== "GET" || u.origin !== location.origin || u.pathname.startsWith("/api/")) return;
   if (e.request.mode === "navigate") {
-    // Só a casca do app vira "/" no cache; o painel /admin nunca pode tomar o lugar dela.
-    if (u.pathname.startsWith("/admin") || u.pathname.startsWith("/site/")) return;
+    // Só a casca do app ("/") vai para o cache; /admin, /privacidade e /termos nunca tomam o lugar dela.
+    if (u.pathname !== "/" && u.pathname !== "/index.html") return;
     e.respondWith(fetch(e.request).then((r) => { const cp = r.clone(); caches.open(CACHE).then((c) => c.put("/", cp)); return r; }).catch(() => caches.match("/")));
     return;
   }

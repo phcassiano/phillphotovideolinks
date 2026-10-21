@@ -19,6 +19,14 @@
     {
       "source": "/admin",
       "destination": "/site/admin.html"
+    },
+    {
+      "source": "/privacidade",
+      "destination": "/site/privacidade.html"
+    },
+    {
+      "source": "/termos",
+      "destination": "/site/termos.html"
     }
   ],
   "headers": [

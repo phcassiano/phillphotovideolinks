@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Política de Privacidade · Nós Dois</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<style>
+/* Página de texto legal: leitura confortável no celular, mesmas cores do app. */
+:root{--bg:#EAF4EF;--card:#FFFFFF;--fg:#1F2B28;--muted:#5E6E69;--line:#DCE9E3;--accent:#13785F;--warn:#FCE5D8;--warn-fg:#9A3A1F}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0F1917;--card:#1B2725;--fg:#EAF3F0;--muted:#A7B9B3;--line:#2C3B37;--accent:#5FD4B6;--warn:#3A2219;--warn-fg:#FFB49E}}
+:root[data-theme="dark"]{--bg:#0F1917;--card:#1B2725;--fg:#EAF3F0;--muted:#A7B9B3;--line:#2C3B37;--accent:#5FD4B6;--warn:#3A2219;--warn-fg:#FFB49E}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:28px 16px 64px}
+article{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px 20px}
+h1{font-size:28px;line-height:1.2;margin:0 0 6px}
+h2{font-size:19px;margin:28px 0 8px}
+p,li{color:var(--fg)}
+ul{padding-left:20px}
+.muted{color:var(--muted);font-size:14px}
+a{color:var(--accent)}
+.fill{background:var(--warn);color:var(--warn-fg);border-radius:6px;padding:0 5px;font-weight:600}
+nav{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px;font-size:15px}
+</style>
+</head>
+<body>
+<main>
+<nav><a href="/">← Voltar ao app</a><a href="/termos">Termos de Uso</a></nav>
+<article>
+<h1>Política de Privacidade</h1>
+<p class="muted">Versão 1.0 · vigente desde 21 de outubro de 2026</p>
+
+<p>O Nós Dois é um app para casais organizarem a vida a dois: conversas, tarefas, contas e família. Esta política explica, em linguagem simples, quais dados o app guarda, para quê, com quem eles passam e como vocês controlam tudo, conforme a Lei Geral de Proteção de Dados (LGPD, Lei 13.709/2018).</p>
+
+<h2>Quem é o responsável</h2>
+<p>O controlador dos dados é <span class="fill">[nome completo ou razão social do responsável]</span>, <span class="fill">[CPF ou CNPJ]</span>. Para qualquer pedido sobre os seus dados, escreva para <span class="fill">[e-mail de contato]</span>. Respondemos em até 15 dias.</p>
+
+<h2>Quais dados guardamos</h2>
+<ul>
+<li><b>Dados do casal:</b> os nomes que vocês escolhem, a data em que estão juntos, a fase da família e as fotos de perfil, se vocês as colocarem.</li>
+<li><b>O que vocês escrevem no app:</b> respostas da pergunta do dia, recados, tarefas, listas, datas, desejos, votações, notas, planos, cápsulas, cartões e gastos.</li>
+<li><b>Família:</b> se vocês escolherem usar, a data prevista do parto e as semanas de gestação, nomes e datas de nascimento dos filhos, marcos, rotina do bebê (mamadas, fraldas, sono) e lista de nomes. Dados de gestação são dados de saúde, que a LGPD trata como <b>dados sensíveis</b>.</li>
+<li><b>Cofre:</b> o conteúdo do cofre é cifrado no próprio celular antes de ser enviado. O servidor guarda só texto ilegível e não tem a chave.</li>
+<li><b>Dados técnicos:</b> o endereço IP de cada pedido, usado só para limitar tentativas e evitar abuso, apagado automaticamente em até 1 hora. Se vocês ativarem os avisos, o endereço de notificação do navegador.</li>
+<li><b>Assinatura:</b> o plano do casal (teste, grátis ou Premium) e a data de validade. O pagamento por Pix acontece fora do app, e o comprovante enviado pelo WhatsApp fica só na conversa com o responsável.</li>
+</ul>
+<p>Não pedimos e-mail, telefone nem documento para usar o app. Não usamos anúncios, rastreadores ou ferramentas de análise de comportamento.</p>
+
+<h2>Para que usamos</h2>
+<ul>
+<li>Mostrar e sincronizar o espaço do casal entre os dois celulares (execução do serviço que vocês pediram).</li>
+<li>Enviar avisos ao outro quando um de vocês faz algo no app, se vocês ativarem os avisos (consentimento).</li>
+<li>Guardar os dados de gestação e dos filhos que vocês escolherem registrar (consentimento específico, dado ao criar o espaço).</li>
+<li>Controlar o teste grátis, o plano grátis e o Premium (execução do contrato).</li>
+<li>Proteger o serviço contra abuso, com limites de tentativas por IP (legítimo interesse).</li>
+</ul>
+<p>Os dados de vocês <b>não são vendidos, alugados nem compartilhados</b> para publicidade.</p>
+
+<h2>Com quem os dados passam</h2>
+<ul>
+<li><b>Hospedagem:</b> Vercel Inc. (site e servidor) e o banco de dados Redis contratado pela integração da Vercel. Os servidores podem ficar fora do Brasil, com as garantias do art. 33 da LGPD.</li>
+<li><b>Avisos:</b> se vocês ativarem, o aviso viaja cifrado pelo serviço de notificações do seu navegador (Google, Apple ou Mozilla), que não consegue ler o conteúdo.</li>
+<li><b>Fontes:</b> o app carrega as fontes de letra do Google Fonts, que recebe o endereço IP do aparelho.</li>
+</ul>
+
+<h2>Quem vê o quê</h2>
+<p>Só quem tem um código de entrada do espaço de vocês consegue abrir os dados. Cada um tem o próprio código, e dá para gerar outro em Ajustes se um código vazar. A resposta da pergunta do dia fica escondida até a outra pessoa responder; isso é uma regra da tela, e não criptografia.</p>
+
+<h2>Por quanto tempo guardamos</h2>
+<p>Enquanto o espaço existir. Ao tocar em <b>Ajustes › Apagar todos os dados de vocês</b>, o espaço, os códigos, os avisos e o plano são apagados do servidor na hora, para os dois, sem como desfazer.</p>
+
+<h2>Os seus direitos</h2>
+<p>Pela LGPD, você pode pedir a confirmação e o acesso aos dados, a correção, a portabilidade, a eliminação, informações sobre compartilhamento e a revogação do consentimento. No app:</p>
+<ul>
+<li><b>Acesso e portabilidade:</b> Ajustes › <b>Baixar uma cópia dos dados</b> (arquivo JSON).</li>
+<li><b>Correção:</b> editem qualquer item direto no app.</li>
+<li><b>Eliminação e revogação:</b> Ajustes › <b>Apagar todos os dados de vocês</b>; avisos podem ser desligados em Ajustes › Avisos.</li>
+</ul>
+<p>Para qualquer outro pedido, ou para reclamar, escreva para <span class="fill">[e-mail de contato]</span>. Você também pode procurar a Autoridade Nacional de Proteção de Dados (ANPD).</p>
+
+<h2>Crianças</h2>
+<p>O app é para adultos. Dados de filhos são registrados pelos próprios pais ou responsáveis, no interesse da criança, e ficam só no espaço do casal.</p>
+
+<h2>Segurança</h2>
+<p>A conexão é sempre cifrada (HTTPS), as chaves do espaço são guardadas no servidor só como resumo criptográfico (hash) e o cofre é cifrado de ponta a ponta. Nenhum sistema é perfeito: se houver um incidente que possa trazer risco a vocês, avisaremos e comunicaremos a ANPD.</p>
+
+<h2>Mudanças nesta política</h2>
+<p>Se esta política mudar de forma importante, avisaremos dentro do app antes de a mudança valer.</p>
+</article>
+</main>
+</body>
+</html>
