@@ -1,0 +1,36 @@
+# Configuração do Supabase CLI para desenvolvimento local (`supabase start`).
+project_id = "radar-imprensa"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+# Limite de linhas por resposta da API REST (defesa adicional contra coleta em massa).
+max_rows = 500
+
+[db]
+port = 54322
+major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/confirm"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 10
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+
+[auth.rate_limit]
+sign_in_sign_ups = 30
+
+[functions.verification-dispatch]
+verify_jwt = true

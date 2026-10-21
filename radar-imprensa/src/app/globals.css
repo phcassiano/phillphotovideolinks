@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/*
+ * Radar de Imprensa — tokens de design.
+ * Azul-escuro institucional, turquesa para confirmação, laranja para alerta.
+ * Contrastes verificados para texto normal (WCAG AA ≥ 4.5:1) sobre fundo claro.
+ */
+:root {
+  --background: #f6f8fb;
+  --surface: #ffffff;
+  --foreground: #0f1b2d;
+  --muted: #eef2f7;
+  --muted-foreground: #4a5a70;
+  --border: #d9e0ea;
+  --input: #c9d3e0;
+  --ring: #1d4ed8;
+
+  --primary: #0b2545; /* azul-escuro institucional */
+  --primary-foreground: #ffffff;
+  --primary-soft: #e6edf7;
+
+  --accent: #0f766e; /* turquesa: confirmação */
+  --accent-foreground: #ffffff;
+  --accent-soft: #e0f4f1;
+
+  --warning: #b45309; /* laranja: desatualizado */
+  --warning-soft: #fdf0e1;
+
+  --danger: #b91c1c;
+  --danger-soft: #fdecec;
+
+  --info: #1d4ed8;
+  --info-soft: #e7eefc;
+
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

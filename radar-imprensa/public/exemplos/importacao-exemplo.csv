@@ -1,0 +1,8 @@
+Nome;Veículo;Tipo de veículo;Editoria;Estado;Cidade;Cargo;E-mail profissional;Telefone profissional;Fonte;Data da verificação
+Tatiana Exemplo Moura;Portal Exemplo Piauí;Portal;Política;PI;Teresina;Repórter;tatiana.moura@portal-exemplo-pi.example;(00) 98888-0001;https://portal-exemplo-pi.example/equipe;15/09/2026
+Ulisses Fictício Prado;Gazeta Fictícia do Piauí;Jornal;Economia;Piauí;Teresina;Editor de Economia;economia@gazeta-ficticia.example;;Expediente impresso da Gazeta Fictícia;01/09/2026
+Vera Modelo Lins;Portal Cultura Exemplo RJ;Portal;Cultura;RJ;Rio de Janeiro;Repórter de Cultura;vera.lins@cultura-exemplo-rj.example;;https://cultura-exemplo-rj.example/equipe;20/09/2026
+Wagner Teste Reis;Rádio Amostra FM;Rádio;Esportes;PI;Parnaíba;Narrador;;(00) 3333-0002;https://radio-amostra.example/equipe;
+Ana Exemplo Ribeiro;Portal Exemplo Piauí;Portal;Política;PI;Teresina;Repórter;ana.ribeiro@portal-exemplo-pi.example;;https://portal-exemplo-pi.example/equipe;10/10/2026
+Xênia Fictícia Alves;Veículo Novo Exemplo;Independente;Tecnologia;SP;São Paulo;Newsletter;xenia@veiculo-novo.example;;;
+Linha Com Erro;Portal Exemplo Piauí;Portal;Editoria Inexistente;ZZ;Teresina;Repórter;email-invalido;123;;31/02/2026
