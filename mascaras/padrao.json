@@ -1,0 +1,18 @@
+{
+  "id": "padrao",
+  "nome": "Máscara padrão",
+  "perfil": {
+    "nome": "Seu Site",
+    "handle": "seusite",
+    "avatar": "mascaras/padrao/avatar.svg",
+    "verificado": true
+  },
+  "logo": "mascaras/padrao/logo.svg",
+  "cores": {
+    "destaque": "#FFC81E",
+    "textoDestaque": "#111111",
+    "faixaPerfil": "#0B4FA8",
+    "brilhoInferior": "#1747D6",
+    "brilhoSuperior": "#B3121F"
+  }
+}

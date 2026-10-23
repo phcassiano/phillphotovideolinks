@@ -1,0 +1,12 @@
+{
+  "mascara": "padrao",
+  "midia": {"tipo": "foto", "src": "exemplo/foto.jpg"},
+  "pais": "BR",
+  "editoria": "Economia",
+  "manchete": "Gasolina sobe pela terceira vez",
+  "mancheteDestaque": "no mês",
+  "etiqueta": "Urgente",
+  "lead": "Novo reajuste nas refinarias passa a valer amanhã e deve chegar às bombas até o fim de semana, segundo distribuidoras.",
+  "credito": "foto: divulgação",
+  "duracaoFoto": 8
+}
