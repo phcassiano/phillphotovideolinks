@@ -11,6 +11,7 @@ process.env.IG_APP_SECRET = "segredo";
 process.env.IG_VERIFY_TOKEN = "verifica";
 process.env.ADMIN_PASSWORD = "senha-longa-123";
 process.env.CRON_SECRET = "cron";
+process.env.ANTHROPIC_API_KEY = "sk-test";
 
 // ---- Redis em memória ----
 const kv = new Map(), hashes = new Map(), lists = new Map(), zsets = new Map();
@@ -29,6 +30,7 @@ function cmd([c, ...a]) {
     case "HSET": for (let i = 1; i < a.length; i += 2) H(a[0]).set(a[i], a[i + 1]); return 1;
     case "HGET": return H(a[0]).get(a[1]) ?? null;
     case "HINCRBY": H(a[0]).set(a[1], String(Number(H(a[0]).get(a[1]) || 0) + Number(a[2]))); return 1;
+    case "HDEL": H(a[0]).delete(a[1]); return 1;
     case "HGETALL": return [...H(a[0])].flat();
     case "ZADD": (zsets.get(a[0]) || zsets.set(a[0], new Map()).get(a[0])).set(a[2], Number(a[1])); return 1;
     case "ZREM": zsets.get(a[0])?.delete(a[1]); return 1;
@@ -40,8 +42,18 @@ function cmd([c, ...a]) {
 // ---- Instagram falso ----
 const calls = [];
 let failButton = false;
+// Claude falso: responde o que estiver em aiAnswer.
+const aiCalls = [];
+let aiAnswer = { action: "reply", reply: "Uso uma Sony ZV-E10 😄" }, aiStop = "end_turn";
 global.fetch = async (url, opt = {}) => {
-  const u = new URL(url);
+  const u = new URL(typeof url === "string" ? url : url.url || String(url));
+  if (u.host === "api.anthropic.com") {
+    const headers = Object.fromEntries(new Headers(opt.headers).entries());
+    aiCalls.push({ path: u.pathname, headers, body: JSON.parse(opt.body) });
+    const msg = { id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5", stop_reason: aiStop,
+      content: aiStop === "refusal" ? [] : [{ type: "text", text: JSON.stringify(aiAnswer) }], usage: { input_tokens: 10, output_tokens: 10 } };
+    return new Response(JSON.stringify(msg), { status: 200, headers: { "content-type": "application/json" } });
+  }
   const json = (o, status = 200) => ({ ok: status < 300, status, json: async () => o });
   if (u.host === "redis.test") return json(JSON.parse(opt.body).map((c) => ({ result: cmd(c) })));
   calls.push({ method: opt.method || "GET", path: u.pathname, query: Object.fromEntries(u.searchParams), body: opt.body ? JSON.parse(opt.body) : null });
@@ -200,6 +212,92 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   r = await adm("threads");
   assert.ok(!r.body.items.some((x) => x.igsid === "888"));
 
+  // ---------- IA ----------
+  // Desligada: direct sem palavra-chave cai na regra "qualquer texto", sem chamar a IA
+  aiCalls.length = 0;
+  await dm("mid.a0", "oi tudo bem", "900");
+  assert.strictEqual(aiCalls.length, 0);
+
+  r = await adm("saveAi", { settings: { enabled: true, dm: true, comments: true, about: "Sou fotógrafo em Brasília.", maxPerDay: 50 } });
+  assert.strictEqual(r.body.settings.enabled, true);
+  r = await adm("ai");
+  assert.strictEqual(r.body.ready, true);
+
+  // Direct sem palavra-chave → IA responde (antes da regra "qualquer texto")
+  aiCalls.length = 0; calls.length = 0;
+  await dm("mid.a1", "Que lente você usa no casamento?", "901");
+  assert.strictEqual(aiCalls.length, 1);
+  const req = aiCalls[0];
+  assert.strictEqual(req.path, "/v1/messages");
+  assert.strictEqual(req.body.model, "claude-opus-5-5");
+  assert.strictEqual(req.body.fallbacks, "default");
+  assert.ok(req.headers["anthropic-beta"].includes("server-side-fallback-2026-07-01"));
+  assert.strictEqual(req.body.output_config.effort, "low");
+  assert.strictEqual(req.body.output_config.format.type, "json_schema");
+  assert.ok(req.body.system.includes("Sou fotógrafo em Brasília."));
+  assert.ok(req.body.messages[0].content.includes("Que lente você usa no casamento?"));
+  let sent = calls.find((c) => c.path.endsWith("/me/messages"));
+  assert.deepStrictEqual(sent.body, { recipient: { id: "901" }, message: { text: "Uso uma Sony ZV-E10 😄" } });
+
+  // O eco da resposta do robô não pausa a IA; o histórico vai junto na próxima pergunta
+  await hook({ object: "instagram", entry: [{ id: "999", messaging: [{ sender: { id: "999" }, recipient: { id: "901" }, message: { mid: "mid.sent" + (calls.indexOf(sent) + 1), text: "eco", is_echo: true } }] }] });
+  aiCalls.length = 0;
+  await dm("mid.a2", "E o tripé?", "901");
+  assert.strictEqual(aiCalls.length, 1);
+  assert.ok(aiCalls[0].body.messages[0].content.includes("Que lente você usa no casamento?"), "manda o histórico");
+
+  // Palavra-chave continua ganhando da IA
+  aiCalls.length = 0;
+  await dm("mid.a3", "me passa o link da camera", "901");
+  assert.strictEqual(aiCalls.length, 0);
+
+  // IA passa para você → marca "precisa de você" e fica quieta com a pessoa
+  aiAnswer = { action: "human", reply: "" }; calls.length = 0;
+  await dm("mid.a4", "Quero fechar um casamento, faz desconto?", "902");
+  assert.strictEqual(calls.filter((c) => c.path.endsWith("/me/messages")).length, 0);
+  r = await adm("threads");
+  assert.strictEqual(r.body.items.find((x) => x.igsid === "902").human, true);
+  aiCalls.length = 0;
+  await dm("mid.a5", "alô?", "902");
+  assert.strictEqual(aiCalls.length, 0, "pausada");
+  r = await adm("aiResume", { igsid: "902" });
+  aiAnswer = { action: "reply", reply: "Oi!" };
+  await dm("mid.a6", "alô??", "902");
+  assert.strictEqual(aiCalls.length, 1, "voltou");
+
+  // Você respondeu pelo app do Instagram → IA pausa para essa pessoa
+  await hook({ object: "instagram", entry: [{ id: "999", messaging: [{ sender: { id: "999" }, recipient: { id: "903" }, message: { mid: "mid.app", text: "deixa comigo", is_echo: true } }] }] });
+  aiCalls.length = 0;
+  await dm("mid.a7", "valeu!", "903");
+  assert.strictEqual(aiCalls.length, 0);
+
+  // Comentário sem regra → IA responde em público
+  aiAnswer = { action: "reply", reply: "É a ZV-E10!" }; calls.length = 0; aiCalls.length = 0;
+  await comment("2001", "que câmera é essa?", { id: "556", username: "joao" });
+  assert.strictEqual(aiCalls.length, 1);
+  assert.strictEqual(calls.find((c) => c.path.endsWith("/2001/replies")).query.message, "É a ZV-E10!");
+  // "skip" não responde
+  aiAnswer = { action: "skip", reply: "" }; calls.length = 0;
+  await comment("2002", "🔥🔥", { id: "557", username: "ana" });
+  assert.strictEqual(calls.filter((c) => c.method === "POST").length, 0);
+
+  // Recusa do modelo vira "precisa de você", sem resposta
+  aiStop = "refusal"; calls.length = 0;
+  await dm("mid.a8", "pergunta estranha", "904");
+  assert.strictEqual(calls.filter((c) => c.path.endsWith("/me/messages")).length, 0);
+  aiStop = "end_turn";
+
+  // Teto por pessoa por hora (8)
+  aiAnswer = { action: "reply", reply: "ok" }; aiCalls.length = 0;
+  for (let i = 0; i < 10; i++) await dm("mid.lim" + i, "pergunta " + i, "905");
+  assert.strictEqual(aiCalls.length, 8);
+
+  // Testar pelo painel
+  aiAnswer = { action: "reply", reply: "Teste ok" };
+  r = await adm("aiTest", { text: "oi", kind: "dm", settings: { about: "texto novo" } });
+  assert.deepStrictEqual(r.body, { action: "reply", reply: "Teste ok" });
+  assert.ok(aiCalls.at(-1).body.system.includes("texto novo"));
+
   // Cron renova o token e passa a usar o novo
   r = await call(cron, { method: "GET", headers: {} });
   assert.strictEqual(r.status, 401);
@@ -208,5 +306,5 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   calls.length = 0;
   await adm("reply", { commentId: "1008", text: "ok" });
   assert.ok(calls.length);
-  console.log("Tudo certo: " + "webhook, regras, direct, painel e token funcionando.");
+  console.log("Tudo certo: " + "webhook, regras, direct, IA, painel e token funcionando.");
 })().catch((e) => { console.error(e); process.exit(1); });

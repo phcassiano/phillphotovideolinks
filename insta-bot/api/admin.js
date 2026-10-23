@@ -1,5 +1,6 @@
 // API do painel: POST /api/admin com {op, senha, ...}. A senha é a variável ADMIN_PASSWORD do Vercel.
 const ig = require("./_ig.js");
+const ai = require("./_ai.js");
 const { redis } = ig;
 
 const clientIp = (req) => String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "anon";
@@ -17,6 +18,7 @@ const ops = {
     const env = {
       IG_ACCESS_TOKEN: !!process.env.IG_ACCESS_TOKEN, IG_APP_SECRET: !!process.env.IG_APP_SECRET,
       IG_VERIFY_TOKEN: !!process.env.IG_VERIFY_TOKEN, CRON_SECRET: !!process.env.CRON_SECRET,
+      ANTHROPIC_API_KEY: ai.ready(),
     };
     const day = new Date().toISOString().slice(0, 10);
     const [tok, stats, today] = await redis(st, ["GET", "ib:token"], ["HGETALL", "ib:stats"], ["HGETALL", `ib:stats:${day}`]);
@@ -81,7 +83,7 @@ const ops = {
       items: list.map((x, i) => {
         const a = who[i] || []; const o = {};
         if (Array.isArray(a)) for (let k = 0; k < a.length; k += 2) o[a[k]] = a[k + 1]; else Object.assign(o, a);
-        return { ...x, username: o.username || "", last: o.last || "", lastFrom: o.lastFrom || "", lastUserAt: Number(o.lastUserAt || 0), unread: Number(o.unread || 0) };
+        return { ...x, username: o.username || "", last: o.last || "", lastFrom: o.lastFrom || "", lastUserAt: Number(o.lastUserAt || 0), unread: Number(o.unread || 0), human: o.human === "1" };
       }),
     };
   },
@@ -98,6 +100,8 @@ const ops = {
     // O eco da Meta também chega pelo webhook; marcar o mid evita a mensagem aparecer duas vezes.
     if (j.message_id) await redis(st, ["SET", `ib:seen:m:${j.message_id}`, "1", "EX", String(7 * 86400)]);
     await ig.saveMsg(st, id, { from: "me", text, mid: j.message_id });
+    // Você assumiu a conversa: a IA fica quieta com essa pessoa por 24 h.
+    await redis(st, ["SET", `ib:ai:pause:${id}`, "1", "EX", "86400"], ["HDEL", `ib:who:${id}`, "human"]);
     return { ok: true };
   },
 
@@ -106,6 +110,25 @@ const ops = {
     const id = String(b.igsid || "");
     if (!/^\d+$/.test(id)) throw new Error("Conversa inválida.");
     await redis(st, ["DEL", `ib:thread:${id}`], ["DEL", `ib:who:${id}`], ["ZREM", "ib:threads", id]);
+    return { ok: true };
+  },
+
+  // IA
+  async ai(st) { return { settings: await ai.getSettings(st), ready: ai.ready(), model: ai.MODEL }; },
+  async saveAi(st, b) { return { settings: await ai.saveSettings(st, b.settings || {}) }; },
+  async aiTest(st, b) {
+    if (!ai.ready()) throw new Error("Falta configurar ANTHROPIC_API_KEY no Vercel.");
+    const text = String(b.text || "").trim().slice(0, 1000);
+    if (!text) throw new Error("Escreva uma mensagem de teste.");
+    const settings = { ...(await ai.getSettings(st)), ...(b.settings ? { about: String(b.settings.about || "").slice(0, 8000) } : {}) };
+    let account = "voce"; try { account = (await ig.me(st)).username; } catch {}
+    const kind = b.kind === "comment" ? "comment" : "dm";
+    return await ai.ask(settings, account, kind, [{ from: "user", text }], "seguidor_teste");
+  },
+  async aiResume(st, b) {
+    const id = String(b.igsid || "");
+    if (!/^\d+$/.test(id)) throw new Error("Conversa inválida.");
+    await redis(st, ["DEL", `ib:ai:pause:${id}`], ["HDEL", `ib:who:${id}`, "human"]);
     return { ok: true };
   },
 

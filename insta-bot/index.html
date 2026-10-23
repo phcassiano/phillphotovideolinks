@@ -138,6 +138,7 @@
     <div class="tabs" role="tablist">
       <button class="tab on" data-tab="inicio">Início</button>
       <button class="tab" data-tab="auto">Automações</button>
+      <button class="tab" data-tab="ia">IA</button>
       <button class="tab" data-tab="comentarios">Comentários</button>
       <button class="tab" data-tab="direct">Direct</button>
       <button class="tab" data-tab="atividade">Atividade</button>
@@ -201,6 +202,36 @@
       </div>
     </section>
 
+    <!-- IA -->
+    <section id="t-ia" class="hide">
+      <div class="panel">
+        <h2>Respostas com IA</h2>
+        <p class="muted">A IA (Claude) responde o que não bate com nenhuma automação de palavra-chave, usando só o que você escrever abaixo. Quando não souber, ou o assunto for sério (reclamação, parceria, negociação), ela não inventa: marca a conversa como <b>precisa de você</b> e fica quieta.</p>
+        <div id="aiWarn" class="warn hide">Falta configurar <code>ANTHROPIC_API_KEY</code> no Vercel (pegue a chave em console.anthropic.com). Sem ela a IA não liga.</div>
+        <label class="chk"><span class="switch"><input type="checkbox" id="aiOn"><span></span></span> <b>IA ligada</b></label>
+        <label class="chk"><input type="checkbox" id="aiDm"> Responder directs</label>
+        <label class="chk"><input type="checkbox" id="aiCm"> Responder comentários (resposta pública curta; elogios e emojis ela pula)</label>
+        <label for="aiAbout">O que a IA precisa saber sobre você</label>
+        <textarea id="aiAbout" rows="12" placeholder="Sou o Phill, fotógrafo e videomaker em Brasília (DF).&#10;&#10;Equipamento que uso e indico (links de afiliado):&#10;- Câmera: Sony ZV-E10 — https://…&#10;- Microfone: Rode Wireless GO II — https://…&#10;&#10;Serviços: ensaios, casamentos e vídeos para empresas. Orçamento só pelo WhatsApp: https://wa.me/55…&#10;Não dou desconto pelo direct.&#10;Tom: animado, informal, trato por você."></textarea>
+        <div class="row">
+          <div><label for="aiMax">Máximo de respostas da IA por dia</label><input type="text" id="aiMax" inputmode="numeric"></div>
+          <div><label>Modelo</label><input type="text" id="aiModel" disabled></div>
+        </div>
+        <p class="muted" style="margin-top:8px">Cada pessoa recebe no máximo 8 respostas da IA por hora. Quando você responde alguém (aqui ou pelo app do Instagram), a IA fica 24 h sem falar com essa pessoa.</p>
+        <button class="btn" style="margin-top:14px" onclick="salvarIa()">Salvar</button>
+      </div>
+      <div class="panel">
+        <h2>Testar</h2>
+        <p class="muted">Veja o que a IA responderia, usando o texto acima (mesmo sem salvar). Nada é enviado no Instagram.</p>
+        <div class="row">
+          <div><label for="tKind">Como</label><select id="tKind"><option value="dm">Direct</option><option value="comment">Comentário</option></select></div>
+          <div><label for="tText">Mensagem do seguidor</label><input type="text" id="tText" placeholder="Qual câmera você usa?"></div>
+        </div>
+        <button class="btn ghost" style="margin-top:12px" id="tBtn" onclick="testarIa()">Testar</button>
+        <div id="tOut" class="hide" style="margin-top:12px"></div>
+      </div>
+    </section>
+
     <!-- COMENTÁRIOS -->
     <section id="t-comentarios" class="hide">
       <div class="panel"><h2>Seus posts</h2><div class="posts" id="cPosts"></div>
@@ -217,6 +248,7 @@
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <button class="btn ghost sm" onclick="document.getElementById('chat').classList.remove('open')">←</button>
               <b id="convName" style="flex:1"></b>
+              <button class="btn ghost sm hide" id="aiBack" onclick="devolverIa()">Devolver para a IA</button>
               <button class="btn danger sm" onclick="apagarConversa()">Apagar conversa</button>
             </div>
             <div class="msgs" id="msgs"></div>
@@ -282,11 +314,12 @@ function abrirAba(tab) {
   if (tab === "comentarios") desenharPosts();
   if (tab === "direct") carregarThreads();
   if (tab === "atividade") carregarLog();
+  if (tab === "ia") carregarIa();
 }
 
 // ---------- Início ----------
-const LABELS = { auto_comment: "Comentários respondidos", auto_dm: "Directs automáticos", comment: "Comentários sem regra", dm: "Directs recebidos", manual_reply: "Respostas manuais", manual_dm: "Directs manuais", error: "Erros" };
-function statBoxes(o) { return ["auto_comment", "auto_dm", "comment", "dm", "error"].map((k) => `<div class="stat"><b>${o[k] || 0}</b><span>${LABELS[k]}</span></div>`).join(""); }
+const LABELS = { auto_comment: "Comentários respondidos", auto_dm: "Directs automáticos", ai_dm: "Directs pela IA", ai_comment: "Comentários pela IA", handoff: "Precisam de você", comment: "Comentários sem regra", dm: "Directs recebidos", manual_reply: "Respostas manuais", manual_dm: "Directs manuais", error: "Erros" };
+function statBoxes(o) { return ["auto_comment", "auto_dm", "ai_dm", "ai_comment", "handoff", "dm", "error"].map((k) => `<div class="stat"><b>${o[k] || 0}</b><span>${LABELS[k]}</span></div>`).join(""); }
 async function carregarStatus() {
   let s; try { s = await tryApi("status"); } catch { return; }
   if (s.account) {
@@ -302,6 +335,7 @@ async function carregarStatus() {
     [s.env.IG_ACCESS_TOKEN || !!s.token, "Token do Instagram" + exp],
     [!!s.account, s.account ? `Conectado como @${s.account.username}` : "Conta do Instagram: " + (s.accountError || "não conectada")],
     [s.env.CRON_SECRET, "CRON_SECRET (renova o token sozinho toda semana)"],
+    [s.env.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY (opcional: respostas com IA)"],
   ];
   $("checks").innerHTML = items.map(([ok, t]) => `<div class="check"><span class="dot ${ok ? "ok" : ""}"></span><span>${esc(t)}</span></div>`).join("");
   $("hookUrl").textContent = location.origin + "/api/webhook";
@@ -376,6 +410,31 @@ async function apagarRegra() {
   if (await salvarTudo("Automação apagada")) fecharEditor();
 }
 
+// ---------- IA ----------
+async function carregarIa() {
+  let j; try { j = await tryApi("ai"); } catch { return; }
+  const s = j.settings;
+  $("aiWarn").classList.toggle("hide", j.ready);
+  $("aiOn").checked = s.enabled; $("aiDm").checked = s.dm; $("aiCm").checked = s.comments;
+  $("aiAbout").value = s.about; $("aiMax").value = s.maxPerDay; $("aiModel").value = j.model;
+}
+async function salvarIa() {
+  const settings = { enabled: $("aiOn").checked, dm: $("aiDm").checked, comments: $("aiCm").checked, about: $("aiAbout").value, maxPerDay: Number($("aiMax").value) || 200 };
+  if (settings.enabled && !settings.about.trim()) return toast("Escreva o que a IA precisa saber sobre você antes de ligar.", true);
+  try { await tryApi("saveAi", { settings }); toast(settings.enabled ? "IA ligada e salva" : "Salvo (IA desligada)"); } catch {}
+}
+async function testarIa() {
+  const text = $("tText").value.trim();
+  if (!text) return;
+  $("tBtn").disabled = true; $("tOut").classList.remove("hide"); $("tOut").innerHTML = '<div class="muted">Pensando…</div>';
+  try {
+    const r = await api("aiTest", { text, kind: $("tKind").value, settings: { about: $("aiAbout").value } });
+    $("tOut").innerHTML = r.action === "reply" ? `<div class="msg me" style="max-width:100%">${esc(r.reply)}</div>`
+      : `<div class="warn">${r.action === "human" ? "A IA não responderia: passaria para você (precisa de você)." : "A IA não responderia (nada a dizer)."}${r.note ? " Motivo: " + esc(r.note) : ""}</div>`;
+  } catch (e) { $("tOut").innerHTML = `<div class="warn">${esc(e.message)}</div>`; }
+  $("tBtn").disabled = false;
+}
+
 // ---------- Posts e comentários ----------
 async function carregarPosts(more) {
   try {
@@ -433,7 +492,7 @@ async function carregarThreads() {
   try { THREADS = (await tryApi("threads")).items; } catch { return; }
   $("threads").innerHTML = THREADS.length ? THREADS.map((t) => `
     <div class="th ${t.igsid === CUR ? "on" : ""}" onclick="abrirConversa('${t.igsid}')">
-      <b>${esc(t.username ? "@" + t.username : "Pessoa " + t.igsid.slice(-4))}</b>${t.unread ? `<span class="badge">${t.unread}</span>` : ""}
+      <b>${esc(t.username ? "@" + t.username : "Pessoa " + t.igsid.slice(-4))}</b>${t.unread ? `<span class="badge">${t.unread}</span>` : ""}${t.human ? '<span class="badge" style="background:var(--gold)">precisa de você</span>' : ""}
       <span class="muted">${t.lastFrom === "me" ? "Você: " : ""}${esc(t.last)}</span>
     </div>`).join("") : '<div class="empty">Nenhuma conversa ainda. As mensagens aparecem aqui quando alguém escrever para a conta.</div>';
 }
@@ -441,6 +500,7 @@ async function abrirConversa(id) {
   CUR = id; $("chat").classList.add("open");
   const t = THREADS.find((x) => x.igsid === id) || {};
   $("convName").textContent = t.username ? "@" + t.username : "Conversa";
+  $("aiBack").classList.toggle("hide", !t.human);
   $("winWarn").classList.toggle("hide", !t.lastUserAt || Date.now() - t.lastUserAt < 24 * 3600e3);
   let j; try { j = await tryApi("thread", { igsid: id }); } catch { return; }
   $("msgs").innerHTML = j.items.map((m) => `<div class="msg ${m.from === "me" ? "me" : "user"}">${esc(m.text || (m.kind ? "[" + m.kind + "]" : ""))}<small>${when(m.t)}</small></div>`).join("");
@@ -450,6 +510,10 @@ async function apagarConversa() {
   if (!CUR || !confirm("Apagar o histórico desta conversa aqui no painel? (Pedido de exclusão de dados.) No Instagram ela continua.")) return;
   try { await tryApi("forget", { igsid: CUR }); toast("Conversa apagada"); CUR = null; $("msgs").innerHTML = ""; $("convName").textContent = ""; $("chat").classList.remove("open"); carregarThreads(); } catch {}
 }
+async function devolverIa() {
+  if (!CUR) return;
+  try { await tryApi("aiResume", { igsid: CUR }); toast("A IA volta a responder essa pessoa"); $("aiBack").classList.add("hide"); carregarThreads(); } catch {}
+}
 async function enviar() {
   const text = $("msgText").value.trim();
   if (!text || !CUR) return;
@@ -457,8 +521,8 @@ async function enviar() {
 }
 
 // ---------- Atividade ----------
-const ICON = { auto_comment: "🤖", auto_dm: "📩", comment: "💬", dm: "✉️", manual_reply: "✍️", manual_dm: "✍️", error: "⚠️", mention: "📣", token: "🔑" };
-const TXT = { auto_comment: "Robô respondeu comentário", auto_dm: "Robô respondeu direct", comment: "Comentário (nenhuma regra)", dm: "Direct recebido", manual_reply: "Você respondeu um comentário", manual_dm: "Você mandou direct por comentário", error: "Erro", mention: "Marcaram a conta", token: "Token" };
+const ICON = { ai_dm: "✨", ai_comment: "✨", handoff: "🙋", auto_comment: "🤖", auto_dm: "📩", comment: "💬", dm: "✉️", manual_reply: "✍️", manual_dm: "✍️", error: "⚠️", mention: "📣", token: "🔑" };
+const TXT = { ai_dm: "IA respondeu direct", ai_comment: "IA respondeu comentário", handoff: "IA passou para você", auto_comment: "Robô respondeu comentário", auto_dm: "Robô respondeu direct", comment: "Comentário (nenhuma regra)", dm: "Direct recebido", manual_reply: "Você respondeu um comentário", manual_dm: "Você mandou direct por comentário", error: "Erro", mention: "Marcaram a conta", token: "Token" };
 async function carregarLog() {
   let j; try { j = await tryApi("log"); } catch { return; }
   $("log").innerHTML = j.items.length ? j.items.map((e) => `
