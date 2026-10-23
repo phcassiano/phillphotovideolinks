@@ -67,7 +67,8 @@ await renderStill({
   composition,
   inputProps,
   output: capa,
-  frame: Math.min(composition.durationInFrames - 1, composition.fps * 2),
+  // depois de todas as entradas e antes da animação de saída
+  frame: Math.max(0, Math.min(composition.durationInFrames - 20, Math.round(composition.fps * 3.5))),
   imageFormat: 'jpeg',
   jpegQuality: 92,
   browserExecutable,

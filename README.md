@@ -16,27 +16,35 @@ npm run render -- exemplos/post-video.json      # gera out/post-video.mp4 e out/
 Se o Chrome do Remotion não puder ser baixado, aponte para um Chromium local:
 `REMOTION_BROWSER_EXECUTABLE=/caminho/do/chrome-headless-shell npm run render -- ...`
 
+## Layout
+
+Mídia em tela cheia (opcionalmente em P&B), círculo na cor de destaque com aspas ou o logo da máscara,
+etiqueta no canto superior direito, texto principal grande com barra vertical, assinatura em caixa alta
+e barra na base. Tudo entra em sequência (zoom da mídia, etiqueta "digitada", círculo com mola,
+palavras subindo em cascata) e sai no último meio segundo para o loop do Reels ficar suave.
+
 ## Formato do post
 
 ```json
 {
   "mascara": "padrao",
-  "midia": {"tipo": "video", "src": "minha-pasta/clipe.mp4"},
-  "pais": "BR",
+  "midia": {"tipo": "foto", "src": "minha-pasta/foto.jpg"},
   "editoria": "Política",
-  "manchete": "PT vai à guerra",
-  "mancheteDestaque": "contra Flávio?",
-  "etiqueta": "Polêmica",
-  "lead": "Pedro Rousseff diz que PT irá à guerra contra Flávio Bolsonaro.",
-  "credito": "vídeo: @fonte",
+  "etiqueta": "#Urgente",
+  "lead": "Governo anuncia *corte de 10%* na conta de luz a partir de janeiro",
+  "credito": "Foto: Agência Brasil",
+  "pretoEBranco": false,
   "duracaoFoto": 8,
   "duracaoMaxima": 90
 }
 ```
 
+- `lead`: texto principal. Trechos entre `*asteriscos*` ficam na cor de destaque. O tamanho da fonte se ajusta ao comprimento.
+- `etiqueta`: caixa no topo; se omitida, usa `#editoria`.
+- `credito`: aparece na linha abaixo da assinatura, ao lado do @.
 - `midia.src`: caminho relativo ao JSON, caminho dentro de `public/` ou URL `https://`.
 - Foto vira vídeo com zoom lento (`duracaoFoto`, padrão 8 s). Vídeo usa a duração original, cortada em `duracaoMaxima` (padrão 90 s), com o áudio original.
-- Manchete com até ~26 caracteres no total fica em uma linha; acima disso, a parte destacada desce para a segunda linha. O tamanho da fonte se ajusta sozinho.
+- `pretoEBranco` sobrescreve a configuração da máscara para esse post.
 - `mascara` pode ser o id de um arquivo em `mascaras/` ou o objeto completo.
 
 ## Máscaras
@@ -45,19 +53,25 @@ Cada máscara é um JSON em `mascaras/<id>.json`, com arquivos em `public/mascar
 
 | Campo | Uso |
 |---|---|
-| `perfil.nome`, `perfil.handle`, `perfil.avatar`, `perfil.verificado` | Faixa de identidade na base do card |
-| `logo` | Selo redondo no canto do card |
-| `cores.destaque` / `cores.textoDestaque` | Faixa da manchete e barra do lead |
-| `cores.faixaPerfil` | Faixa da identidade |
-| `cores.brilhoInferior` / `cores.brilhoSuperior` | Luzes do fundo |
+| `perfil.nome` | Assinatura em caixa alta abaixo do texto |
+| `perfil.handle` | @ na linha de detalhe |
+| `logo` (opcional) | Vai dentro do círculo; sem logo, o círculo mostra aspas |
+| `pretoEBranco` | Mídia em P&B por padrão |
+| `cores.destaque` | Círculo, barras e palavras destacadas |
+| `cores.textoSobreDestaque` | Aspas dentro do círculo |
+| `cores.etiquetaFundo` / `cores.etiquetaTexto` | Caixa da etiqueta |
 | `overlayPng` (opcional) | PNG 1080×1920 transparente aplicado por cima de tudo |
 
-Para criar uma nova: copie `mascaras/padrao.json`, troque os campos e coloque os arquivos na pasta correspondente.
+Para criar uma nova: copie `mascaras/padrao.json`, troque os campos e coloque os arquivos na pasta correspondente
+(há um `public/mascaras/padrao/logo.svg` de exemplo).
+
+Os exemplos em `exemplos/` apontam para `public/exemplo/foto.jpg` e `public/exemplo/video.mp4`, que não são
+versionados: coloque ali seus próprios arquivos de teste.
 
 ## Estrutura
 
 ```
-src/Reel.tsx        composição: fundo, cabeçalho, card, lead e animações
+src/Reel.tsx        composição: mídia, círculo, etiqueta, texto, assinatura e animações
 src/Root.tsx        registro da composição e cálculo da duração
 src/tipos.ts        tipos de Noticia e Mascara
 scripts/render.mjs  render por linha de comando (MP4 + capa)

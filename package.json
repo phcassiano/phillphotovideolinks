@@ -8,9 +8,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@fontsource/anton": "5.0.20",
     "@fontsource/jetbrains-mono": "5.0.20",
-    "@fontsource/poppins": "5.0.14",
+    "@fontsource/outfit": "5.2.8",
     "@remotion/bundler": "4.0.533",
     "@remotion/cli": "4.0.533",
     "@remotion/media-utils": "4.0.533",

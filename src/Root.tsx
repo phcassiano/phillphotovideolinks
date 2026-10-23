@@ -23,14 +23,10 @@ const calcularDuracao: CalculateMetadataFunction<ReelProps> = async ({props}) =>
 const exemplo: ReelProps = {
   mascara: mascaraPadrao as Mascara,
   noticia: {
-    midia: {tipo: 'video', src: 'exemplo/video.mp4'},
-    pais: 'BR',
-    editoria: 'Política',
-    manchete: 'PT vai à guerra',
-    mancheteDestaque: 'contra Flávio?',
-    etiqueta: 'Polêmica',
-    lead: 'Pedro Rousseff diz que PT irá à guerra contra Flávio Bolsonaro.',
-    credito: 'vídeo: @luizbacci',
+    midia: {tipo: 'foto', src: 'exemplo/foto.jpg'},
+    etiqueta: '#Tecnologia',
+    lead: 'Bill Gates diz que *clientes insatisfeitos* são a maior fonte de aprendizado',
+    credito: 'Foto: divulgação',
   },
 };
 

@@ -3,16 +3,13 @@
   "nome": "Máscara padrão",
   "perfil": {
     "nome": "Seu Site",
-    "handle": "seusite",
-    "avatar": "mascaras/padrao/avatar.svg",
-    "verificado": true
+    "handle": "seusite"
   },
-  "logo": "mascaras/padrao/logo.svg",
+  "pretoEBranco": true,
   "cores": {
-    "destaque": "#FFC81E",
-    "textoDestaque": "#111111",
-    "faixaPerfil": "#0B4FA8",
-    "brilhoInferior": "#1747D6",
-    "brilhoSuperior": "#B3121F"
+    "destaque": "#2EE6A6",
+    "textoSobreDestaque": "#FFFFFF",
+    "etiquetaFundo": "#FFFFFF",
+    "etiquetaTexto": "#1A1A1A"
   }
 }

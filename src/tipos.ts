@@ -1,22 +1,20 @@
 // Uma máscara é a identidade visual fixa de um perfil/site.
-// Os arquivos (avatar, logo, overlay) ficam em public/mascaras/<id>/ ou em URLs.
+// Os arquivos (logo, overlay) ficam em public/mascaras/<id>/ ou em URLs.
 export type Mascara = {
   id: string;
   nome: string;
   perfil: {
-    nome: string;
+    nome: string; // assinatura em caixa alta, ex: "SEU SITE"
     handle: string; // sem @
-    avatar?: string;
-    verificado?: boolean;
   };
-  logo?: string; // aparece no canto do card
+  logo?: string; // vai dentro do círculo; sem logo, o círculo mostra aspas
   overlayPng?: string; // PNG 1080x1920 com transparência, por cima de tudo (opcional)
+  pretoEBranco?: boolean; // mídia em P&B, como no modelo
   cores: {
-    destaque: string; // faixa da manchete e barra do lead
-    textoDestaque: string;
-    faixaPerfil: string; // faixa azul na base do card
-    brilhoInferior: string; // brilho no rodapé do fundo
-    brilhoSuperior: string; // brilho atrás do card
+    destaque: string; // círculo, barras e palavras marcadas com *asteriscos*
+    textoSobreDestaque: string; // aspas dentro do círculo
+    etiquetaFundo: string; // caixa da etiqueta no topo
+    etiquetaTexto: string;
   };
 };
 
@@ -27,13 +25,11 @@ export type Midia = {
 
 export type Noticia = {
   midia: Midia;
-  pais?: string; // código do país, ex: "BR"
-  editoria: string; // ex: "Política"
-  manchete: string; // parte branca, ex: "PT vai à guerra"
-  mancheteDestaque?: string; // parte na faixa, ex: "contra Flávio?"
-  etiqueta?: string; // ex: "Polêmica"
-  lead: string;
-  credito?: string; // ex: "vídeo: @luizbacci"
+  lead: string; // texto principal; trechos entre *asteriscos* ficam na cor de destaque
+  editoria?: string; // vira "#Editoria" na etiqueta se não houver etiqueta
+  etiqueta?: string; // ex: "Urgente", "#Política"
+  credito?: string; // ex: "Foto: divulgação"
+  pretoEBranco?: boolean; // sobrescreve a máscara
   duracaoFoto?: number; // segundos, só para foto
   duracaoMaxima?: number; // segundos, corta vídeos longos
 };
