@@ -77,10 +77,27 @@ async function sendDm(st, recipient, text, button) {
   return send({ text: text.slice(0, 1000) });
 }
 
+// Botão de resposta rápida ("Já sigo!"). Tocar nele conta como a pessoa escrever, o que libera a consulta de follow.
+async function sendQuick(st, recipient, text, title, payload) {
+  try {
+    return await graph(st, "POST", "me/messages", { body: { recipient, message: { text: text.slice(0, 1000), quick_replies: [{ content_type: "text", title: title.slice(0, 20), payload }] } } });
+  } catch (e) {
+    return graph(st, "POST", "me/messages", { body: { recipient, message: { text: `${text}\n\nQuando seguir, responda SIGO aqui.`.slice(0, 1000) } } });
+  }
+}
+// A Meta só informa se a pessoa segue a conta depois que ela escreveu no direct. Erro → null.
+async function isFollower(st, igsid) {
+  try {
+    const j = await graph(st, "GET", igsid, { query: { fields: "is_user_follow_business" } });
+    return typeof j.is_user_follow_business === "boolean" ? j.is_user_follow_business : null;
+  } catch { return null; }
+}
+
 // ---------- Regras ----------
 // { id, name, active, on: "comment" | "dm" | "both", match: "contains" | "exact" | "any", keywords: [],
 //   mediaIds: [] (vazio = todos os posts), replies: [] (resposta pública, uma sorteada),
-//   dm: "", button: {title, url} | null, hide: false }
+//   dm: "", button: {title, url} | null, hide: false,
+//   followOnly: false (só manda o direct para quem segue a conta), followMsg: "" (pedido para seguir) }
 const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 function matches(rule, text, kind, mediaId) {
   if (!rule.active) return false;
@@ -107,7 +124,7 @@ function cleanRule(r, i) {
   const list = (v, n, len) => (Array.isArray(v) ? v : String(v || "").split(/[\n,]/)).map((x) => s(x, len).trim()).filter(Boolean).slice(0, n);
   const url = s(r.button && r.button.url, 500).trim();
   return {
-    id: /^[a-z0-9]{6,20}$/.test(r.id) ? r.id : crypto.randomBytes(5).toString("hex"),
+    id: typeof r.id === "string" && /^[a-z0-9]{6,20}$/.test(r.id) ? r.id : crypto.randomBytes(5).toString("hex"),
     name: s(r.name, 80).trim() || `Automação ${i + 1}`,
     active: r.active !== false,
     on: ["comment", "dm", "both"].includes(r.on) ? r.on : "comment",
@@ -118,6 +135,8 @@ function cleanRule(r, i) {
     dm: s(r.dm, 1000).trim(),
     button: /^https:\/\//i.test(url) && s(r.button && r.button.title, 20).trim() ? { title: s(r.button.title, 20).trim(), url } : null,
     hide: !!r.hide,
+    followOnly: !!r.followOnly,
+    followMsg: s(r.followMsg, 600).trim(),
   };
 }
 async function getRules(st) {
@@ -163,7 +182,7 @@ async function whoIs(st, igsid) {
 module.exports = {
   storage, redis, sha, sameHash, VERSION,
   getToken, refreshToken, graph, me,
-  replyComment, hideComment, deleteComment, sendDm,
+  replyComment, hideComment, deleteComment, sendDm, sendQuick, isFollower,
   norm, matches, pickRule, fill, pick, getRules, saveRules,
   log, saveMsg, whoIs,
 };

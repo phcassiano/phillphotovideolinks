@@ -5,7 +5,8 @@ Responde sozinho os comentários e as mensagens de direct do **@phill.photovideo
 - **Automações por palavra-chave**: alguém comenta "QUERO" → o robô responde no comentário ("Te mandei no direct, @maria!") **e** manda o link no direct, com botão.
 - Pode valer para **todos os posts** ou só para os que você escolher.
 - Automações de **direct**: alguém escreve "câmera" → recebe o link. Também dá para criar uma mensagem de boas-vindas para qualquer direct (no máximo 1 vez a cada 12 h por pessoa).
-- **Respostas com IA (Claude)**: o que não bate com nenhuma palavra-chave a IA responde, usando só o que você escreveu sobre você. Se não souber ou o assunto for sério, ela não inventa: marca a conversa como **precisa de você**.
+- **Só para quem segue**: a automação pode exigir follow. O robô pede para a pessoa seguir, ela toca em **"Já sigo!"**, ele confere no Instagram e só então manda o link.
+- **Respostas com IA (Google Gemini)**: o que não bate com nenhuma palavra-chave a IA responde, usando só o que você escreveu sobre você. Se não souber ou o assunto for sério, ela não inventa: marca a conversa como **precisa de você**.
 - **Comentários**: veja os comentários de cada post e responda, mande direct, oculte ou apague, tudo pelo painel.
 - **Direct**: caixa de entrada com as conversas, para responder pelo painel.
 - **Atividade**: histórico do que o robô fez, com os erros, e números do dia.
@@ -22,9 +23,9 @@ Usa só a **API oficial da Meta** (a mesma do ManyChat), então não tem risco d
 | `api/admin.js` | API do painel (protegida por senha) |
 | `api/cron.js` | Renova o token toda segunda-feira |
 | `api/_ig.js`, `api/_db.js` | Instagram e Redis |
-| `api/_ai.js` | Respostas com IA (SDK oficial da Anthropic, `package.json`) |
+| `api/_ai.js` | Respostas com IA (Gemini) |
 | `privacidade.html` | Política de privacidade (a Meta exige o link) |
-| `test/simulate.js` | Teste sem internet: `cd insta-bot && npm install && node test/simulate.js` |
+| `test/simulate.js` | Teste sem internet: `node insta-bot/test/simulate.js` |
 
 ## Como colocar no ar (uns 30 minutos)
 
@@ -45,7 +46,7 @@ Usa só a **API oficial da Meta** (a mesma do ManyChat), então não tem risco d
 | `IG_APP_SECRET` | Vem do passo 3 |
 | `IG_ACCESS_TOKEN` | Vem do passo 3 |
 | `CRON_SECRET` | Qualquer texto longo e aleatório (o Vercel usa para chamar a renovação do token) |
-| `ANTHROPIC_API_KEY` | Opcional, para as respostas com IA. Crie em [console.anthropic.com](https://console.anthropic.com) → API Keys (precisa de créditos na conta) |
+| `GEMINI_API_KEY` | Opcional, para as respostas com IA. Crie em [aistudio.google.com](https://aistudio.google.com) → **Get API key** |
 
 5. Depois de preencher, **Redeploy**.
 
@@ -69,8 +70,17 @@ Usa só a **API oficial da Meta** (a mesma do ManyChat), então não tem risco d
 2. Em **Automações**, clique em **Usar modelo "Comenta QUERO"**, coloque o link no botão e salve.
 3. Com **outra conta** do Instagram, comente "quero" num post. Em segundos aparece a resposta e o direct. A aba **Atividade** mostra o que aconteceu (e o erro, se algo falhar).
 
+## Só mandar o link para quem segue
+Na automação, marque **"Só mandar o direct para quem me segue"**. Funciona em comentário e em direct:
+1. A pessoa comenta "QUERO". O robô responde o comentário e manda no direct: *"Pra receber o link é só me seguir 😉 Depois toque em 'Já sigo!'"* (texto editável), com o botão **Já sigo!**.
+2. Ela toca no botão (ou escreve "sigo"). O robô pergunta ao Instagram se ela segue a conta.
+3. Segue → recebe a mensagem com o link. Ainda não → *"Ainda não apareceu seu follow 😅"* e o botão de novo.
+
+Por que o botão: a Meta só deixa conferir se alguém segue a conta **depois que a pessoa escreve no direct**. Tocar no botão conta como escrever. O ManyChat faz igual.
+Se o Instagram não responder na hora se a pessoa segue, o robô manda o link assim mesmo (para ninguém ficar travado) e registra isso na aba Atividade.
+
 ## Respostas com IA
-1. Coloque a `ANTHROPIC_API_KEY` no Vercel e faça Redeploy.
+1. Coloque a `GEMINI_API_KEY` no Vercel e faça Redeploy. No AI Studio, **ative o faturamento** do projeto da chave: no plano grátis o Google pode usar as conversas para melhorar os produtos dele (e os limites são baixos).
 2. No painel, aba **IA**: escreva quem você é, o que vende, os links, o que **não** fazer (ex.: "não dou desconto pelo direct") e o tom. Quanto mais completo, melhor.
 3. Use **Testar** para ver como ela responderia (nada é enviado), ajuste o texto e ligue.
 
@@ -81,7 +91,7 @@ Como ela se comporta:
 - Você respondeu alguém (pelo painel ou pelo app do Instagram) → a IA fica 24 h sem falar com essa pessoa, para não atropelar você.
 - Limites: até 8 respostas por pessoa por hora e o máximo por dia que você escolher (padrão 200). Tudo aparece na aba **Atividade**.
 
-Custo: usa o Claude Opus 5.5 (`claude-opus-5-5`) com esforço baixo, uns poucos centavos de real por resposta. Para gastar bem menos, defina `AI_MODEL=claude-haiku-5-5` no Vercel (mais simples, porém bem mais barato).
+Custo: usa o **Gemini 3.8 Flash** (`gemini-3.8-flash`), frações de centavo por resposta. Para trocar de modelo, defina `AI_MODEL` no Vercel (ex.: `gemini-3.5-flash-lite`, ainda mais barato).
 
 ## Regras da Meta (valem para o ManyChat também)
 - **Direct por comentário**: 1 mensagem por comentário, em até 7 dias depois do comentário.
@@ -93,8 +103,7 @@ Custo: usa o Claude Opus 5.5 (`claude-opus-5-5`) com esforço baixo, uns poucos 
 | Nome | Para quê |
 |---|---|
 | `IG_GRAPH_VERSION` | Versão da API (padrão `v24.0`) |
-| `AI_MODEL` | Modelo da IA (padrão `claude-opus-5-5`) |
+| `AI_MODEL` | Modelo do Gemini (padrão `gemini-3.8-flash`) |
 
 ## O que dá para adicionar depois
-- Só mandar o link para quem **segue** a conta (a Meta informa isso depois que a pessoa responde o direct).
 - Sequências (mandar outra mensagem quando a pessoa clica no botão) e respostas a **menções em stories**.

@@ -1,8 +1,0 @@
-{
-  "name": "insta-bot",
-  "private": true,
-  "engines": { "node": ">=20" },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^1.1.0"
-  }
-}

@@ -18,7 +18,7 @@ const ops = {
     const env = {
       IG_ACCESS_TOKEN: !!process.env.IG_ACCESS_TOKEN, IG_APP_SECRET: !!process.env.IG_APP_SECRET,
       IG_VERIFY_TOKEN: !!process.env.IG_VERIFY_TOKEN, CRON_SECRET: !!process.env.CRON_SECRET,
-      ANTHROPIC_API_KEY: ai.ready(),
+      GEMINI_API_KEY: ai.ready(),
     };
     const day = new Date().toISOString().slice(0, 10);
     const [tok, stats, today] = await redis(st, ["GET", "ib:token"], ["HGETALL", "ib:stats"], ["HGETALL", `ib:stats:${day}`]);
@@ -117,7 +117,7 @@ const ops = {
   async ai(st) { return { settings: await ai.getSettings(st), ready: ai.ready(), model: ai.MODEL }; },
   async saveAi(st, b) { return { settings: await ai.saveSettings(st, b.settings || {}) }; },
   async aiTest(st, b) {
-    if (!ai.ready()) throw new Error("Falta configurar ANTHROPIC_API_KEY no Vercel.");
+    if (!ai.ready()) throw new Error("Falta configurar GEMINI_API_KEY no Vercel.");
     const text = String(b.text || "").trim().slice(0, 1000);
     if (!text) throw new Error("Escreva uma mensagem de teste.");
     const settings = { ...(await ai.getSettings(st)), ...(b.settings ? { about: String(b.settings.about || "").slice(0, 8000) } : {}) };

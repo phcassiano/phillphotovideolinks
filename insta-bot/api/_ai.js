@@ -1,12 +1,9 @@
-// Respostas com IA (Claude) para o que não bate com nenhuma automação de palavra-chave.
-// Configuração no painel (aba IA), guardada no Redis em ib:ai. Chave da API: ANTHROPIC_API_KEY no Vercel.
-const { Anthropic } = require("@anthropic-ai/sdk");
+// Respostas com IA (Google Gemini) para o que não bate com nenhuma automação de palavra-chave.
+// Configuração no painel (aba IA), guardada no Redis em ib:ai. Chave da API: GEMINI_API_KEY no Vercel.
 const { redis } = require("./_db.js");
 
-const MODEL = process.env.AI_MODEL || "claude-opus-5-5";
+const MODEL = process.env.AI_MODEL || "gemini-3.8-flash";
 const HOUR_MAX = 8; // respostas da IA por pessoa por hora
-let client = null;
-const anthropic = () => client || (client = new Anthropic({ maxRetries: 1, timeout: 25000 }));
 
 const DEFAULTS = { enabled: false, dm: true, comments: false, about: "", maxPerDay: 200 };
 async function getSettings(st) {
@@ -23,7 +20,7 @@ async function saveSettings(st, b) {
   await redis(st, ["SET", "ib:ai", JSON.stringify(s)]);
   return s;
 }
-const ready = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+const ready = () => !!process.env.GEMINI_API_KEY;
 
 // Teto do dia (custo) e por pessoa por hora (para ninguém ficar conversando com o robô sem parar).
 async function allowed(st, settings, who) {
@@ -52,33 +49,46 @@ function systemPrompt(settings, account, kind) {
 }
 
 const SCHEMA = {
-  type: "object",
+  type: "OBJECT",
   properties: {
-    action: { type: "string", enum: ["reply", "skip", "human"] },
-    reply: { type: "string" },
+    action: { type: "STRING", enum: ["reply", "skip", "human"] },
+    reply: { type: "STRING" },
   },
   required: ["action", "reply"],
-  additionalProperties: false,
 };
+
+async function generate(system, prompt) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 25000);
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(MODEL)}:generateContent`, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: SCHEMA, maxOutputTokens: 4000 },
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j.error && j.error.message) || `Gemini respondeu ${r.status}`);
+    return j;
+  } catch (e) {
+    throw new Error(e.name === "AbortError" ? "Gemini demorou demais" : e.message);
+  } finally { clearTimeout(timer); }
+}
 
 // history: [{from: "user" | "me", text}] em ordem; a última é a mensagem a responder.
 async function ask(settings, account, kind, history, username) {
   const transcript = history.slice(-12).map((m) => `${m.from === "me" ? `@${account}` : username ? `@${username}` : "Seguidor"}: ${m.text}`).join("\n");
-  const response = await anthropic().beta.messages.create({
-    model: MODEL,
-    max_tokens: 2000,
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
-    system: systemPrompt(settings, account, kind),
-    messages: [{
-      role: "user",
-      content: `${kind === "dm" ? "Conversa no direct" : "Comentário no post"}:\n<conversa>\n${transcript}\n</conversa>\nDecida a ação e escreva a resposta para a última mensagem.`,
-    }],
-  });
-  if (response.stop_reason === "refusal") return { action: "human", reply: "", note: "recusado" };
-  if (response.stop_reason === "max_tokens") return { action: "human", reply: "", note: "resposta cortada" };
-  const text = (response.content.find((b) => b.type === "text") || {}).text || "";
+  const j = await generate(systemPrompt(settings, account, kind),
+    `${kind === "dm" ? "Conversa no direct" : "Comentário no post"}:\n<conversa>\n${transcript}\n</conversa>\nDecida a ação e escreva a resposta para a última mensagem.`);
+  const cand = (j.candidates || [])[0];
+  if ((j.promptFeedback && j.promptFeedback.blockReason) || !cand) return { action: "human", reply: "", note: "bloqueado pelo Gemini" };
+  if (cand.finishReason === "MAX_TOKENS") return { action: "human", reply: "", note: "resposta cortada" };
+  if (cand.finishReason && cand.finishReason !== "STOP") return { action: "human", reply: "", note: "bloqueado pelo Gemini (" + cand.finishReason + ")" };
+  const text = ((cand.content && cand.content.parts) || []).filter((p) => !p.thought && p.text).map((p) => p.text).join("");
   let out; try { out = JSON.parse(text); } catch { return { action: "human", reply: "", note: "resposta inválida" }; }
   const reply = String(out.reply || "").trim().slice(0, kind === "dm" ? 900 : 300);
   if (out.action === "reply" && !reply) return { action: "skip", reply: "" };

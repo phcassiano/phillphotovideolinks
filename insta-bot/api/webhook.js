@@ -41,6 +41,40 @@ async function aiFor(st, kind, who) {
   return (await ai.allowed(st, s, kind + ":" + who)) ? s : null;
 }
 
+// ---------- Só para quem segue ----------
+const GATE_BTN = "Já sigo!";
+const GATE_DEFAULT = "Oi{nome}! Pra receber o link é só me seguir 😉 Depois toque em \"Já sigo!\" aqui embaixo 👇";
+const GATE_WORDS = new Set(["sigo", "ja sigo", "segui", "ja segui", "pronto", "ja sigo!", "seguindo"]);
+const gateText = (rule, vars) => rule.followMsg ? ig.fill(rule.followMsg, vars) : ig.fill(GATE_DEFAULT, { ...vars, nome: vars.nome ? " " + vars.nome : "" });
+async function botQuick(st, recipient, text, ruleId) {
+  const j = await ig.sendQuick(st, recipient, text, GATE_BTN, "SIGO:" + ruleId);
+  if (j && j.message_id) await redis(st, ["SET", `ib:botmid:${j.message_id}`, "1", "EX", "86400"]);
+}
+async function askToFollow(st, recipient, rule, vars, who) {
+  await botQuick(st, recipient, gateText(rule, vars), rule.id);
+  if (who) await redis(st, ["SET", `ib:gate:${who}`, rule.id, "EX", String(7 * 86400)]);
+}
+// Pessoa tocou em "Já sigo!" (ou escreveu SIGO): confere o follow e manda o link, ou pede de novo.
+async function onFollowTap(st, me, sender, username, ruleId) {
+  const rule = (await ig.getRules(st)).find((r) => r.id === ruleId);
+  const base = { user: username, igsid: sender, rule: rule ? rule.name : "" };
+  if (!rule || !rule.dm) return ig.log(st, { type: "dm", ...base, text: GATE_BTN });
+  const vars = { nome: username ? "@" + username : "", usuario: username };
+  const follows = await ig.isFollower(st, sender);
+  try {
+    if (follows === false) {
+      await botQuick(st, { id: sender }, `Ainda não apareceu seu follow por aqui 😅 Me segue em @${me.username || "minha conta"} e toque de novo 👇`, rule.id);
+      return ig.log(st, { type: "follow_wait", ...base, text: "ainda não segue" });
+    }
+    await botSend(st, { id: sender }, ig.fill(rule.dm, vars), rule.button);
+    await redis(st, ["DEL", `ib:gate:${sender}`]);
+    // Se a Meta não respondeu se segue (null), manda assim mesmo para ninguém ficar travado.
+    await ig.log(st, { type: "follow_ok", ...base, done: ["direct"], ...(follows === null ? { errors: ["não deu para conferir o follow; link enviado"] } : {}) });
+  } catch (e) {
+    await ig.log(st, { type: "error", ...base, errors: ["direct: " + e.message] });
+  }
+}
+
 async function onComment(st, me, v) {
   const myId = me.id;
   const from = v.from || {};
@@ -58,7 +92,9 @@ async function onComment(st, me, v) {
   const reply = ig.fill(ig.pick(rule.replies), vars);
   if (reply) { try { await ig.replyComment(st, commentId, reply); done.push("respondeu"); } catch (e) { errors.push("resposta: " + e.message); } }
   // Resposta privada: a Meta deixa mandar 1 direct por comentário, em até 7 dias.
-  if (rule.dm) { try { await botSend(st, { comment_id: commentId }, ig.fill(rule.dm, vars), rule.button); done.push("direct"); } catch (e) { errors.push("direct: " + e.message); } }
+  if (rule.dm && rule.followOnly) {
+    try { await askToFollow(st, { comment_id: commentId }, rule, vars, from.id); done.push("pediu para seguir"); } catch (e) { errors.push("direct: " + e.message); }
+  } else if (rule.dm) { try { await botSend(st, { comment_id: commentId }, ig.fill(rule.dm, vars), rule.button); done.push("direct"); } catch (e) { errors.push("direct: " + e.message); } }
   if (rule.hide) { try { await ig.hideComment(st, commentId); done.push("ocultou"); } catch (e) { errors.push("ocultar: " + e.message); } }
   await ig.log(st, { type: errors.length ? "error" : "auto_comment", rule: rule.name, ...base, done, errors });
 }
@@ -123,6 +159,13 @@ async function onMessage(st, me, m) {
   await ig.saveMsg(st, sender, { from: "user", text, kind, mid: msg.mid }, username);
   if (!text) return ig.log(st, { type: "dm", user: username, igsid: sender, text: kind ? `[${kind}]` : "" });
 
+  const payload = String((msg.quick_reply && msg.quick_reply.payload) || "");
+  if (payload.startsWith("SIGO:")) return onFollowTap(st, me, sender, username, payload.slice(5));
+  if (GATE_WORDS.has(ig.norm(text).replace(/[!.]+$/, ""))) {
+    const [pending] = await redis(st, ["GET", `ib:gate:${sender}`]);
+    if (pending) return onFollowTap(st, me, sender, username, pending);
+  }
+
   const rule = ig.pickRule(await ig.getRules(st), text, "dm");
   // Palavra-chave tem prioridade; o que não bate com nenhuma vai para a IA (se ligada), antes da regra "qualquer texto".
   if ((!rule || rule.match === "any") && (await aiDm(st, me, sender, username, text))) return;
@@ -132,8 +175,13 @@ async function onMessage(st, me, m) {
     const [ok] = await redis(st, ["SET", `ib:any:${rule.id}:${sender}`, "1", "NX", "EX", String(12 * 3600)]);
     if (ok !== "OK") return ig.log(st, { type: "dm", user: username, igsid: sender, text: text.slice(0, 300) });
   }
-  const reply = ig.fill(rule.dm, { nome: username ? "@" + username : "", usuario: username });
+  const vars = { nome: username ? "@" + username : "", usuario: username };
+  const reply = ig.fill(rule.dm, vars);
   try {
+    if (rule.followOnly && (await ig.isFollower(st, sender)) === false) {
+      await askToFollow(st, { id: sender }, rule, vars, sender);
+      return ig.log(st, { type: "follow_wait", rule: rule.name, user: username, igsid: sender, text: text.slice(0, 300), done: ["pediu para seguir"] });
+    }
     await botSend(st, { id: sender }, reply, rule.button);
     await ig.log(st, { type: "auto_dm", rule: rule.name, user: username, igsid: sender, text: text.slice(0, 300), done: ["direct"] });
   } catch (e) {

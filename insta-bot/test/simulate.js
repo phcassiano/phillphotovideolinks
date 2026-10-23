@@ -11,7 +11,7 @@ process.env.IG_APP_SECRET = "segredo";
 process.env.IG_VERIFY_TOKEN = "verifica";
 process.env.ADMIN_PASSWORD = "senha-longa-123";
 process.env.CRON_SECRET = "cron";
-process.env.ANTHROPIC_API_KEY = "sk-test";
+process.env.GEMINI_API_KEY = "gm-test";
 
 // ---- Redis em memória ----
 const kv = new Map(), hashes = new Map(), lists = new Map(), zsets = new Map();
@@ -42,19 +42,19 @@ function cmd([c, ...a]) {
 // ---- Instagram falso ----
 const calls = [];
 let failButton = false;
-// Claude falso: responde o que estiver em aiAnswer.
+// Gemini falso: responde o que estiver em aiAnswer. Seguidores: quem está em followers.
 const aiCalls = [];
-let aiAnswer = { action: "reply", reply: "Uso uma Sony ZV-E10 😄" }, aiStop = "end_turn";
+let aiAnswer = { action: "reply", reply: "Uso uma Sony ZV-E10 😄" }, aiStop = "STOP";
+const followers = new Set();
 global.fetch = async (url, opt = {}) => {
   const u = new URL(typeof url === "string" ? url : url.url || String(url));
-  if (u.host === "api.anthropic.com") {
-    const headers = Object.fromEntries(new Headers(opt.headers).entries());
-    aiCalls.push({ path: u.pathname, headers, body: JSON.parse(opt.body) });
-    const msg = { id: "msg_1", type: "message", role: "assistant", model: "claude-opus-5-5", stop_reason: aiStop,
-      content: aiStop === "refusal" ? [] : [{ type: "text", text: JSON.stringify(aiAnswer) }], usage: { input_tokens: 10, output_tokens: 10 } };
-    return new Response(JSON.stringify(msg), { status: 200, headers: { "content-type": "application/json" } });
-  }
   const json = (o, status = 200) => ({ ok: status < 300, status, json: async () => o });
+  if (u.host === "generativelanguage.googleapis.com") {
+    const b = JSON.parse(opt.body);
+    aiCalls.push({ path: u.pathname, headers: opt.headers, body: b, system: b.systemInstruction.parts[0].text, prompt: b.contents[0].parts[0].text });
+    if (aiStop === "BLOCK") return json({ promptFeedback: { blockReason: "SAFETY" } });
+    return json({ candidates: [{ finishReason: aiStop, content: { role: "model", parts: [{ text: JSON.stringify(aiAnswer) }] } }] });
+  }
   if (u.host === "redis.test") return json(JSON.parse(opt.body).map((c) => ({ result: cmd(c) })));
   calls.push({ method: opt.method || "GET", path: u.pathname, query: Object.fromEntries(u.searchParams), body: opt.body ? JSON.parse(opt.body) : null });
   const p = u.pathname.replace(/^\/v[\d.]+\//, "");
@@ -67,6 +67,7 @@ global.fetch = async (url, opt = {}) => {
   }
   if (/^\d+\/replies$/.test(p)) return json({ id: "r" + calls.length });
   if (/^\d+$/.test(p) && opt.method === "POST") return json({ success: true });
+  if (/^\d+$/.test(p) && (u.searchParams.get("fields") || "").includes("is_user_follow_business")) return json({ is_user_follow_business: followers.has(p), id: p });
   if (/^\d+$/.test(p)) return json({ username: "fulano", name: "Fulano" });
   return json({ error: { message: "rota desconhecida " + p } }, 404);
 };
@@ -125,6 +126,7 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.body.rules.length, 5);
   assert.strictEqual(r.body.rules[1].mediaIds[0], "222");
+  assert.ok(r.body.rules.every((x) => /^[a-f0-9]{10}$/.test(x.id)), "cada automação ganha um id");
 
   // Comentário com palavra-chave → resposta pública + direct com botão
   calls.length = 0;
@@ -228,14 +230,12 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   await dm("mid.a1", "Que lente você usa no casamento?", "901");
   assert.strictEqual(aiCalls.length, 1);
   const req = aiCalls[0];
-  assert.strictEqual(req.path, "/v1/messages");
-  assert.strictEqual(req.body.model, "claude-opus-5-5");
-  assert.strictEqual(req.body.fallbacks, "default");
-  assert.ok(req.headers["anthropic-beta"].includes("server-side-fallback-2026-07-01"));
-  assert.strictEqual(req.body.output_config.effort, "low");
-  assert.strictEqual(req.body.output_config.format.type, "json_schema");
-  assert.ok(req.body.system.includes("Sou fotógrafo em Brasília."));
-  assert.ok(req.body.messages[0].content.includes("Que lente você usa no casamento?"));
+  assert.strictEqual(req.path, "/v1beta/models/gemini-3.8-flash:generateContent");
+  assert.strictEqual(req.headers["x-goog-api-key"], "gm-test");
+  assert.strictEqual(req.body.generationConfig.responseMimeType, "application/json");
+  assert.deepStrictEqual(req.body.generationConfig.responseSchema.required, ["action", "reply"]);
+  assert.ok(req.system.includes("Sou fotógrafo em Brasília."));
+  assert.ok(req.prompt.includes("Que lente você usa no casamento?"));
   let sent = calls.find((c) => c.path.endsWith("/me/messages"));
   assert.deepStrictEqual(sent.body, { recipient: { id: "901" }, message: { text: "Uso uma Sony ZV-E10 😄" } });
 
@@ -244,7 +244,7 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   aiCalls.length = 0;
   await dm("mid.a2", "E o tripé?", "901");
   assert.strictEqual(aiCalls.length, 1);
-  assert.ok(aiCalls[0].body.messages[0].content.includes("Que lente você usa no casamento?"), "manda o histórico");
+  assert.ok(aiCalls[0].prompt.includes("Que lente você usa no casamento?"), "manda o histórico");
 
   // Palavra-chave continua ganhando da IA
   aiCalls.length = 0;
@@ -282,10 +282,10 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   assert.strictEqual(calls.filter((c) => c.method === "POST").length, 0);
 
   // Recusa do modelo vira "precisa de você", sem resposta
-  aiStop = "refusal"; calls.length = 0;
+  aiStop = "BLOCK"; calls.length = 0;
   await dm("mid.a8", "pergunta estranha", "904");
   assert.strictEqual(calls.filter((c) => c.path.endsWith("/me/messages")).length, 0);
-  aiStop = "end_turn";
+  aiStop = "STOP";
 
   // Teto por pessoa por hora (8)
   aiAnswer = { action: "reply", reply: "ok" }; aiCalls.length = 0;
@@ -296,7 +296,62 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   aiAnswer = { action: "reply", reply: "Teste ok" };
   r = await adm("aiTest", { text: "oi", kind: "dm", settings: { about: "texto novo" } });
   assert.deepStrictEqual(r.body, { action: "reply", reply: "Teste ok" });
-  assert.ok(aiCalls.at(-1).body.system.includes("texto novo"));
+  assert.ok(aiCalls.at(-1).system.includes("texto novo"));
+
+  // ---------- Só para quem segue ----------
+  r = await adm("saveRules", { rules: [{ name: "Preset", on: "both", keywords: ["preset"], replies: ["Te chamei no direct!"], dm: "Aqui o preset:", button: { title: "Baixar", url: "https://exemplo.com/p" }, followOnly: true }] });
+  const gid = r.body.rules[0].id;
+  assert.strictEqual(r.body.rules[0].followOnly, true);
+  const dms = () => calls.filter((c) => c.path.endsWith("/me/messages")).map((c) => c.body);
+
+  // Comentou → pede para seguir com botão "Já sigo!", sem link
+  calls.length = 0; aiCalls.length = 0;
+  await comment("3001", "quero o preset", { id: "700", username: "bia" });
+  let out = dms();
+  assert.strictEqual(out.length, 1);
+  assert.deepStrictEqual(out[0].recipient, { comment_id: "3001" });
+  assert.ok(out[0].message.text.includes("@bia") && !JSON.stringify(out[0]).includes("exemplo.com/p"));
+  assert.deepStrictEqual(out[0].message.quick_replies[0], { content_type: "text", title: "Já sigo!", payload: "SIGO:" + gid });
+
+  // Tocou mas não segue → pede de novo
+  calls.length = 0;
+  await dm("mid.g1", "Já sigo!", "700", { quick_reply: { payload: "SIGO:" + gid } });
+  out = dms();
+  assert.strictEqual(out.length, 1);
+  assert.ok(out[0].message.text.startsWith("Ainda não apareceu seu follow"));
+  assert.ok(!JSON.stringify(out[0]).includes("exemplo.com/p"));
+  assert.strictEqual(aiCalls.length, 0, "a IA não entra no botão");
+
+  // Seguiu e tocou → manda o link
+  followers.add("700"); calls.length = 0;
+  await dm("mid.g2", "Já sigo!", "700", { quick_reply: { payload: "SIGO:" + gid } });
+  out = dms();
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].message.attachment.payload.buttons[0].url, "https://exemplo.com/p");
+  r = await adm("log");
+  assert.strictEqual(r.body.items[0].type, "follow_ok");
+
+  // Sem botão: escreveu "sigo" depois do pedido
+  await comment("3002", "PRESET!", { id: "701", username: "caio" });
+  followers.add("701"); calls.length = 0; aiCalls.length = 0;
+  await dm("mid.g3", "sigo!", "701");
+  out = dms();
+  assert.strictEqual(out[0].message.attachment.payload.buttons[0].url, "https://exemplo.com/p");
+  assert.strictEqual(aiCalls.length, 0);
+  // "sigo" sem pedido pendente não é tratado como botão
+  calls.length = 0;
+  await dm("mid.g4", "sigo", "701");
+  assert.ok(!JSON.stringify(dms()).includes("exemplo.com/p"));
+
+  // Palavra-chave no direct: seguidor recebe direto; quem não segue recebe o pedido
+  followers.add("702"); calls.length = 0;
+  await dm("mid.g5", "me manda o preset", "702");
+  assert.strictEqual(dms()[0].message.attachment.payload.buttons[0].url, "https://exemplo.com/p");
+  calls.length = 0;
+  await dm("mid.g6", "me manda o preset", "703");
+  out = dms();
+  assert.deepStrictEqual(out[0].recipient, { id: "703" });
+  assert.strictEqual(out[0].message.quick_replies[0].payload, "SIGO:" + gid);
 
   // Cron renova o token e passa a usar o novo
   r = await call(cron, { method: "GET", headers: {} });
@@ -306,5 +361,5 @@ const dm = (mid, text, sender = "777", extra = {}) =>
   calls.length = 0;
   await adm("reply", { commentId: "1008", text: "ok" });
   assert.ok(calls.length);
-  console.log("Tudo certo: " + "webhook, regras, direct, IA, painel e token funcionando.");
+  console.log("Tudo certo: " + "webhook, regras, só seguidores, direct, IA, painel e token funcionando.");
 })().catch((e) => { console.error(e); process.exit(1); });

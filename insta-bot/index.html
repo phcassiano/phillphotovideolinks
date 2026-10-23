@@ -193,6 +193,12 @@
           <div><label for="rBtnT">Botão (opcional): texto</label><input type="text" id="rBtnT" maxlength="20" placeholder="Ver oferta"></div>
           <div><label for="rBtnU">Botão: link (https://…)</label><input type="url" id="rBtnU" placeholder="https://…"></div>
         </div>
+        <label class="chk"><input type="checkbox" id="rFollow"> Só mandar o direct para quem me segue</label>
+        <div id="followBox" class="hide">
+          <p class="muted" style="margin-top:6px">Primeiro o robô pede para a pessoa seguir, com um botão <b>"Já sigo!"</b>. Quando ela toca, ele confere no Instagram e só então manda a mensagem com o link. Se ainda não segue, pede de novo.</p>
+          <label for="rFollowMsg">Mensagem pedindo para seguir (opcional)</label>
+          <textarea id="rFollowMsg" placeholder="Oi {nome}! Pra receber o link é só me seguir 😉 Depois toque em &quot;Já sigo!&quot; aqui embaixo 👇"></textarea>
+        </div>
         <label class="chk" id="hideBox"><input type="checkbox" id="rHide"> Ocultar o comentário depois de responder</label>
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn" onclick="salvarRegra()">Salvar</button>
@@ -206,8 +212,8 @@
     <section id="t-ia" class="hide">
       <div class="panel">
         <h2>Respostas com IA</h2>
-        <p class="muted">A IA (Claude) responde o que não bate com nenhuma automação de palavra-chave, usando só o que você escrever abaixo. Quando não souber, ou o assunto for sério (reclamação, parceria, negociação), ela não inventa: marca a conversa como <b>precisa de você</b> e fica quieta.</p>
-        <div id="aiWarn" class="warn hide">Falta configurar <code>ANTHROPIC_API_KEY</code> no Vercel (pegue a chave em console.anthropic.com). Sem ela a IA não liga.</div>
+        <p class="muted">A IA (Google Gemini) responde o que não bate com nenhuma automação de palavra-chave, usando só o que você escrever abaixo. Quando não souber, ou o assunto for sério (reclamação, parceria, negociação), ela não inventa: marca a conversa como <b>precisa de você</b> e fica quieta.</p>
+        <div id="aiWarn" class="warn hide">Falta configurar <code>GEMINI_API_KEY</code> no Vercel (pegue a chave em aistudio.google.com → Get API key). Sem ela a IA não liga.</div>
         <label class="chk"><span class="switch"><input type="checkbox" id="aiOn"><span></span></span> <b>IA ligada</b></label>
         <label class="chk"><input type="checkbox" id="aiDm"> Responder directs</label>
         <label class="chk"><input type="checkbox" id="aiCm"> Responder comentários (resposta pública curta; elogios e emojis ela pula)</label>
@@ -335,7 +341,7 @@ async function carregarStatus() {
     [s.env.IG_ACCESS_TOKEN || !!s.token, "Token do Instagram" + exp],
     [!!s.account, s.account ? `Conectado como @${s.account.username}` : "Conta do Instagram: " + (s.accountError || "não conectada")],
     [s.env.CRON_SECRET, "CRON_SECRET (renova o token sozinho toda semana)"],
-    [s.env.ANTHROPIC_API_KEY, "ANTHROPIC_API_KEY (opcional: respostas com IA)"],
+    [s.env.GEMINI_API_KEY, "GEMINI_API_KEY (opcional: respostas com IA)"],
   ];
   $("checks").innerHTML = items.map(([ok, t]) => `<div class="check"><span class="dot ${ok ? "ok" : ""}"></span><span>${esc(t)}</span></div>`).join("");
   $("hookUrl").textContent = location.origin + "/api/webhook";
@@ -351,7 +357,7 @@ function desenharRegras() {
       <div class="rule-head">
         <div class="grow"><b>${esc(r.name)}</b>
           <span class="pill">${ON[r.on]}</span>${r.match === "any" ? '<span class="pill">Qualquer texto</span>' : r.keywords.map((k) => `<span class="pill">${esc(k)}</span>`).join("")}
-          ${r.mediaIds.length ? `<span class="pill off">${r.mediaIds.length} post(s)</span>` : ""}${r.dm ? '<span class="pill off">direct</span>' : ""}${r.replies.length ? '<span class="pill off">resposta pública</span>' : ""}
+          ${r.mediaIds.length ? `<span class="pill off">${r.mediaIds.length} post(s)</span>` : ""}${r.dm ? '<span class="pill off">direct</span>' : ""}${r.followOnly ? '<span class="pill off">só seguidores</span>' : ""}${r.replies.length ? '<span class="pill off">resposta pública</span>' : ""}
         </div>
         <label class="switch" title="Ligar/desligar"><input type="checkbox" ${r.active ? "checked" : ""} onchange="alternar(${i},this.checked)"><span></span></label>
         <button class="btn ghost sm" onclick="editarRegra(${i})">Editar</button>
@@ -375,6 +381,7 @@ function editarRegra(i) {
   $("rName").value = r.name; $("rOn").value = r.on; $("rMatch").value = r.match;
   $("rKw").value = r.keywords.join(", "); $("rReplies").value = r.replies.join("\n"); $("rDm").value = r.dm;
   $("rBtnT").value = r.button ? r.button.title : ""; $("rBtnU").value = r.button ? r.button.url : "";
+  $("rFollow").checked = !!r.followOnly; $("rFollowMsg").value = r.followMsg || "";
   $("rHide").checked = r.hide; $("rDel").classList.toggle("hide", i == null);
   SEL = new Set(r.mediaIds);
   $("editor").classList.remove("hide"); ajustarEditor();
@@ -385,9 +392,10 @@ function ajustarEditor() {
   const c = $("rOn").value !== "dm";
   $("kwBox").classList.toggle("hide", $("rMatch").value === "any");
   ["postBox", "pubBox", "hideBox"].forEach((id) => $(id).classList.toggle("hide", !c));
+  $("followBox").classList.toggle("hide", !$("rFollow").checked);
   $("postInfo").textContent = SEL.size ? `Só em ${SEL.size} post(s) marcado(s). Toque de novo para desmarcar.` : "Todos os posts. Toque nos posts abaixo para limitar.";
 }
-$("rOn").onchange = ajustarEditor; $("rMatch").onchange = ajustarEditor;
+$("rOn").onchange = ajustarEditor; $("rMatch").onchange = ajustarEditor; $("rFollow").onchange = ajustarEditor;
 function fecharEditor() { $("editor").classList.add("hide"); EDIT = null; }
 async function salvarRegra() {
   const r = {
@@ -395,10 +403,12 @@ async function salvarRegra() {
     name: $("rName").value, on: $("rOn").value, match: $("rMatch").value,
     keywords: $("rKw").value.split(","), mediaIds: [...SEL], replies: $("rReplies").value.split("\n"),
     dm: $("rDm").value, button: { title: $("rBtnT").value, url: $("rBtnU").value }, hide: $("rHide").checked,
+    followOnly: $("rFollow").checked, followMsg: $("rFollowMsg").value,
   };
   if (r.on === "dm") { r.mediaIds = []; r.replies = []; r.hide = false; }
   if (r.match !== "any" && !r.keywords.some((k) => k.trim())) return toast("Coloque pelo menos uma palavra-chave.", true);
   if (!r.dm.trim() && !r.replies.some((x) => x.trim())) return toast("Escreva a resposta pública ou a mensagem do direct.", true);
+  if (r.followOnly && !r.dm.trim()) return toast("\"Só para quem me segue\" precisa da mensagem no direct (é ela que leva o link).", true);
   if ($("rBtnU").value && !/^https:\/\//i.test($("rBtnU").value)) return toast("O link do botão precisa começar com https://", true);
   const prev = RULES.slice();
   if (EDIT != null) RULES[EDIT] = r; else RULES.push(r);
@@ -521,8 +531,8 @@ async function enviar() {
 }
 
 // ---------- Atividade ----------
-const ICON = { ai_dm: "✨", ai_comment: "✨", handoff: "🙋", auto_comment: "🤖", auto_dm: "📩", comment: "💬", dm: "✉️", manual_reply: "✍️", manual_dm: "✍️", error: "⚠️", mention: "📣", token: "🔑" };
-const TXT = { ai_dm: "IA respondeu direct", ai_comment: "IA respondeu comentário", handoff: "IA passou para você", auto_comment: "Robô respondeu comentário", auto_dm: "Robô respondeu direct", comment: "Comentário (nenhuma regra)", dm: "Direct recebido", manual_reply: "Você respondeu um comentário", manual_dm: "Você mandou direct por comentário", error: "Erro", mention: "Marcaram a conta", token: "Token" };
+const ICON = { follow_ok: "✅", follow_wait: "👀", ai_dm: "✨", ai_comment: "✨", handoff: "🙋", auto_comment: "🤖", auto_dm: "📩", comment: "💬", dm: "✉️", manual_reply: "✍️", manual_dm: "✍️", error: "⚠️", mention: "📣", token: "🔑" };
+const TXT = { follow_ok: "Seguidor confirmado, link enviado", follow_wait: "Pediu para seguir", ai_dm: "IA respondeu direct", ai_comment: "IA respondeu comentário", handoff: "IA passou para você", auto_comment: "Robô respondeu comentário", auto_dm: "Robô respondeu direct", comment: "Comentário (nenhuma regra)", dm: "Direct recebido", manual_reply: "Você respondeu um comentário", manual_dm: "Você mandou direct por comentário", error: "Erro", mention: "Marcaram a conta", token: "Token" };
 async function carregarLog() {
   let j; try { j = await tryApi("log"); } catch { return; }
   $("log").innerHTML = j.items.length ? j.items.map((e) => `
