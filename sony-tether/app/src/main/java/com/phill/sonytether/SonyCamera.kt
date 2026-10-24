@@ -40,9 +40,11 @@ class SonyCamera(private val ptp: PtpUsb) {
     private var propsFresh = false
 
     fun connect() {
+        ptp.restartTransactionIds()
         val open = ptp.transaction(Ptp.OC_OPEN_SESSION, intArrayOf(1))
         if (open.code == Ptp.RC_SESSION_ALREADY_OPEN) {
             ptp.transaction(Ptp.OC_CLOSE_SESSION)
+            ptp.restartTransactionIds()
             Ptp.expectOk("Abrir sessão", ptp.transaction(Ptp.OC_OPEN_SESSION, intArrayOf(1)))
         } else {
             Ptp.expectOk("Abrir sessão", open)
@@ -121,6 +123,9 @@ class SonyCamera(private val ptp: PtpUsb) {
         Ptp.expectOk("Ao vivo", r)
         return findJpeg(r.data)
     }
+
+    /** Destrava a conexão USB antes de uma nova tentativa. */
+    fun recover() = ptp.recover()
 
     fun close() {
         runCatching { ptp.transaction(Ptp.OC_CLOSE_SESSION, timeoutMs = 1000) }

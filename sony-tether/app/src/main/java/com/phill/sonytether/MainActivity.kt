@@ -1,6 +1,9 @@
 package com.phill.sonytether
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -141,6 +144,8 @@ class MainActivity : Activity(), CameraSession.Listener {
         if (session != null) return
         val iface = ptpInterface(device)
         if (iface == null) {
+            DiagLog.describe(device)
+            DiagLog.add("nenhuma interface PTP")
             setStatus("A câmera não está no modo PC Remoto. Mude a Conexão USB para \"PC Remoto\" e conecte de novo.")
             return
         }
@@ -322,6 +327,7 @@ class MainActivity : Activity(), CameraSession.Listener {
         column.addView(status)
         connectButton = button("Conectar câmera", ACCENT, Color.BLACK) { connect() }
         column.addView(connectButton, fullWidth(dp(48)))
+        column.addView(button("Diagnóstico", SURFACE, Color.WHITE) { showDiagnostics() }, fullWidth(dp(40)).apply { topMargin = dp(8) })
         info = label("", 14f, Color.WHITE).apply { setPadding(0, dp(12), 0, dp(4)) }
         column.addView(info)
 
@@ -374,6 +380,29 @@ class MainActivity : Activity(), CameraSession.Listener {
             addView(panel)
         }
         setContentView(root)
+    }
+
+    private fun showDiagnostics() {
+        val text = DiagLog.text()
+        val view = label(text, 11f, Color.WHITE).apply {
+            typeface = Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Diagnóstico")
+            .setView(ScrollView(this).apply { addView(view) })
+            .setPositiveButton("Copiar") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Sony Tether", text))
+                Toast.makeText(this, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("Compartilhar") { _, _ ->
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                startActivity(Intent.createChooser(send, "Enviar diagnóstico"))
+            }
+            .setNegativeButton("Fechar", null)
+            .show()
     }
 
     private fun applyOrientation(config: Configuration) {

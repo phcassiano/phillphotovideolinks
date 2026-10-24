@@ -61,9 +61,10 @@ class CameraSession(
         var reason: String? = null
         var camera: SonyCamera? = null
         try {
+            DiagLog.describe(device)
+            DiagLog.add("usando a interface #${iface.id} (classe ${iface.interfaceClass})")
             camera = SonyCamera(PtpUsb(connection, iface))
-            ui { listener.onStatus("Ativando o modo PC Remoto…") }
-            camera.connect()
+            connectWithRetries(camera)
             val props = camera.props
             ui {
                 listener.onConnected(device.productName ?: "Sony")
@@ -74,9 +75,27 @@ class CameraSession(
             // Encerrada pela tela.
         } catch (e: Exception) {
             if (running) reason = e.message ?: e.javaClass.simpleName
+            DiagLog.add("sessão encerrada: ${e.javaClass.simpleName}: ${e.message}")
         } finally {
             if (camera != null) camera.close() else runCatching { connection.close() }
             main.post { listener.onDisconnected(this, reason) }
+        }
+    }
+
+    /** A câmera pode estar presa numa conexão anterior ou ainda trocando de modo: destrava e tenta de novo. */
+    private fun connectWithRetries(camera: SonyCamera) {
+        for (attempt in 1..CONNECT_ATTEMPTS) {
+            ui { listener.onStatus(if (attempt == 1) "Ativando o modo PC Remoto…" else "Tentando de novo ($attempt de $CONNECT_ATTEMPTS)…") }
+            DiagLog.add("conectar: tentativa $attempt")
+            if (attempt > 1) Thread.sleep(1500)
+            camera.recover()
+            try {
+                camera.connect()
+                DiagLog.add("conectado, protocolo ${camera.protocolVersion}, ${camera.props.size} ajustes")
+                return
+            } catch (e: PtpException) {
+                if (attempt == CONNECT_ATTEMPTS || !running) throw e
+            }
         }
     }
 
@@ -169,6 +188,7 @@ class CameraSession(
     }
 
     private companion object {
+        const val CONNECT_ATTEMPTS = 3
         const val POLL_MS = 400L
         const val PREVIEW_PX = 2048
         const val THUMB_PX = 160

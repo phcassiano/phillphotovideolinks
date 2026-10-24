@@ -4,6 +4,8 @@ import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
+import android.os.SystemClock
+import com.phill.sonytether.DiagLog
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -56,6 +58,39 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         if (!connection.claimInterface(iface, true)) throw PtpException("Não foi possível assumir a interface USB")
     }
 
+    /** A próxima transação abre a sessão: pelo padrão PTP, ela usa o número 0. */
+    fun restartTransactionIds() {
+        transactionId = -1
+    }
+
+    /**
+     * Destrava a conexão: pedido de reset do PTP, limpeza da trava (halt) das duas portas
+     * e descarte de dados velhos que a câmera ainda tinha para mandar.
+     */
+    fun recover() {
+        val reset = connection.controlTransfer(0x21, REQ_DEVICE_RESET, 0, iface.id, null, 0, 1000)
+        val haltOut = clearHalt(bulkOut)
+        val haltIn = clearHalt(bulkIn)
+        var drained = 0
+        for (i in 0 until 8) {
+            val n = connection.bulkTransfer(bulkIn, chunk, chunk.size, 200)
+            if (n <= 0) break
+            drained += n
+        }
+        DiagLog.add("recuperar: reset=$reset halt(out)=$haltOut halt(in)=$haltIn descartados=$drained bytes, status=${deviceStatus()}")
+    }
+
+    /** Status do dispositivo (pedido de classe PTP 0x67): "0x2001" quando está pronto. */
+    fun deviceStatus(): String {
+        val buf = ByteArray(32)
+        val n = connection.controlTransfer(0xA1, REQ_GET_DEVICE_STATUS, 0, iface.id, buf, buf.size, 1000)
+        if (n < 4) return "indisponível ($n)"
+        return "0x%04X".format((buf[2].toInt() and 0xFF) or ((buf[3].toInt() and 0xFF) shl 8))
+    }
+
+    private fun clearHalt(ep: UsbEndpoint) =
+        connection.controlTransfer(0x02, REQ_CLEAR_FEATURE, FEATURE_ENDPOINT_HALT, ep.address, null, 0, 1000)
+
     fun transaction(
         op: Int,
         params: IntArray = IntArray(0),
@@ -63,8 +98,22 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         timeoutMs: Int = TIMEOUT_MS,
     ): PtpResponse {
         val tid = ++transactionId
-        write(container(TYPE_COMMAND, op, tid, params, null), timeoutMs)
-        if (dataOut != null) write(container(TYPE_DATA, op, tid, IntArray(0), dataOut), timeoutMs)
+        val name = "0x%04X(%s)".format(op, params.joinToString(",") { "0x%X".format(it) })
+        try {
+            val response = exchange(op, tid, params, dataOut, timeoutMs)
+            // Leituras repetidas que deram certo (ajustes e quadros do ao vivo) ficam fora do registro.
+            val routine = response.ok && (op == OC_SONY_GET_ALL_PROP_DATA || (op == Ptp.OC_GET_OBJECT && params.firstOrNull() == HANDLE_LIVE_VIEW))
+            if (!routine) DiagLog.add("$name tid=$tid → 0x%04X, %d bytes".format(response.code, response.data.size))
+            return response
+        } catch (e: PtpException) {
+            DiagLog.add("$name tid=$tid → ERRO: ${e.message}")
+            throw e
+        }
+    }
+
+    private fun exchange(op: Int, tid: Int, params: IntArray, dataOut: ByteArray?, timeoutMs: Int): PtpResponse {
+        write(container(TYPE_COMMAND, op, tid, params, null), timeoutMs, "comando")
+        if (dataOut != null) write(container(TYPE_DATA, op, tid, IntArray(0), dataOut), timeoutMs, "dados")
 
         var data = EMPTY
         while (true) {
@@ -95,8 +144,9 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
     private fun readContainerStart(timeoutMs: Int): Int {
         // Pacotes vazios (fim de uma fase de dados com tamanho múltiplo do pacote USB) são pulados.
         repeat(4) {
+            val started = SystemClock.elapsedRealtime()
             val n = connection.bulkTransfer(bulkIn, chunk, chunk.size, timeoutMs)
-            if (n < 0) throw PtpException("A câmera parou de responder pelo USB")
+            if (n < 0) throw PtpException("A câmera não respondeu pelo USB (${SystemClock.elapsedRealtime() - started} ms)")
             if (n >= HEADER) return n
             if (n > 0) throw PtpException("Pacote USB inválido ($n bytes)")
         }
@@ -120,11 +170,13 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         return out
     }
 
-    private fun write(bytes: ByteArray, timeoutMs: Int) {
+    private fun write(bytes: ByteArray, timeoutMs: Int, what: String) {
         var offset = 0
         while (offset < bytes.size) {
+            val started = SystemClock.elapsedRealtime()
             val n = connection.bulkTransfer(bulkOut, bytes, offset, minOf(CHUNK, bytes.size - offset), timeoutMs)
-            if (n < 0) throw PtpException("Não foi possível enviar o comando pelo USB")
+            // Perto do tempo limite = a câmera não aceitou; bem rápido = a porta USB está travada.
+            if (n < 0) throw PtpException("A câmera não aceitou o $what pelo USB (${SystemClock.elapsedRealtime() - started} ms)")
             offset += n
         }
         // Pacote vazio para fechar a transferência quando ela cai exatamente no limite do pacote USB.
@@ -150,6 +202,12 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         const val TYPE_COMMAND = 1
         const val TYPE_DATA = 2
         const val TYPE_RESPONSE = 3
+        const val OC_SONY_GET_ALL_PROP_DATA = 0x9209
+        const val HANDLE_LIVE_VIEW = 0xFFFFC002.toInt()
+        const val REQ_CLEAR_FEATURE = 0x01
+        const val FEATURE_ENDPOINT_HALT = 0
+        const val REQ_DEVICE_RESET = 0x66
+        const val REQ_GET_DEVICE_STATUS = 0x67
         val EMPTY = ByteArray(0)
     }
 }

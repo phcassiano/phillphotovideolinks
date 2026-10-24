@@ -11,8 +11,8 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        versionCode = 2
+        versionName = "0.2"
     }
 
     // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,
@@ -42,6 +42,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+    }
+    buildFeatures {
+        buildConfig = true
     }
     lint {
         // App de uso próprio: textos fixos em português, sem tradução.
