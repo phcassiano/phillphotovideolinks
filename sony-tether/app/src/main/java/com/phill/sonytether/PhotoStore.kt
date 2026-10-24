@@ -71,8 +71,9 @@ object PhotoStore {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(data, offset, length, bounds)
         if (bounds.outWidth <= 0) return null
+        // Reduz já na leitura até caber em maxPx: uma foto de 42 MP inteira não cabe na memória do app.
         var sample = 1
-        while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxPx) sample *= 2
+        while (max(bounds.outWidth, bounds.outHeight) / sample > maxPx) sample *= 2
         val options = BitmapFactory.Options().apply {
             inSampleSize = sample
             inMutable = true

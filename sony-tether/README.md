@@ -25,7 +25,20 @@ vinheta. O resultado fica próximo do Lightroom, não idêntico: o motor é outr
 trabalha sobre o JPEG. Claridade, textura, remover névoa, granulado e perfis
 criativos não são reproduzidos; o app avisa quando o preset usa algum deles.
 
-## Preparar a câmera
+## Preparar a câmera (testado no modelo: Sony A7R III)
+
+Na A7R III (os nomes podem variar um pouco conforme o idioma do menu):
+
+1. **MENU → Configuração (maleta) → Conexão USB → PC Remoto**.
+2. **MENU → Rede → Função PC Remoto**:
+   - **Destino de gravação da imagem estática → PC+Câmera**, para ficar com uma
+     cópia no cartão (o padrão "Somente PC" não grava no cartão);
+   - **Salvar imagem RAW+J no PC → Somente JPEG**, se a câmera estiver em
+     RAW+JPEG: o tablet recebe só o JPEG (rápido e com resolução cheia para o
+     preset) e o RAW fica no cartão.
+3. Ligue o cabo na porta **USB-C** da câmera (é mais rápida que a micro-USB).
+
+Em outras Alpha os passos são parecidos:
 
 1. No menu da câmera, mude a **Conexão USB** para **PC Remoto** (em modelos
    novos: *Rede / Conexão → Função de disparo remoto → Ligado*, com

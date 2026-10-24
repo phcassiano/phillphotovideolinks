@@ -9,7 +9,10 @@ class Developed(val original: Bitmap, val display: Bitmap, val edited: Uri?, val
 
 /** Aplica o preset numa foto e salva o JPEG que vai ser compartilhado. */
 object Darkroom {
-    /** Tamanho do JPEG com preset: sobra para Instagram, WhatsApp e impressão pequena. */
+    /**
+     * Lado maior do JPEG com preset: sobra para Instagram, WhatsApp e impressão pequena.
+     * A leitura reduz pela metade até caber, então 42 MP (7952 px) viram 3976 px.
+     */
     const val EXPORT_PX = 4096
     const val DISPLAY_PX = 2048
     private const val THUMB_PX = 240
