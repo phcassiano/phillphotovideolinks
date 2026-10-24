@@ -1,0 +1,54 @@
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.phill.sonytether"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.phill.sonytether"
+        minSdk = 29
+        targetSdk = 34
+        versionCode = 1
+        versionName = "0.1"
+    }
+
+    // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,
+    // não importa em qual máquina ele foi gerado.
+    signingConfigs {
+        create("own") {
+            storeFile = rootProject.file("keystore/sony-tether.keystore")
+            storePassword = "sonytether"
+            keyAlias = "sonytether"
+            keyPassword = "sonytether"
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("own")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("own")
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    lint {
+        // App de uso próprio: textos fixos em português, sem tradução.
+        disable += setOf("SetTextI18n", "ObsoleteSdkInt")
+    }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
