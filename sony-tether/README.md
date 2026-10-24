@@ -25,7 +25,7 @@ vinheta. O resultado fica próximo do Lightroom, não idêntico: o motor é outr
 trabalha sobre o JPEG. Claridade, textura, remover névoa, granulado e perfis
 criativos não são reproduzidos; o app avisa quando o preset usa algum deles.
 
-## Preparar a câmera (testado no modelo: Sony A7R III)
+## Preparar a câmera (exemplo: Sony A7R III)
 
 Na A7R III (os nomes podem variar um pouco conforme o idioma do menu):
 
