@@ -1,11 +1,12 @@
 package com.phill.sonytether
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -18,13 +19,15 @@ import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
+import android.provider.OpenableColumns
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
@@ -35,6 +38,7 @@ import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import java.util.concurrent.Executors
@@ -42,9 +46,12 @@ import java.util.concurrent.Executors
 class MainActivity : Activity(), CameraSession.Listener {
 
     private lateinit var usb: UsbManager
+    private lateinit var library: PresetLibrary
     private var session: CameraSession? = null
     private val main = Handler(Looper.getMainLooper())
-    private val loader = Executors.newSingleThreadExecutor()
+
+    /** Decodificar, aplicar preset e salvar: uma foto por vez, fora da thread da tela. */
+    private val processor = Executors.newSingleThreadExecutor()
 
     private lateinit var root: LinearLayout
     private lateinit var stage: FrameLayout
@@ -55,17 +62,31 @@ class MainActivity : Activity(), CameraSession.Listener {
     private lateinit var thumbs: LinearLayout
     private lateinit var status: TextView
     private lateinit var connectButton: Button
-    private lateinit var info: TextView
-    private lateinit var liveButton: Button
-    private lateinit var shutterButton: Button
+    private lateinit var presetButton: Button
+    private lateinit var amountLabel: TextView
+    private lateinit var amountBar: SeekBar
+    private lateinit var presetNote: TextView
+    private lateinit var shareButton: Button
+    private lateinit var shareAllButton: Button
     private lateinit var counter: TextView
-    private val rows = LinkedHashMap<Int, SettingRow>()
 
-    private var photoCount = 0
-    private var liveOn = false
-    private var reviewUntil = 0L
+    private class Photo(var name: String, var original: Uri?, val thumb: ImageView) {
+        @Volatile
+        var edited: Uri? = null
 
-    private class SettingRow(val value: TextView, val buttons: List<Button>)
+        /** Preset e intensidade com que [edited] foi gerado. */
+        @Volatile
+        var editedWith: String? = null
+
+        val base get() = name.substringBeforeLast('.')
+        val isRaw get() = PhotoStore.isRaw(name)
+    }
+
+    private val photos = ArrayList<Photo>()
+    private var current: Photo? = null
+    private var currentOriginal: Bitmap? = null
+    private var currentShown: Bitmap? = null
+    private var look: PresetLook? = null
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -83,10 +104,12 @@ class MainActivity : Activity(), CameraSession.Listener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         usb = getSystemService(Context.USB_SERVICE) as UsbManager
+        library = PresetLibrary(this)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildUi()
         applyOrientation(resources.configuration)
         setConnected(false)
+        presetChanged(rerender = false)
 
         val filter = IntentFilter().apply {
             addAction(ACTION_USB_PERMISSION)
@@ -111,7 +134,7 @@ class MainActivity : Activity(), CameraSession.Listener {
     override fun onDestroy() {
         unregisterReceiver(usbReceiver)
         session?.shutdown()
-        loader.shutdownNow()
+        processor.shutdownNow()
         super.onDestroy()
     }
 
@@ -155,10 +178,7 @@ class MainActivity : Activity(), CameraSession.Listener {
             return
         }
         setStatus("Conectando a ${device.productName ?: "câmera"}…")
-        session = CameraSession(applicationContext, device, connection, iface, this).also {
-            it.liveView = liveOn
-            it.start()
-        }
+        session = CameraSession(applicationContext, device, connection, iface, this).also { it.start() }
     }
 
     private fun findCamera(): UsbDevice? =
@@ -177,47 +197,221 @@ class MainActivity : Activity(), CameraSession.Listener {
 
     override fun onConnected(model: String) {
         setConnected(true)
-        setStatus("Conectada: $model. Dispare pelo tablet ou pela câmera, as fotos chegam aqui.")
-        hint.text = if (photoCount == 0) "Pronto. Dispare para ver a primeira foto." else hint.text
+        setStatus("Conectada: $model. Fotografe na câmera: cada foto aparece aqui.")
+        if (photos.isEmpty()) hint.text = "Pronto. Dispare na câmera para ver a primeira foto."
     }
 
-    override fun onProps(props: Map<Int, SonyProp>) {
-        for ((code, row) in rows) {
-            val prop = props[code]
-            row.value.text = prop?.let { SonyFormat.value(code, it.current) } ?: "—"
-            row.value.alpha = if (prop == null || prop.enabled == 1) 1f else 0.45f
+    override fun onShot(name: String, data: ByteArray, original: Uri?) {
+        // No modo RAW+JPEG chegam dois arquivos da mesma foto: fica um só na tela, de preferência o JPEG.
+        val twin = photos.firstOrNull { it.base.equals(name.substringBeforeLast('.'), ignoreCase = true) }
+        val photo = when {
+            twin == null -> Photo(name, original, newThumb()).also {
+                photos.add(it)
+                thumbs.addView(it.thumb, 0)
+                updateCounter()
+            }
+            twin.isRaw && !PhotoStore.isRaw(name) -> twin.also {
+                it.name = name
+                it.original = original
+            }
+            else -> {
+                setStatus("$name salva")
+                return
+            }
         }
-        val mode = props[SonyCamera.PROP_EXPOSURE_MODE]?.let { SonyFormat.value(it.code, it.current) } ?: "—"
-        val battery = props[SonyCamera.PROP_BATTERY]?.let { SonyFormat.value(it.code, it.current) } ?: "—"
-        info.text = "Modo $mode   ·   Bateria $battery"
-    }
-
-    override fun onLiveFrame(frame: Bitmap) {
-        if (!liveOn || SystemClock.elapsedRealtime() < reviewUntil) return
-        image.setImageBitmap(frame)
-        hint.visibility = View.GONE
-        badge.visibility = View.VISIBLE
-    }
-
-    override fun onLiveViewUnavailable() {
-        setLive(false)
-        setStatus("A câmera não enviou imagem ao vivo.")
-    }
-
-    override fun onPhoto(photo: SavedPhoto) {
-        photoCount++
-        counter.text = "$photoCount ${if (photoCount == 1) "foto" else "fotos"} nesta sessão\nSalvas em Imagens/SonyTether"
-        photo.preview?.let { showPhoto(it, REVIEW_MS) }
-        addThumb(photo)
+        develop(photo, data)
     }
 
     override fun onDisconnected(session: CameraSession, reason: String?) {
         if (session !== this.session) return
         this.session = null
         setConnected(false)
-        badge.visibility = View.GONE
         setStatus(reason?.let { "Desconectada: $it" } ?: "Câmera desconectada.")
     }
+
+    // ---- Fotos ----
+
+    private fun develop(photo: Photo, data: ByteArray) {
+        val look = look
+        val signature = signature()
+        setStatus(if (look != null) "Aplicando preset em ${photo.name}…" else "Abrindo ${photo.name}…")
+        processor.execute {
+            val previous = photo.edited
+            val result = Darkroom.develop(this, photo.name, data, look)
+            if (result?.edited != null && previous != null) PhotoStore.delete(this, previous)
+            if (result != null) {
+                photo.edited = result.edited
+                photo.editedWith = signature
+            }
+            main.post {
+                if (result == null) {
+                    setStatus("Não foi possível abrir ${photo.name}")
+                    return@post
+                }
+                setThumb(photo, result.thumb)
+                show(photo, result.original, result.display)
+                setStatus("${photo.name} pronta${if (look != null) ", com preset" else ""}")
+            }
+        }
+    }
+
+    private fun select(photo: Photo) {
+        val uri = photo.original ?: return
+        val look = look
+        processor.execute {
+            val result = Darkroom.preview(this, uri, look)
+            main.post { if (result != null) show(photo, result.first, result.second) }
+        }
+    }
+
+    private fun show(photo: Photo, original: Bitmap, display: Bitmap) {
+        current = photo
+        currentOriginal = original
+        currentShown = display
+        image.setImageBitmap(display)
+        hint.visibility = View.GONE
+        for (p in photos) p.thumb.alpha = if (p === photo) 1f else 0.55f
+        shareButton.isEnabled = true
+    }
+
+    /** Ao trocar de preset ou intensidade, a foto da tela é refeita na hora. */
+    private fun rerenderCurrent() {
+        val original = currentOriginal ?: return
+        val photo = current
+        val look = look
+        processor.execute {
+            val display = look?.apply(PhotoStore.scaled(original, Darkroom.DISPLAY_PX)) ?: original
+            main.post {
+                if (current === photo) {
+                    currentShown = display
+                    image.setImageBitmap(display)
+                }
+            }
+        }
+    }
+
+    private fun share(list: List<Photo>) {
+        if (list.isEmpty()) return
+        val look = look
+        val signature = signature()
+        setStatus("Preparando para compartilhar…")
+        processor.execute {
+            val uris = ArrayList<Uri>()
+            list.forEachIndexed { i, photo ->
+                // Com preset (ou RAW), compartilha o JPEG gerado; refaz se o preset mudou desde então.
+                val needsJpeg = look != null || photo.isRaw
+                if (needsJpeg && photo.editedWith != signature) {
+                    main.post { setStatus("Preparando ${i + 1} de ${list.size}…") }
+                    val data = photo.original?.let { PhotoStore.readBytes(this, it) }
+                    val result = data?.let { Darkroom.develop(this, photo.name, it, look) }
+                    if (result?.edited != null) {
+                        photo.edited?.let { PhotoStore.delete(this, it) }
+                        photo.edited = result.edited
+                        photo.editedWith = signature
+                    }
+                }
+                val uri = if (needsJpeg) photo.edited ?: photo.original else photo.original
+                uri?.let(uris::add)
+            }
+            main.post { send(uris) }
+        }
+    }
+
+    private fun send(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            setStatus("Nenhuma foto salva para compartilhar.")
+            return
+        }
+        val intent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris[0])
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+        intent.type = "image/*"
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.clipData = ClipData.newUri(contentResolver, "Fotos", uris[0]).apply {
+            uris.drop(1).forEach { addItem(ClipData.Item(it)) }
+        }
+        setStatus(if (uris.size == 1) "Escolha onde compartilhar." else "Escolha onde compartilhar as ${uris.size} fotos.")
+        startActivity(Intent.createChooser(intent, "Compartilhar"))
+    }
+
+    // ---- Presets ----
+
+    private fun signature(): String = library.activeFile?.let { "$it@${library.amount}" } ?: "none"
+
+    private fun presetChanged(rerender: Boolean = true) {
+        val entry = library.active()
+        look = entry?.let { PresetLook(it.preset, library.amount / 100f) }
+        presetButton.text = entry?.preset?.name?.let { "$it  ▾" } ?: "Sem preset  ▾"
+        amountBar.isEnabled = entry != null
+        amountLabel.text = "Intensidade: ${library.amount}%"
+        val ignored = entry?.preset?.ignored.orEmpty()
+        presetNote.text = if (ignored.isEmpty()) "" else "Não reproduzido neste app: ${ignored.joinToString(", ")}"
+        presetNote.visibility = if (ignored.isEmpty()) View.GONE else View.VISIBLE
+        if (rerender) rerenderCurrent()
+    }
+
+    private fun choosePreset() {
+        val entries = library.all()
+        val names = arrayOf("Sem preset") + entries.map { it.preset.name }
+        val selected = entries.indexOfFirst { it.file == library.activeFile } + 1
+        AlertDialog.Builder(this)
+            .setTitle("Preset")
+            .setSingleChoiceItems(names, selected) { dialog, which ->
+                library.activeFile = if (which == 0) null else entries[which - 1].file
+                presetChanged()
+                dialog.dismiss()
+            }
+            .setNeutralButton("Importar…") { _, _ -> importPreset() }
+            .setNegativeButton("Remover o atual") { _, _ ->
+                library.activeFile?.let {
+                    library.remove(it)
+                    presetChanged()
+                }
+            }
+            .show()
+    }
+
+    private fun importPreset() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_IMPORT)
+    }
+
+    @Deprecated("Activity sem AndroidX: o retorno do seletor de arquivos ainda chega por aqui.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_IMPORT || resultCode != RESULT_OK || data == null) return
+        val uris = data.clipData?.let { clip -> (0 until clip.itemCount).map { clip.getItemAt(it).uri } }
+            ?: listOfNotNull(data.data)
+        val imported = ArrayList<PresetLibrary.Entry>()
+        var failed = 0
+        for (uri in uris) {
+            val bytes = PhotoStore.readBytes(this, uri)
+            val found = bytes?.let { library.import(displayName(uri), it) }.orEmpty()
+            if (found.isEmpty()) failed++ else imported += found
+        }
+        imported.lastOrNull()?.let {
+            library.activeFile = it.file
+            presetChanged()
+        }
+        val message = when {
+            imported.isEmpty() -> "Não reconheci esse arquivo como preset do Lightroom (.xmp, .lrtemplate, .dng ou .zip)."
+            imported.size == 1 -> "Preset \"${imported[0].preset.name}\" importado."
+            else -> "${imported.size} presets importados. Ativo: \"${imported.last().preset.name}\"."
+        } + if (imported.isNotEmpty() && failed > 0) " $failed arquivo(s) não reconhecido(s)." else ""
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun displayName(uri: Uri): String =
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: uri.lastPathSegment ?: "preset"
 
     // ---- Tela ----
 
@@ -227,75 +421,54 @@ class MainActivity : Activity(), CameraSession.Listener {
 
     private fun setConnected(connected: Boolean) {
         connectButton.visibility = if (connected) View.GONE else View.VISIBLE
-        for (row in rows.values) row.buttons.forEach { it.isEnabled = connected }
-        liveButton.isEnabled = connected
-        shutterButton.isEnabled = connected
-        shutterButton.alpha = if (connected) 1f else 0.4f
-        if (!connected) {
-            rows.values.forEach { it.value.text = "—" }
-            info.text = ""
+    }
+
+    private fun updateCounter() {
+        val n = photos.size
+        counter.text = "$n ${if (n == 1) "foto" else "fotos"} nesta sessão · salvas em Imagens/SonyTether"
+        shareAllButton.text = "Compartilhar todas ($n)"
+        shareAllButton.isEnabled = n > 0
+    }
+
+    private fun newThumb() = ImageView(this).apply {
+        scaleType = ImageView.ScaleType.CENTER_CROP
+        setBackgroundColor(SURFACE)
+        layoutParams = LinearLayout.LayoutParams(dp(96), dp(72)).apply { marginEnd = dp(6) }
+    }
+
+    private fun setThumb(photo: Photo, bitmap: Bitmap) {
+        photo.thumb.setImageBitmap(bitmap)
+        photo.thumb.contentDescription = photo.name
+        photo.thumb.layoutParams = LinearLayout.LayoutParams(dp(72) * bitmap.width / maxOf(1, bitmap.height), dp(72)).apply {
+            marginEnd = dp(6)
         }
+        photo.thumb.setOnClickListener { select(photo) }
     }
 
-    private fun setLive(on: Boolean) {
-        liveOn = on
-        session?.liveView = on
-        reviewUntil = 0L
-        liveButton.text = if (on) "Parar ao vivo" else "Ver ao vivo"
-        if (!on) badge.visibility = View.GONE
-    }
-
-    private fun showPhoto(bitmap: Bitmap, holdMs: Long) {
-        image.setImageBitmap(bitmap)
-        hint.visibility = View.GONE
-        badge.visibility = View.GONE
-        reviewUntil = SystemClock.elapsedRealtime() + holdMs
-    }
-
-    private fun addThumb(photo: SavedPhoto) {
-        val thumb = photo.thumb ?: return
-        val view = ImageView(this).apply {
-            setImageBitmap(thumb)
-            scaleType = ImageView.ScaleType.CENTER_CROP
-            contentDescription = photo.name
-            layoutParams = LinearLayout.LayoutParams(dp(72) * thumb.width / maxOf(1, thumb.height), dp(72)).apply {
-                marginEnd = dp(6)
-            }
-            setOnClickListener { openInApp(photo) }
-            setOnLongClickListener {
-                openInGallery(photo)
-                true
-            }
-        }
-        thumbs.addView(view, 0)
-    }
-
-    private fun openInApp(photo: SavedPhoto) {
-        val uri = photo.uri ?: return
-        loader.execute {
-            val bitmap = PhotoStore.load(this, uri, 2048)
-            main.post { if (bitmap != null) showPhoto(bitmap, if (liveOn) PINNED_MS else 0L) }
-        }
-    }
-
-    private fun openInGallery(photo: SavedPhoto) {
-        val uri = photo.uri ?: return
-        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, contentResolver.getType(uri) ?: "image/*")
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        runCatching { startActivity(intent) }.onFailure {
-            Toast.makeText(this, "Nenhum app abre esse arquivo", Toast.LENGTH_SHORT).show()
-        }
-    }
-
+    @SuppressLint("ClickableViewAccessibility")
     private fun buildUi() {
         image = ImageView(this).apply {
             scaleType = ImageView.ScaleType.FIT_CENTER
             setBackgroundColor(Color.BLACK)
+            // Segurar a foto mostra o original, sem preset.
+            setOnTouchListener { _, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> if (look != null) currentOriginal?.let {
+                        setImageBitmap(it)
+                        badge.visibility = View.VISIBLE
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        currentShown?.let(::setImageBitmap)
+                        badge.visibility = View.GONE
+                    }
+                }
+                true
+            }
         }
         hint = label("Conecte a câmera Sony pelo cabo USB", 18f, MUTED).apply { gravity = Gravity.CENTER }
-        badge = label("●  AO VIVO", 13f, Color.WHITE).apply {
+        badge = label("ORIGINAL", 13f, Color.WHITE).apply {
             typeface = Typeface.DEFAULT_BOLD
-            background = rounded(0xCCD32F2F.toInt(), dp(4))
+            background = rounded(0xCC000000.toInt(), dp(4))
             setPadding(dp(10), dp(4), dp(10), dp(4))
             visibility = View.GONE
         }
@@ -327,46 +500,45 @@ class MainActivity : Activity(), CameraSession.Listener {
         column.addView(status)
         connectButton = button("Conectar câmera", ACCENT, Color.BLACK) { connect() }
         column.addView(connectButton, fullWidth(dp(48)))
-        column.addView(button("Diagnóstico", SURFACE, Color.WHITE) { showDiagnostics() }, fullWidth(dp(40)).apply { topMargin = dp(8) })
-        info = label("", 14f, Color.WHITE).apply { setPadding(0, dp(12), 0, dp(4)) }
-        column.addView(info)
+        column.addView(button("Diagnóstico", SURFACE, MUTED) { showDiagnostics() }, fullWidth(dp(40)).apply { topMargin = dp(8) })
 
-        addSetting(column, "Velocidade", SonyCamera.PROP_SHUTTER_SPEED)
-        addSetting(column, "Abertura", SonyCamera.PROP_F_NUMBER)
-        addSetting(column, "ISO", SonyCamera.PROP_ISO)
-        addSetting(column, "Exposição (EV)", SonyCamera.PROP_EXPOSURE_COMP)
-        addSetting(column, "Balanço de branco", SonyCamera.PROP_WHITE_BALANCE)
+        column.addView(section("PRESET DO LIGHTROOM"))
+        presetButton = button("Sem preset  ▾", SURFACE, Color.WHITE) { choosePreset() }
+        column.addView(presetButton, fullWidth(dp(48)))
+        column.addView(button("Importar preset", SURFACE, Color.WHITE) { importPreset() }, fullWidth(dp(44)).apply { topMargin = dp(8) })
+        amountLabel = label("", 13f, MUTED).apply { setPadding(0, dp(12), 0, 0) }
+        column.addView(amountLabel)
+        amountBar = SeekBar(this).apply {
+            max = 100
+            progress = library.amount
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
+                    amountLabel.text = "Intensidade: $value%"
+                }
 
-        liveButton = button("Ver ao vivo", SURFACE, Color.WHITE) { setLive(!liveOn) }
-        column.addView(liveButton, fullWidth(dp(48)).apply { topMargin = dp(16) })
+                override fun onStartTrackingTouch(bar: SeekBar) {}
 
-        shutterButton = Button(this).apply {
-            text = "DISPARAR"
-            setTextColor(Color.WHITE)
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFFD32F2F.toInt())
-                setStroke(dp(4), Color.WHITE)
-            }
-            setOnClickListener {
-                setStatus("Disparando…")
-                session?.post { it.capture() }
-            }
+                override fun onStopTrackingTouch(bar: SeekBar) {
+                    library.amount = bar.progress
+                    presetChanged()
+                }
+            })
         }
-        column.addView(shutterButton, LinearLayout.LayoutParams(dp(120), dp(120)).apply {
-            gravity = Gravity.CENTER_HORIZONTAL
-            topMargin = dp(20)
-        })
+        column.addView(amountBar, fullWidth(WRAP_CONTENT))
+        presetNote = label("", 12f, MUTED).apply { setPadding(0, dp(6), 0, 0) }
+        column.addView(presetNote)
 
-        counter = label("Nenhuma foto ainda", 13f, MUTED).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(16), 0, 0)
-        }
+        column.addView(section("COMPARTILHAR"))
+        shareButton = button("Compartilhar esta foto", ACCENT, Color.BLACK) { current?.let { share(listOf(it)) } }
+        shareButton.isEnabled = false
+        column.addView(shareButton, fullWidth(dp(52)))
+        shareAllButton = button("Compartilhar todas (0)", SURFACE, Color.WHITE) { share(photos.toList()) }
+        shareAllButton.isEnabled = false
+        column.addView(shareAllButton, fullWidth(dp(44)).apply { topMargin = dp(8) })
+
+        counter = label("Nenhuma foto ainda", 13f, MUTED).apply { setPadding(0, dp(16), 0, 0) }
         column.addView(counter, fullWidth(WRAP_CONTENT))
-        column.addView(label("Toque numa miniatura para rever · segure para abrir na galeria", 12f, MUTED).apply {
-            gravity = Gravity.CENTER
+        column.addView(label("Segure a foto para ver sem o preset · toque numa miniatura para rever", 12f, MUTED).apply {
             setPadding(0, dp(8), 0, 0)
         }, fullWidth(WRAP_CONTENT))
 
@@ -417,20 +589,10 @@ class MainActivity : Activity(), CameraSession.Listener {
         }
     }
 
-    private fun addSetting(column: LinearLayout, title: String, code: Int) {
-        column.addView(label(title, 12f, MUTED).apply { setPadding(0, dp(12), 0, dp(2)) })
-        val value = label("—", 20f, Color.WHITE).apply { typeface = Typeface.DEFAULT_BOLD }
-        val minus = button("◀", SURFACE, Color.WHITE) { session?.post { it.step(code, -1) } }
-        val plus = button("▶", SURFACE, Color.WHITE) { session?.post { it.step(code, +1) } }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            addView(value, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(minus, LinearLayout.LayoutParams(dp(56), dp(44)).apply { marginEnd = dp(8) })
-            addView(plus, LinearLayout.LayoutParams(dp(56), dp(44)))
-        }
-        column.addView(row, fullWidth(WRAP_CONTENT))
-        rows[code] = SettingRow(value, listOf(minus, plus))
+    private fun section(title: String) = label(title, 12f, ACCENT).apply {
+        typeface = Typeface.DEFAULT_BOLD
+        letterSpacing = 0.08f
+        setPadding(0, dp(24), 0, dp(8))
     }
 
     private fun label(text: String, sp: Float, color: Int) = TextView(this).apply {
@@ -466,8 +628,7 @@ class MainActivity : Activity(), CameraSession.Listener {
     private companion object {
         const val ACTION_USB_PERMISSION = "com.phill.sonytether.USB_PERMISSION"
         const val SONY_VENDOR_ID = 0x054C
-        const val REVIEW_MS = 3000L
-        const val PINNED_MS = 8000L
+        const val REQUEST_IMPORT = 1
         const val PANEL = 0xFF16161A.toInt()
         const val SURFACE = 0xFF2A2A31.toInt()
         const val ACCENT = 0xFFE8A33D.toInt()

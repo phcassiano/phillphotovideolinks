@@ -10,29 +10,43 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.ByteArrayInputStream
+import java.io.OutputStream
 import kotlin.math.max
 
-class SavedPhoto(val name: String, val uri: Uri?, val preview: Bitmap?, val thumb: Bitmap?)
-
-/** Salva as fotos na galeria (Imagens/SonyTether) e gera as prévias para a tela. */
+/**
+ * Galeria: o arquivo que veio da câmera vai para Imagens/SonyTether/Originais e a versão
+ * com preset para Imagens/SonyTether. Também gera as prévias para a tela.
+ */
 object PhotoStore {
     private const val FOLDER = "SonyTether"
 
-    fun save(context: Context, name: String, data: ByteArray): Uri? {
+    fun saveOriginal(context: Context, name: String, data: ByteArray): Uri? =
+        save(context, name, mimeType(name), "$FOLDER/Originais") { it.write(data) }
+
+    fun saveJpeg(context: Context, name: String, bitmap: Bitmap): Uri? =
+        save(context, name, "image/jpeg", FOLDER) { bitmap.compress(Bitmap.CompressFormat.JPEG, 93, it) }
+
+    fun delete(context: Context, uri: Uri) {
+        runCatching { context.contentResolver.delete(uri, null, null) }
+    }
+
+    fun readBytes(context: Context, uri: Uri): ByteArray? =
+        runCatching { context.contentResolver.openInputStream(uri)!!.use { it.readBytes() } }.getOrNull()
+
+    private fun save(context: Context, name: String, mime: String, folder: String, write: (OutputStream) -> Unit): Uri? {
         val resolver = context.contentResolver
-        val mime = mimeType(name)
-        // RAW (.ARW) nem sempre é aceito como imagem; nesse caso vai para Downloads/SonyTether.
+        // RAW (.ARW) nem sempre é aceito como imagem; nesse caso vai para Downloads.
         val targets = buildList {
             if (mime.startsWith("image/")) {
-                add(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "${Environment.DIRECTORY_PICTURES}/$FOLDER")
+                add(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "${Environment.DIRECTORY_PICTURES}/$folder")
             }
-            add(MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "${Environment.DIRECTORY_DOWNLOADS}/$FOLDER")
+            add(MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY) to "${Environment.DIRECTORY_DOWNLOADS}/$folder")
         }
-        for ((collection, folder) in targets) {
+        for ((collection, path) in targets) {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, name)
                 put(MediaStore.MediaColumns.MIME_TYPE, mime)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, folder)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, path)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             val uri = try {
@@ -41,7 +55,7 @@ object PhotoStore {
                 null
             } ?: continue
             try {
-                resolver.openOutputStream(uri)!!.use { it.write(data) }
+                resolver.openOutputStream(uri)!!.use(write)
                 resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
                 return uri
             } catch (e: Exception) {
@@ -51,11 +65,6 @@ object PhotoStore {
         return null
     }
 
-    fun load(context: Context, uri: Uri, maxPx: Int): Bitmap? = runCatching {
-        val data = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
-        decodePreview(data, maxPx)
-    }.getOrNull()
-
     /** JPEG e HEIF são lidos direto; do RAW usa a prévia JPEG que vem dentro do arquivo. */
     fun decodePreview(data: ByteArray, maxPx: Int): Bitmap? {
         val (offset, length) = previewRegion(data) ?: return null
@@ -64,14 +73,21 @@ object PhotoStore {
         if (bounds.outWidth <= 0) return null
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxPx) sample *= 2
-        val bitmap = BitmapFactory.decodeByteArray(data, offset, length, BitmapFactory.Options().apply { inSampleSize = sample })
-            ?: return null
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            inMutable = true
+        }
+        val bitmap = BitmapFactory.decodeByteArray(data, offset, length, options) ?: return null
         return rotate(bitmap, orientation(data))
     }
 
-    fun thumbnail(bitmap: Bitmap, heightPx: Int): Bitmap {
-        val width = max(1, bitmap.width * heightPx / max(1, bitmap.height))
-        return Bitmap.createScaledBitmap(bitmap, width, heightPx, true)
+    /** Cópia reduzida (sempre um bitmap novo, nunca o próprio [bitmap]). */
+    fun scaled(bitmap: Bitmap, maxPx: Int): Bitmap {
+        val longest = max(bitmap.width, bitmap.height)
+        if (longest <= maxPx) return bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val w = max(1, bitmap.width * maxPx / longest)
+        val h = max(1, bitmap.height * maxPx / longest)
+        return Bitmap.createScaledBitmap(bitmap, w, h, true)
     }
 
     private fun previewRegion(data: ByteArray): Pair<Int, Int>? {
@@ -113,8 +129,12 @@ object PhotoStore {
             else -> return bitmap
         }
         val m = Matrix().apply { postRotate(degrees) }
-        return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
+        val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
+        bitmap.recycle()
+        return rotated
     }
+
+    fun isRaw(name: String) = name.substringAfterLast('.', "").lowercase() in setOf("arw", "srf", "sr2")
 
     private fun mimeType(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
         "jpg", "jpeg" -> "image/jpeg"

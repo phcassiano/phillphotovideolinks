@@ -2,7 +2,6 @@ package com.phill.sonytether
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Test
 import java.io.ByteArrayOutputStream
 
@@ -39,34 +38,10 @@ class SonyCameraTest {
 
     private fun checkParsed(props: Map<Int, SonyProp>) {
         assertEquals(3, props.size)
-        val f = props.getValue(SonyCamera.PROP_F_NUMBER)
+        val f = props.getValue(0x5007)
         assertEquals(400L, f.current)
         assertArrayEquals(longArrayOf(280, 400, 560), f.values)
-        assertEquals(0x000100FAL, props.getValue(SonyCamera.PROP_SHUTTER_SPEED).current)
+        assertEquals(0x000100FAL, props.getValue(0xD20D).current)
         assertEquals(0x8001L, props.getValue(SonyCamera.PROP_OBJECT_IN_MEMORY).current)
-    }
-
-    @Test
-    fun findsJpegInLiveViewPacket() {
-        val jpeg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 1, 2, 3, 0xFF.toByte(), 0xD9.toByte())
-        val packet = Packet().u32(16).u32(jpeg.size.toLong()).u64(0).bytes() + jpeg + byteArrayOf(9, 9)
-        val region = SonyCamera.findJpeg(packet)
-        assertNotNull(region)
-        region!!
-        assertEquals(16, region.offset)
-        assertEquals(jpeg.size, region.length)
-    }
-
-    @Test
-    fun formatsValues() {
-        assertEquals("1/250", SonyFormat.value(SonyCamera.PROP_SHUTTER_SPEED, 0x000100FA))
-        assertEquals("1.3\"", SonyFormat.value(SonyCamera.PROP_SHUTTER_SPEED, (13L shl 16) or 10))
-        assertEquals("30\"", SonyFormat.value(SonyCamera.PROP_SHUTTER_SPEED, (300L shl 16) or 10))
-        assertEquals("f/2.8", SonyFormat.value(SonyCamera.PROP_F_NUMBER, 280))
-        assertEquals("f/11", SonyFormat.value(SonyCamera.PROP_F_NUMBER, 1100))
-        assertEquals("AUTO", SonyFormat.value(SonyCamera.PROP_ISO, 0xFFFFFF))
-        assertEquals("800", SonyFormat.value(SonyCamera.PROP_ISO, 800))
-        assertEquals("-0.7", SonyFormat.value(SonyCamera.PROP_EXPOSURE_COMP, -700))
-        assertEquals("M", SonyFormat.value(SonyCamera.PROP_EXPOSURE_MODE, 1))
     }
 }

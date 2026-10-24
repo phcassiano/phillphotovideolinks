@@ -1,19 +1,29 @@
 # Sony Tether (Android)
 
-App para tablet Android que controla uma câmera Sony pelo cabo USB, no estilo do
-"Disparo remoto" do Imaging Edge: dispara pelo tablet, ajusta a exposição, mostra
-o ao vivo e recebe cada foto na hora.
+App para tablet Android ligado por cabo USB numa câmera Sony. Você fotografa na
+câmera, e cada foto aparece no tablet na hora, já com o seu preset do Lightroom,
+pronta para compartilhar.
 
 ## O que ele faz
 
 - Conecta na câmera pelo cabo USB-C (OTG), sem internet.
-- Disparo pelo tablet, com foco automático (meio aperto e disparo).
-- Ajustes: velocidade, abertura, ISO, compensação de exposição e balanço de branco.
-- Ao vivo (live view) na tela grande.
-- Cada foto, disparada pelo tablet ou pelo botão da câmera, chega no app,
-  aparece na tela por alguns segundos e vai para as miniaturas.
-- As fotos ficam salvas em **Imagens/SonyTether**. RAW (.ARW) que a galeria não
-  aceitar vai para **Downloads/SonyTether**.
+- Cada foto tirada aparece na tela grande e nas miniaturas.
+- **Preset do Lightroom**: importa `.xmp` (Lightroom Classic/CC), `.lrtemplate`
+  (Lightroom antigo), `.dng` exportado pelo Lightroom Mobile ou um `.zip` com
+  vários presets. O preset escolhido é aplicado em toda foto que chega, com
+  controle de intensidade. Segure a foto para ver o original.
+- **Compartilhar** a foto da tela ou todas da sessão (WhatsApp, Drive, e-mail…).
+- Salva tudo na galeria: o arquivo da câmera em **Imagens/SonyTether/Originais**
+  e a versão com preset em **Imagens/SonyTether** (JPEG de até 4096 px).
+
+### Sobre os presets
+
+O app reproduz os ajustes principais do Lightroom: balanço de branco, exposição,
+contraste, realces, sombras, brancos, pretos, curvas de tons (geral e RGB),
+curva paramétrica, HSL, vibração, saturação, color grading / divisão de tons e
+vinheta. O resultado fica próximo do Lightroom, não idêntico: o motor é outro e
+trabalha sobre o JPEG. Claridade, textura, remover névoa, granulado e perfis
+criativos não são reproduzidos; o app avisa quando o preset usa algum deles.
 
 ## Preparar a câmera
 
@@ -22,8 +32,9 @@ o ao vivo e recebe cada foto na hora.
    *Método de conexão: USB*).
 2. Em **Configurações do PC Remoto → Destino salvar img.**, escolha
    **Somente PC** ou **PC + Câmera** (para ter cópia no cartão também).
-3. Em **Tamanho de imagem salvo** (se existir), prefira **RAW+JPEG** ou **JPEG**:
-   o JPEG é o que aparece rápido na tela.
+3. Em **Tamanho de imagem salvo** (se existir), prefira **JPEG** ou **RAW+JPEG**.
+   O preset é aplicado sobre o JPEG; de uma foto só RAW o app usa a prévia
+   embutida no arquivo, que tem resolução menor.
 
 ## Instalar no tablet
 
@@ -44,19 +55,19 @@ cima da antiga sem perder nada.
 
 ## Como funciona por dentro
 
-A Sony não tem SDK oficial para Android, então o app fala direto o protocolo PTP
-pelo USB (`ptp/PtpUsb.kt`) com as extensões "SDIO" da Sony (`SonyCamera.kt`):
-o aperto de mão do PC Remoto, a leitura de todos os ajustes de uma vez, o
-disparo pelos botões virtuais e a foto e o ao vivo nos objetos `0xFFFFC001` e
-`0xFFFFC002`. É o mesmo caminho que o libgphoto2 usa. Uma única thread
-(`CameraSession.kt`) conversa com a câmera, e a tela fica em `MainActivity.kt`.
+- `ptp/PtpUsb.kt` e `SonyCamera.kt`: a Sony não tem SDK oficial para Android,
+  então o app fala direto o protocolo PTP pelo USB com as extensões "SDIO" da
+  Sony (as mesmas que o libgphoto2 usa) e baixa cada foto do objeto `0xFFFFC001`.
+- `CameraSession.kt`: thread única que conecta, destrava a conexão quando
+  preciso e recebe as fotos.
+- `Preset.kt` e `PresetLibrary.kt`: leitura e guarda dos presets.
+- `PresetLook.kt`: transforma o preset numa tabela de cor 3D (LUT 33³) e aplica
+  em cada pixel; `Darkroom.kt` decodifica, aplica e salva.
+- O botão **Diagnóstico** mostra cada passo da conversa com a câmera, para
+  copiar e mandar quando algo falha.
 
-## Limitações desta primeira versão
+## Limitações desta versão
 
-- Ainda não foi testado com uma câmera de verdade: o protocolo foi feito a partir
-  do comportamento conhecido das Alpha. Se algum ajuste ou o ao vivo não
-  funcionar no seu modelo, a mensagem na tela ajuda a corrigir.
-- Os botões ◀ ▶ andam um passo na lista que a própria câmera manda. Ajustes
-  travados pelo modo (por exemplo, velocidade no modo A) aparecem apagados.
-- O RAW é salvo inteiro, mas a tela mostra a prévia JPEG que vem dentro dele.
-- Ainda não há edição nem presets (a parte "Evoto"). Isso fica para a próxima etapa.
+- O protocolo da câmera foi feito a partir do comportamento conhecido das Alpha
+  e ainda precisa ser confirmado no seu modelo.
+- O preset é uma aproximação do Lightroom (veja acima).

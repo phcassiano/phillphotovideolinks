@@ -101,9 +101,8 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         val name = "0x%04X(%s)".format(op, params.joinToString(",") { "0x%X".format(it) })
         try {
             val response = exchange(op, tid, params, dataOut, timeoutMs)
-            // Leituras repetidas que deram certo (ajustes e quadros do ao vivo) ficam fora do registro.
-            val routine = response.ok && (op == OC_SONY_GET_ALL_PROP_DATA || (op == Ptp.OC_GET_OBJECT && params.firstOrNull() == HANDLE_LIVE_VIEW))
-            if (!routine) DiagLog.add("$name tid=$tid → 0x%04X, %d bytes".format(response.code, response.data.size))
+            // A leitura periódica dos ajustes, quando dá certo, fica fora do registro.
+            if (!(response.ok && op == OC_SONY_GET_ALL_PROP_DATA)) DiagLog.add("$name tid=$tid → 0x%04X, %d bytes".format(response.code, response.data.size))
             return response
         } catch (e: PtpException) {
             DiagLog.add("$name tid=$tid → ERRO: ${e.message}")
@@ -203,7 +202,6 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         const val TYPE_DATA = 2
         const val TYPE_RESPONSE = 3
         const val OC_SONY_GET_ALL_PROP_DATA = 0x9209
-        const val HANDLE_LIVE_VIEW = 0xFFFFC002.toInt()
         const val REQ_CLEAR_FEATURE = 0x01
         const val FEATURE_ENDPOINT_HALT = 0
         const val REQ_DEVICE_RESET = 0x66
