@@ -10,6 +10,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
@@ -77,6 +78,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     @Volatile
     private var look = Look(null, null, "none")
 
+    private val ui by lazy { Ui(this) }
     private lateinit var root: LinearLayout
     private lateinit var stage: FrameLayout
     private lateinit var panel: ScrollView
@@ -84,14 +86,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var hint: TextView
     private lateinit var badge: TextView
     private lateinit var ratingBar: LinearLayout
-    private lateinit var heart: TextView
-    private lateinit var stars: List<TextView>
-    private lateinit var hideButton: TextView
+    private lateinit var heart: ImageView
+    private lateinit var stars: List<ImageView>
+    private lateinit var hideButton: ImageView
+    private lateinit var emptyState: LinearLayout
+    private lateinit var topBar: LinearLayout
+    private lateinit var photoTitle: TextView
+    private lateinit var photoInfo: TextView
+    private lateinit var statusDot: View
+    private lateinit var statusTitle: TextView
     private lateinit var hidePanelButton: Button
     private lateinit var deletePanelButton: Button
     private lateinit var strip: HorizontalScrollView
     private lateinit var thumbs: LinearLayout
-    private lateinit var lock: TextView
+    private lateinit var lock: ImageView
     private lateinit var status: TextView
     private lateinit var connectButton: Button
     private lateinit var sessionButton: Button
@@ -159,7 +167,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildUi()
         applyOrientation(resources.configuration)
-        setConnected(false)
+        setLink(LINK_OFF)
         lookChanged(rerender = false)
         openSession(sessions.current() ?: sessions.create(SessionNames.DEFAULT_NAME))
 
@@ -285,6 +293,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         setStatus("Conectando a ${device.productName ?: "câmera"}…")
         camera = CameraSession(applicationContext, device, connection, iface, this) { shoot.target(it) }.also { it.start() }
+        setLink(LINK_CONNECTING)
     }
 
     private fun findCamera(): UsbDevice? =
@@ -303,7 +312,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     override fun onConnected(model: String) {
         retryDelay = RETRY_MIN_MS
-        setConnected(true)
+        setLink(LINK_ON, model)
         setStatus("Conectada: $model. Fotografe na câmera: cada foto aparece aqui.")
         if (shoot.photos.isEmpty()) hint.text = "Pronto. Dispare na câmera para ver a primeira foto."
     }
@@ -340,7 +349,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     override fun onDisconnected(session: CameraSession, reason: String?) {
         if (session !== camera) return
         camera = null
-        setConnected(false)
+        setLink(if (reason != null) LINK_ERROR else LINK_OFF)
         if (reason != null) {
             val delay = retryLater()
             setStatus("Desconectada: $reason. Tentando de novo em ${delay / 1000} s…")
@@ -361,11 +370,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         currentOriginal = null
         currentShown = null
         viewer.setImage(null, 0, resetZoom = true)
-        hint.visibility = View.VISIBLE
+        emptyState.visibility = View.VISIBLE
         hint.text = if (camera != null) "Pronto. Dispare na câmera para ver a primeira foto." else "Conecte a câmera Sony pelo cabo USB"
         updateRatingBar()
         shareButton.isEnabled = false
-        sessionButton.text = "${s.label}  ▾"
+        sessionButton.text = "${s.label}"
         for (p in s.photos) addTile(p, atStart = true)
         // Miniaturas pelo sistema, sem abrir cada foto inteira.
         val list = s.photos.toList()
@@ -483,8 +492,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         currentOriginal = original
         currentShown = display
         viewer.setImage(display, photo.width, resetZoom = resetZoom || changed)
-        hint.visibility = View.GONE
-        for ((p, tile) in tiles) tile.frame.alpha = if (p === photo) 1f else 0.55f
+        emptyState.visibility = View.GONE
+        highlightTiles()
         shareButton.isEnabled = true
         updateRatingBar()
     }
@@ -682,7 +691,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         currentShown = null
         viewer.setImage(null, 0, resetZoom = true)
         hint.text = "Nenhuma foto neste filtro."
-        hint.visibility = View.VISIBLE
+        emptyState.visibility = View.VISIBLE
         shareButton.isEnabled = false
         updateRatingBar()
     }
@@ -697,15 +706,15 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun updateRatingBar() {
         updatePhotoButtons()
         val photo = current
-        ratingBar.visibility = if (photo == null || clientMode) View.GONE else View.VISIBLE
+        updatePhotoInfo()
         if (photo == null) return
-        heart.text = if (photo.favorite) "♥" else "♡"
-        heart.setTextColor(if (photo.favorite) FAVORITE else Color.WHITE)
+        heart.setImageResource(if (photo.favorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
+        heart.imageTintList = ColorStateList.valueOf(if (photo.favorite) Palette.PINK else Color.WHITE)
         stars.forEachIndexed { i, star ->
-            star.text = if (i < photo.rating) "★" else "☆"
-            star.setTextColor(if (i < photo.rating) ACCENT else Color.WHITE)
+            star.setImageResource(if (i < photo.rating) R.drawable.ic_star else R.drawable.ic_star_border)
+            star.imageTintList = ColorStateList.valueOf(if (i < photo.rating) Palette.GOLD else Color.WHITE)
         }
-        hideButton.text = if (photo.hidden) "👁" else "⊘"
+        hideButton.setImageResource(if (photo.hidden) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
         hideButton.contentDescription = if (photo.hidden) "Mostrar de novo" else "Esconder"
     }
 
@@ -714,9 +723,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val photo = current
         hidePanelButton.isEnabled = photo != null
         deletePanelButton.isEnabled = photo != null
-        hidePanelButton.text = if (photo?.hidden == true) "👁  Mostrar de novo" else "⊘  Esconder esta foto"
-        hidePanelButton.alpha = if (photo != null) 1f else 0.4f
-        deletePanelButton.alpha = if (photo != null) 1f else 0.4f
+        hidePanelButton.text = if (photo?.hidden == true) "Mostrar" else "Esconder"
+        ui.setIcon(hidePanelButton, if (photo?.hidden == true) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
     }
 
     /** Segurar uma miniatura: esconder ou apagar sem precisar abrir a foto. */
@@ -754,7 +762,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun applyFilter() {
         for ((p, tile) in tiles) tile.frame.visibility = if (matches(p)) View.VISIBLE else View.GONE
-        filterButton.text = "Mostrar: ${FILTERS[filter]}  ▾"
+        filterButton.text = "Mostrar: ${FILTERS[filter]}"
         updateCounter()
         refreshGallery()
     }
@@ -886,17 +894,17 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val entry = library.active()
         val stamp = watermark.snapshot()
         look = Look(entry?.let { PresetLook(it.preset, library.amount / 100f) }, stamp, "${presetSignature()}|${stamp?.signature ?: "-"}")
-        presetButton.text = entry?.preset?.name?.let { "$it  ▾" } ?: "Sem preset  ▾"
+        presetButton.text = entry?.preset?.name?.let { "$it" } ?: "Sem preset"
         amountBar.isEnabled = entry != null
-        amountLabel.text = "Intensidade: ${library.amount}%"
+        amountLabel.text = "${library.amount}%"
         val ignored = entry?.preset?.ignored.orEmpty()
         presetNote.text = if (ignored.isEmpty()) "" else "Não reproduzido neste app: ${ignored.joinToString(", ")}"
         presetNote.visibility = if (ignored.isEmpty()) View.GONE else View.VISIBLE
         watermarkButton.text = when {
-            stamp == null && watermark.enabled -> "Ligada, mas sem logo nem texto  ▾"
-            stamp == null -> "Desligada  ▾"
-            watermark.hasLogo -> "Ligada: logo  ▾"
-            else -> "Ligada: \"${watermark.text.trim()}\"  ▾"
+            stamp == null && watermark.enabled -> "Ligada, mas sem logo nem texto"
+            stamp == null -> "Desligada"
+            watermark.hasLogo -> "Ligada: logo"
+            else -> "Ligada: \"${watermark.text.trim()}\""
         }
         if (rerender) rerenderCurrent()
     }
@@ -1031,6 +1039,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun slider(min: Int, max: Int, value: Int, onChange: (Int) -> Unit) = SeekBar(this).apply {
+        ui.styleSlider(this)
+        setPadding(dp(11), dp(12), dp(11), dp(12))
         this.max = max - min
         progress = (value - min).coerceIn(0, max - min)
         onChange(progress + min)
@@ -1097,40 +1107,77 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun setStatus(text: String) {
         status.text = text
+        status.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
     }
 
-    private fun setConnected(connected: Boolean) {
-        connectButton.visibility = if (connected) View.GONE else View.VISIBLE
+    /** Estado da conexão no cartão do topo: bolinha colorida, título e o botão de conectar. */
+    private fun setLink(state: Int, model: String? = null) {
+        connectButton.visibility = if (state == LINK_ON || state == LINK_CONNECTING) View.GONE else View.VISIBLE
+        ui.setDotColor(statusDot, when (state) {
+            LINK_ON -> Palette.GREEN
+            LINK_CONNECTING -> Palette.GOLD
+            LINK_ERROR -> Palette.RED
+            else -> Palette.TEXT3
+        })
+        statusTitle.text = when (state) {
+            LINK_ON -> model ?: "Câmera conectada"
+            LINK_CONNECTING -> "Conectando…"
+            LINK_ERROR -> "Conexão interrompida"
+            else -> "Câmera desconectada"
+        }
     }
 
     private fun updateCounter() {
         val n = shoot.photos.size
         val shown = visiblePhotos().size
         val hidden = shoot.photos.count { it.hidden }
-        val inFilter = if (filter == 0) "" else " ($shown no filtro)"
+        val inFilter = if (filter == 0) "" else " · $shown no filtro"
         val hiddenText = if (hidden == 0) "" else " · $hidden ${if (hidden == 1) "escondida" else "escondidas"}"
-        counter.text = "$n ${if (n == 1) "foto" else "fotos"}$inFilter$hiddenText · Imagens/${PhotoStore.FOLDER}/${shoot.folder}"
+        counter.text = "$n ${if (n == 1) "foto" else "fotos"}$inFilter$hiddenText\nImagens/${PhotoStore.FOLDER}/${shoot.folder}"
         shareAllButton.text = if (filter == 0) "Compartilhar todas ($shown)" else "Compartilhar as do filtro ($shown)"
         shareAllButton.isEnabled = shown > 0
+        updatePhotoInfo()
+    }
+
+    /** Nome e posição da foto da tela, na faixa de cima. */
+    private fun updatePhotoInfo() {
+        val photo = current
+        topBar.visibility = if (photo == null || clientMode) View.GONE else View.VISIBLE
+        if (photo == null) return
+        photoTitle.text = photo.name
+        val list = visiblePhotos()
+        val index = list.indexOf(photo)
+        val position = if (index >= 0) "${index + 1} de ${list.size}" else "fora do filtro"
+        val mp = photo.width.toLong() * photo.height / 1_000_000
+        photoInfo.text = if (mp > 0) "$position  ·  $mp MP  ·  ${photo.width} × ${photo.height}" else position
+    }
+
+    private fun highlightTiles() {
+        for ((p, tile) in tiles) {
+            val selected = p === current
+            tile.frame.alpha = if (selected) 1f else 0.6f
+            tile.frame.foreground = if (selected) ui.rounded(Color.TRANSPARENT, 8, Palette.GOLD, 2) else null
+        }
     }
 
     private fun addTile(photo: SessionPhoto, atStart: Boolean) {
         val image = ImageView(this).apply {
             scaleType = ImageView.ScaleType.CENTER_CROP
-            setBackgroundColor(SURFACE)
+            setBackgroundColor(Palette.ROW)
         }
-        val marks = label("", 11f, Color.WHITE).apply {
-            typeface = Typeface.DEFAULT_BOLD
-            background = rounded(0xB0000000.toInt(), dp(3))
-            setPadding(dp(4), dp(1), dp(4), dp(1))
+        val marks = ui.text("", 10f, Color.WHITE, bold = true).apply {
+            background = ui.rounded(0xB3000000.toInt(), 6)
+            setPadding(dp(5), dp(2), dp(5), dp(2))
             visibility = View.GONE
         }
         val frame = FrameLayout(this).apply {
+            background = ui.rounded(Palette.ROW, 8)
+            clipToOutline = true
             addView(image, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
             addView(marks, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.START).apply {
-                setMargins(dp(3), 0, 0, dp(3))
+                setMargins(dp(4), 0, 0, dp(4))
             })
-            layoutParams = LinearLayout.LayoutParams(dp(96), dp(72)).apply { marginEnd = dp(6) }
+            layoutParams = LinearLayout.LayoutParams(dp(THUMB_H * 3 / 2), dp(THUMB_H)).apply { marginEnd = dp(8) }
             contentDescription = photo.name
             setOnClickListener { select(photo) }
             setOnLongClickListener {
@@ -1142,72 +1189,101 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         if (atStart) thumbs.addView(frame, 0) else thumbs.addView(frame)
         frame.visibility = if (matches(photo)) View.VISIBLE else View.GONE
         updateMarks(photo)
+        highlightTiles()
     }
 
     private fun setThumb(photo: SessionPhoto, bitmap: Bitmap) {
         val tile = tiles[photo] ?: return
         tile.image.setImageBitmap(bitmap)
-        tile.frame.layoutParams = LinearLayout.LayoutParams(dp(72) * bitmap.width / maxOf(1, bitmap.height), dp(72)).apply {
-            marginEnd = dp(6)
+        tile.frame.layoutParams = LinearLayout.LayoutParams(dp(THUMB_H) * bitmap.width / maxOf(1, bitmap.height), dp(THUMB_H)).apply {
+            marginEnd = dp(8)
         }
+    }
+
+    /** Botão redondo de ícone, para a barra de cima da foto. */
+    private fun iconButton(res: Int, description: String, onClick: () -> Unit) = ImageView(this).apply {
+        setImageResource(res)
+        imageTintList = ColorStateList.valueOf(Color.WHITE)
+        contentDescription = description
+        setPadding(dp(8), dp(8), dp(8), dp(8))
+        background = ui.ripple(null, 20)
+        layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+        setOnClickListener { onClick() }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun buildUi() {
         viewer = ZoomImageView(this).apply { listener = this@MainActivity }
-        hint = label("Conecte a câmera Sony pelo cabo USB", 18f, MUTED).apply { gravity = Gravity.CENTER }
-        badge = label("ORIGINAL", 13f, Color.WHITE).apply {
-            typeface = Typeface.DEFAULT_BOLD
-            background = rounded(0xCC000000.toInt(), dp(4))
-            setPadding(dp(10), dp(4), dp(10), dp(4))
-            visibility = View.GONE
+
+        // Sem foto: ícone, título e o que fazer.
+        hint = ui.text("Conecte a câmera Sony pelo cabo USB", 20f, Palette.TEXT, bold = true).apply { gravity = Gravity.CENTER }
+        emptyState = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(32), 0, dp(32), dp(40))
+            addView(FrameLayout(this@MainActivity).apply {
+                background = ui.rounded(Palette.CARD, 48, Palette.STROKE)
+                addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 44), FrameLayout.LayoutParams(dp(44), dp(44), Gravity.CENTER))
+            }, LinearLayout.LayoutParams(dp(96), dp(96)))
+            addView(hint, ui.wrap(24))
+            addView(ui.text(
+                "Cabo USB-C na câmera · Conexão USB: PC Remoto\nCada foto aparece aqui assim que você dispara.",
+                14f, Palette.TEXT2,
+            ).apply { gravity = Gravity.CENTER }, ui.wrap(10))
         }
-        heart = label("♡", 26f, Color.WHITE).apply {
-            setPadding(dp(8), 0, dp(10), 0)
-            setOnClickListener { toggleFavorite() }
-        }
-        stars = (1..5).map { n ->
-            label("☆", 26f, Color.WHITE).apply {
-                setPadding(dp(3), 0, dp(3), 0)
-                setOnClickListener { rate(n) }
-            }
-        }
-        hideButton = label("⊘", 24f, Color.WHITE).apply {
-            contentDescription = "Esconder"
-            setPadding(dp(14), 0, dp(8), 0)
-            setOnClickListener { toggleHidden() }
-        }
-        val trash = label("🗑", 22f, Color.WHITE).apply {
-            contentDescription = "Apagar"
-            setPadding(dp(8), 0, dp(6), 0)
-            setOnClickListener { confirmDelete() }
-        }
+
+        badge = ui.pill("ORIGINAL", 0xFF1A1307.toInt(), Palette.GOLD).apply { visibility = View.GONE }
+
+        heart = iconButton(R.drawable.ic_favorite_border, "Favorita") { toggleFavorite() }
+        stars = (1..5).map { n -> iconButton(R.drawable.ic_star_border, "$n estrelas") { rate(n) }.apply { setPadding(dp(9), dp(9), dp(9), dp(9)) } }
+        hideButton = iconButton(R.drawable.ic_visibility_off, "Esconder") { toggleHidden() }
+        val trash = iconButton(R.drawable.ic_delete_outline, "Apagar") { confirmDelete() }
         ratingBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            background = rounded(0x99000000.toInt(), dp(22))
-            setPadding(dp(8), dp(2), dp(10), dp(4))
+            background = ui.rounded(0xB31B1B21.toInt(), 24, 0x26FFFFFF)
+            setPadding(dp(4), dp(2), dp(4), dp(2))
             addView(heart)
             stars.forEach { addView(it) }
-            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) }, LinearLayout.LayoutParams(dp(1), dp(24)).apply {
-                marginStart = dp(10)
+            addView(View(this@MainActivity).apply { setBackgroundColor(0x33FFFFFF) }, LinearLayout.LayoutParams(dp(1), dp(22)).apply {
+                marginStart = dp(6)
+                marginEnd = dp(6)
             })
             addView(hideButton)
             addView(trash)
+        }
+        photoTitle = ui.text("", 16f, Color.WHITE, bold = true).apply { isSingleLine = true }
+        photoInfo = ui.text("", 12f, 0xCCFFFFFF.toInt()).apply { isSingleLine = true }
+        topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0xB3000000.toInt(), 0x00000000)
+            setPadding(dp(20), dp(14), dp(14), dp(32))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(photoTitle)
+                addView(photoInfo, ui.wrap(4))
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(ratingBar)
             visibility = View.GONE
         }
+
         thumbs = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setPadding(dp(16), dp(28), dp(8), dp(14))
         }
         strip = HorizontalScrollView(this).apply {
-            setBackgroundColor(0xAA000000.toInt())
+            background = ui.gradient(GradientDrawable.Orientation.BOTTOM_TOP, 0xE6000000.toInt(), 0x00000000)
+            isHorizontalScrollBarEnabled = false
             addView(thumbs)
         }
-        lock = label("🔒", 22f, Color.WHITE).apply {
-            gravity = Gravity.CENTER
-            alpha = 0.45f
-            background = rounded(0x66000000, dp(24))
+        lock = ImageView(this).apply {
+            setImageResource(R.drawable.ic_lock)
+            imageTintList = ColorStateList.valueOf(Color.WHITE)
+            contentDescription = "Sair do modo cliente (segure)"
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = ui.rounded(0x80000000.toInt(), 26, 0x33FFFFFF)
+            alpha = 0.5f
             visibility = View.GONE
             setOnTouchListener { _, e ->
                 when (e.actionMasked) {
@@ -1216,7 +1292,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                         main.postDelayed(exitClientMode, 2000)
                     }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        alpha = 0.45f
+                        alpha = 0.5f
                         if (clientMode) {
                             main.removeCallbacks(exitClientMode)
                             Toast.makeText(this@MainActivity, "Segure o cadeado por 2 segundos para sair.", Toast.LENGTH_SHORT).show()
@@ -1230,52 +1306,89 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         stage = FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(viewer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            addView(hint, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-            addView(badge, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.TOP or Gravity.START).apply {
-                setMargins(dp(16), dp(16), 0, 0)
-            })
-            addView(ratingBar, FrameLayout.LayoutParams(WRAP_CONTENT, dp(44), Gravity.TOP or Gravity.END).apply {
-                setMargins(0, dp(12), dp(12), 0)
+            addView(emptyState, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(topBar, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.TOP))
+            addView(badge, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = dp(84)
             })
             addView(strip, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
-            addView(lock, FrameLayout.LayoutParams(dp(48), dp(48), Gravity.BOTTOM or Gravity.END).apply {
-                setMargins(0, 0, dp(16), dp(16))
+            addView(lock, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.BOTTOM or Gravity.END).apply {
+                setMargins(0, 0, dp(20), dp(20))
             })
         }
 
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(20), dp(20), dp(20))
+            setPadding(dp(16), dp(20), dp(16), dp(24))
         }
-        column.addView(label("Sony Tether", 22f, Color.WHITE).apply { typeface = Typeface.DEFAULT_BOLD })
-        column.addView(label("versão ${BuildConfig.VERSION_NAME}", 12f, MUTED))
-        status = label("", 14f, MUTED).apply { setPadding(0, dp(6), 0, dp(12)) }
-        column.addView(status)
-        connectButton = button("Conectar câmera", ACCENT, Color.BLACK) {
+
+        // Cabeçalho: marca, nome e versão.
+        column.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), 0, dp(4), dp(18))
+            addView(FrameLayout(this@MainActivity).apply {
+                background = ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2A2214.toInt(), 0xFF16130D.toInt(), radiusDp = 12)
+                addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 24), FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), 0, 0, 0)
+                addView(ui.text("Sony Tether", 19f, Palette.TEXT, bold = true))
+                addView(ui.text("Tethering para Sony Alpha", 12f, Palette.TEXT3), ui.wrap(3))
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(ui.pill(BuildConfig.VERSION_NAME.replace("-beta", " BETA"), Palette.GOLD, 0x14E9B45A, 0x55E9B45A))
+        })
+
+        // Câmera: estado da conexão.
+        statusDot = ui.dot(Palette.TEXT3)
+        statusTitle = ui.text("Câmera desconectada", 16f, Palette.TEXT, bold = true)
+        status = ui.text("Ligue o cabo USB-C e coloque a câmera em PC Remoto.", 13f, Palette.TEXT2)
+        connectButton = ui.primary(R.drawable.ic_usb, "Conectar câmera") {
             askedPermissionFor = null
             connect()
         }
-        column.addView(connectButton, fullWidth(dp(48)))
-        column.addView(button("Diagnóstico", SURFACE, MUTED) { showDiagnostics() }, fullWidth(dp(40)).apply { topMargin = dp(8) })
+        column.addView(ui.card().apply {
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(statusDot)
+                addView(statusTitle, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(10) })
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_bug_report)
+                    imageTintList = ColorStateList.valueOf(Palette.TEXT3)
+                    contentDescription = "Diagnóstico"
+                    setPadding(dp(6), dp(6), dp(6), dp(6))
+                    background = ui.ripple(null, 16)
+                    setOnClickListener { showDiagnostics() }
+                }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            })
+            addView(status, ui.wrap(8))
+            addView(connectButton, ui.matchWidth(48, 14))
+        }, ui.wrap())
 
-        column.addView(section("SESSÃO"))
-        sessionButton = button("", SURFACE, Color.WHITE) { chooseSession() }
-        column.addView(sessionButton, fullWidth(dp(48)))
-        filterButton = button("", SURFACE, Color.WHITE) { chooseFilter() }
-        column.addView(filterButton, fullWidth(dp(44)).apply { topMargin = dp(8) })
+        // Sessão
+        sessionButton = ui.row(R.drawable.ic_folder, "") { chooseSession() }
+        filterButton = ui.row(R.drawable.ic_filter_list, "") { chooseFilter() }
+        counter = ui.text("Nenhuma foto ainda", 12f, Palette.TEXT3)
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_photo_library, "Sessão"))
+            addView(sessionButton, ui.matchWidth(48))
+            addView(filterButton, ui.matchWidth(48, 8))
+            addView(counter, ui.wrap(12))
+        }, ui.wrap(12))
 
-        column.addView(section("PRESET DO LIGHTROOM"))
-        presetButton = button("Sem preset  ▾", SURFACE, Color.WHITE) { choosePreset() }
-        column.addView(presetButton, fullWidth(dp(48)))
-        column.addView(button("Importar preset", SURFACE, Color.WHITE) { importPreset() }, fullWidth(dp(44)).apply { topMargin = dp(8) })
-        amountLabel = label("", 13f, MUTED).apply { setPadding(0, dp(12), 0, 0) }
-        column.addView(amountLabel)
+        // Preset
+        presetButton = ui.row(R.drawable.ic_tune, "Sem preset") { choosePreset() }
+        amountLabel = ui.text("", 13f, Palette.GOLD, bold = true)
         amountBar = SeekBar(this).apply {
             max = 100
             progress = library.amount
+            ui.styleSlider(this)
+            setPadding(dp(11), dp(12), dp(11), dp(12))
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
-                    amountLabel.text = "Intensidade: $value%"
+                    amountLabel.text = "$value%"
                 }
 
                 override fun onStartTrackingTouch(bar: SeekBar) {}
@@ -1286,48 +1399,66 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 }
             })
         }
-        column.addView(amountBar, fullWidth(WRAP_CONTENT))
-        presetNote = label("", 12f, MUTED).apply { setPadding(0, dp(6), 0, 0) }
-        column.addView(presetNote)
+        presetNote = ui.text("", 12f, Palette.TEXT3)
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Preset do Lightroom"))
+            addView(presetButton, ui.matchWidth(48))
+            addView(ui.row(R.drawable.ic_upload_file, "Importar preset…", chevron = false) { importPreset() }, ui.matchWidth(48, 8))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(ui.text("Intensidade", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(amountLabel)
+            }, ui.wrap(16))
+            addView(amountBar, ui.wrap(4))
+            addView(presetNote, ui.wrap(4))
+        }, ui.wrap(12))
 
-        column.addView(section("MARCA D'ÁGUA"))
-        watermarkButton = button("Desligada  ▾", SURFACE, Color.WHITE) { editWatermark() }
-        column.addView(watermarkButton, fullWidth(dp(48)))
+        // Marca d'água
+        watermarkButton = ui.row(R.drawable.ic_branding_watermark, "Desligada") { editWatermark() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_branding_watermark, "Marca d'água"))
+            addView(watermarkButton, ui.matchWidth(48))
+        }, ui.wrap(12))
 
-        column.addView(section("FOTO DA TELA"))
-        hidePanelButton = button("⊘  Esconder esta foto", SURFACE, Color.WHITE) { toggleHidden() }
-        column.addView(hidePanelButton, fullWidth(dp(44)))
-        deletePanelButton = button("🗑  Apagar esta foto", SURFACE, DANGER) { confirmDelete() }
-        column.addView(deletePanelButton, fullWidth(dp(44)).apply { topMargin = dp(8) })
+        // Foto da tela
+        hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
+        deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_photo_camera, "Foto da tela"))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(hidePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+                addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+            })
+        }, ui.wrap(12))
 
-        column.addView(section("COMPARTILHAR"))
-        shareButton = button("Compartilhar esta foto", ACCENT, Color.BLACK) { current?.let { share(listOf(it)) } }
+        // Entregar
+        shareButton = ui.primary(R.drawable.ic_share, "Compartilhar esta foto") { current?.let { share(listOf(it)) } }
         shareButton.isEnabled = false
-        column.addView(shareButton, fullWidth(dp(52)))
-        shareAllButton = button("Compartilhar todas (0)", SURFACE, Color.WHITE) { share(visiblePhotos()) }
+        shareAllButton = ui.row(R.drawable.ic_photo_library, "Compartilhar todas (0)", chevron = false) { share(visiblePhotos()) }
         shareAllButton.isEnabled = false
-        column.addView(shareAllButton, fullWidth(dp(44)).apply { topMargin = dp(8) })
+        qrButton = ui.row(R.drawable.ic_qr_code_2, "QR code para o cliente") { showQr() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_share, "Entregar"))
+            addView(shareButton, ui.matchWidth(50))
+            addView(shareAllButton, ui.matchWidth(48, 8))
+            addView(qrButton, ui.matchWidth(48, 8))
+            addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
+        }, ui.wrap(12))
 
-        column.addView(section("CLIENTE"))
-        qrButton = button("QR code para o cliente", SURFACE, Color.WHITE) { showQr() }
-        column.addView(qrButton, fullWidth(dp(48)))
-        column.addView(button("Modo cliente (tela cheia)", SURFACE, Color.WHITE) { setClientMode(true) }, fullWidth(dp(44)).apply {
-            topMargin = dp(8)
-        })
-
-        counter = label("Nenhuma foto ainda", 13f, MUTED).apply { setPadding(0, dp(16), 0, 0) }
-        column.addView(counter, fullWidth(WRAP_CONTENT))
-        column.addView(label(
-            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · segure para ver sem o preset · ⊘ esconde e 🗑 apaga a foto",
-            12f, MUTED,
-        ).apply { setPadding(0, dp(8), 0, 0) }, fullWidth(WRAP_CONTENT))
+        column.addView(ui.text(
+            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · " +
+                "segure para ver sem o preset · segure uma miniatura para esconder ou apagar",
+            12f, Palette.TEXT3,
+        ).apply { setPadding(dp(4), 0, dp(4), 0) }, ui.wrap(16))
 
         panel = ScrollView(this).apply {
-            setBackgroundColor(PANEL)
+            setBackgroundColor(Palette.PANEL)
+            isVerticalScrollBarEnabled = false
             addView(column)
         }
         root = LinearLayout(this).apply {
-            setBackgroundColor(PANEL)
+            setBackgroundColor(Palette.PANEL)
             addView(stage)
             addView(panel)
         }
@@ -1369,34 +1500,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
     }
 
-    private fun section(title: String) = label(title, 12f, ACCENT).apply {
-        typeface = Typeface.DEFAULT_BOLD
-        letterSpacing = 0.08f
-        setPadding(0, dp(24), 0, dp(8))
-    }
-
     private fun label(text: String, sp: Float, color: Int) = TextView(this).apply {
         this.text = text
         setTextColor(color)
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
     }
-
-    private fun button(text: String, background: Int, textColor: Int, onClick: () -> Unit) = Button(this).apply {
-        this.text = text
-        isAllCaps = false
-        setTextColor(textColor)
-        textSize = 15f
-        this.background = rounded(background, dp(10))
-        stateListAnimator = null
-        setOnClickListener { onClick() }
-    }
-
-    private fun rounded(color: Int, radius: Int) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = radius.toFloat()
-    }
-
-    private fun fullWidth(height: Int) = LinearLayout.LayoutParams(MATCH_PARENT, height)
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
@@ -1416,11 +1524,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val GALLERY_THUMB_PX = 480
         val FILTERS = arrayOf("Todas", "Favoritas", "3★ ou mais", "5★", "Escondidas")
         const val FILTER_HIDDEN = 4
-        const val PANEL = 0xFF16161A.toInt()
-        const val SURFACE = 0xFF2A2A31.toInt()
-        const val ACCENT = 0xFFE8A33D.toInt()
-        const val FAVORITE = 0xFFFF5A6E.toInt()
-        const val DANGER = 0xFFFF6B6B.toInt()
-        const val MUTED = 0xFF9A9AA5.toInt()
+        const val MUTED = Palette.TEXT2
+        const val THUMB_H = 64
+        const val LINK_OFF = 0
+        const val LINK_CONNECTING = 1
+        const val LINK_ON = 2
+        const val LINK_ERROR = 3
     }
 }

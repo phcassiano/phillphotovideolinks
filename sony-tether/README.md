@@ -95,6 +95,12 @@ Em outras Alpha os passos são parecidos:
 O APK é assinado com a chave em `keystore/`, então uma versão nova instala por
 cima da antiga sem perder nada.
 
+## Design
+
+Tema escuro com destaque dourado, cartões e ícones do Material Symbols. Capturas
+da tela ficam em `design/`; para gerar de novo (usa Robolectric, sem tablet):
+`./gradlew testReleaseUnitTest --tests ScreenshotTest -Pscreenshots`.
+
 ## Gerar o APK
 
 - Pelo GitHub: aba **Actions → "Sony Tether: gerar APK" → Run workflow**. O APK

@@ -11,8 +11,8 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.5.2-beta"
+        versionCode = 8
+        versionName = "0.6-beta"
     }
 
     // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,
@@ -46,6 +46,19 @@ android {
     buildFeatures {
         buildConfig = true
     }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all { test ->
+                test.systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2/")
+                if (project.hasProperty("screenshots")) {
+                    test.systemProperty("screenshots", file("../design").absolutePath)
+                } else {
+                    test.exclude("**/ScreenshotTest*") // baixa um Android inteiro: só quando pedido
+                }
+            }
+        }
+    }
     lint {
         // App de uso próprio: textos fixos em português, sem tradução.
         disable += setOf("SetTextI18n", "ObsoleteSdkInt")
@@ -54,4 +67,6 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // Só para as capturas de tela do design (ScreenshotTest, roda com -Pscreenshots).
+    testImplementation("org.robolectric:robolectric:4.14.1")
 }
