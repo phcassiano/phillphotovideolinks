@@ -11,8 +11,8 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "0.5-beta"
     }
 
     // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,

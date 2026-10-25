@@ -3,6 +3,9 @@
 
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 
+    <!-- Galeria do cliente: o tablet serve as fotos na rede Wi-Fi local (sem internet) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

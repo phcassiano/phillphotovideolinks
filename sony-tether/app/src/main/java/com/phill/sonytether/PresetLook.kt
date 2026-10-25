@@ -1,6 +1,7 @@
 package com.phill.sonytether
 
 import android.graphics.Bitmap
+import android.graphics.RectF
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.floor
@@ -44,8 +45,11 @@ class PresetLook(preset: Preset, private val amount: Float) {
         interpolate(x0, y0, z0, x - x0, y - y0, z - z0, out)
     }
 
-    /** Aplica o preset no próprio bitmap (se ele for mutável) ou numa cópia. */
-    fun apply(source: Bitmap): Bitmap {
+    /**
+     * Aplica o preset no próprio bitmap (se ele for mutável) ou numa cópia. [frame] diz onde o
+     * bitmap fica na foto inteira (0..1) quando ele é só um trecho dela, para a vinheta.
+     */
+    fun apply(source: Bitmap, frame: RectF? = null): Bitmap {
         val bitmap = if (source.isMutable && source.config == Bitmap.Config.ARGB_8888) source
         else source.copy(Bitmap.Config.ARGB_8888, true)
         val w = bitmap.width
@@ -58,8 +62,13 @@ class PresetLook(preset: Preset, private val amount: Float) {
             frac[v] = x - index[v]
         }
         val vignette = p.vignette * amount
-        val cx = w / 2f
-        val cy = h / 2f
+        // Num trecho da foto (zoom), a vinheta é calculada pelo centro da foto inteira.
+        val fullW = if (frame != null) w / frame.width() else w.toFloat()
+        val fullH = if (frame != null) h / frame.height() else h.toFloat()
+        val offX = (frame?.left ?: 0f) * fullW
+        val offY = (frame?.top ?: 0f) * fullH
+        val cx = fullW / 2f
+        val cy = fullH / 2f
         val rows = 64
         val pixels = IntArray(w * rows)
         val out = FloatArray(3)
@@ -68,7 +77,7 @@ class PresetLook(preset: Preset, private val amount: Float) {
             val count = minOf(rows, h - top)
             bitmap.getPixels(pixels, 0, w, 0, top, w, count)
             for (row in 0 until count) {
-                val dy = (top + row - cy) / cy
+                val dy = (offY + top + row - cy) / cy
                 for (col in 0 until w) {
                     val k = row * w + col
                     val c = pixels[k]
@@ -78,7 +87,7 @@ class PresetLook(preset: Preset, private val amount: Float) {
                     interpolate(index[r], index[g], index[b], frac[r], frac[g], frac[b], out)
                     var gain = 1f
                     if (vignette != 0f) {
-                        val dx = (col - cx) / cx
+                        val dx = (offX + col - cx) / cx
                         gain = 1f + vignette * smoothstep(p.vignetteStart, VIGNETTE_END, sqrt(dx * dx + dy * dy))
                     }
                     pixels[k] = (c and 0xFF000000.toInt()) or

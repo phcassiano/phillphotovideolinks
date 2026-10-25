@@ -4,27 +4,38 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapRegionDecoder
 import android.graphics.Matrix
+import android.graphics.Rect
+import android.graphics.RectF
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Size
 import java.io.ByteArrayInputStream
 import java.io.OutputStream
 import kotlin.math.max
+import kotlin.math.min
 
 /**
- * Galeria: o arquivo que veio da câmera vai para Imagens/SonyTether/Originais e a versão
- * com preset para Imagens/SonyTether. Também gera as prévias para a tela.
+ * Galeria: cada sessão tem a pasta Imagens/SonyTether/<sessão>, com o arquivo que veio da câmera
+ * em Originais e a versão para compartilhar (preset, marca d'água) na própria pasta.
+ * Também gera as prévias para a tela.
  */
 object PhotoStore {
-    private const val FOLDER = "SonyTether"
+    const val FOLDER = "SonyTether"
 
-    fun saveOriginal(context: Context, name: String, data: ByteArray): Uri? =
-        save(context, name, mimeType(name), "$FOLDER/Originais") { it.write(data) }
+    fun saveOriginal(context: Context, folder: String, name: String, data: ByteArray): Uri? =
+        save(context, name, mimeType(name), "$FOLDER/$folder/Originais") { it.write(data) }
 
-    fun saveJpeg(context: Context, name: String, bitmap: Bitmap): Uri? =
-        save(context, name, "image/jpeg", FOLDER) { bitmap.compress(Bitmap.CompressFormat.JPEG, 93, it) }
+    fun saveJpeg(context: Context, folder: String, name: String, bitmap: Bitmap): Uri? =
+        save(context, name, "image/jpeg", "$FOLDER/$folder") { bitmap.compress(Bitmap.CompressFormat.JPEG, 93, it) }
+
+    /** Miniatura pelo sistema (rápida, sem ler o arquivo inteiro); se não der, decodifica a foto. */
+    fun thumbnail(context: Context, uri: Uri, maxPx: Int): Bitmap? =
+        runCatching { context.contentResolver.loadThumbnail(uri, Size(maxPx, maxPx), null) }.getOrNull()
+            ?: readBytes(context, uri)?.let { decodePreview(it, maxPx) }
 
     fun delete(context: Context, uri: Uri) {
         runCatching { context.contentResolver.delete(uri, null, null) }
@@ -82,6 +93,65 @@ object PhotoStore {
         return rotate(bitmap, orientation(data))
     }
 
+    /** Tamanho da foto inteira, já de pé. */
+    fun sourceSize(data: ByteArray): Pair<Int, Int> {
+        val (offset, length) = previewRegion(data) ?: return 0 to 0
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(data, offset, length, bounds)
+        val turned = degrees(orientation(data)) % 180 != 0
+        return if (turned) bounds.outHeight to bounds.outWidth else bounds.outWidth to bounds.outHeight
+    }
+
+    /** Leitor de trechos da foto em resolução cheia, para o zoom de conferir foco. */
+    class Region(private val decoder: BitmapRegionDecoder, private val degrees: Int) {
+        /** Tamanho da foto já de pé. */
+        val width = if (degrees % 180 != 0) decoder.height else decoder.width
+        val height = if (degrees % 180 != 0) decoder.width else decoder.height
+
+        /**
+         * Lê o trecho [rect] (0..1, na foto de pé) com pelo menos [minWidth] pixels de largura,
+         * pulando pixels quando a foto tem bem mais que isso.
+         */
+        fun read(rect: RectF, minWidth: Int): Bitmap? {
+            val (x0, y0) = toSource(rect.left, rect.top)
+            val (x1, y1) = toSource(rect.right, rect.bottom)
+            val area = Rect(
+                (min(x0, x1) * decoder.width).toInt().coerceIn(0, decoder.width - 1),
+                (min(y0, y1) * decoder.height).toInt().coerceIn(0, decoder.height - 1),
+                (max(x0, x1) * decoder.width).toInt().coerceIn(1, decoder.width),
+                (max(y0, y1) * decoder.height).toInt().coerceIn(1, decoder.height),
+            )
+            if (area.width() <= 0 || area.height() <= 0) return null
+            val uprightWidth = if (degrees % 180 != 0) area.height() else area.width()
+            var sample = 1
+            while (uprightWidth / (sample * 2) >= minWidth) sample *= 2
+            val options = BitmapFactory.Options().apply { inSampleSize = sample }
+            val bitmap = synchronized(decoder) { decoder.decodeRegion(area, options) } ?: return null
+            if (degrees == 0) return bitmap
+            val m = Matrix().apply { postRotate(degrees.toFloat()) }
+            return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true).also {
+                if (it !== bitmap) bitmap.recycle()
+            }
+        }
+
+        /** Ponto da foto de pé → ponto do arquivo, que fica como o sensor gravou. */
+        private fun toSource(u: Float, v: Float): Pair<Float, Float> = when (degrees) {
+            90 -> v to 1 - u
+            180 -> 1 - u to 1 - v
+            270 -> 1 - v to u
+            else -> u to v
+        }
+
+        fun close() = decoder.recycle()
+    }
+
+    fun region(data: ByteArray): Region? {
+        val (offset, length) = previewRegion(data) ?: return null
+        @Suppress("DEPRECATION")
+        val decoder = runCatching { BitmapRegionDecoder.newInstance(data, offset, length, false) }.getOrNull() ?: return null
+        return Region(decoder, degrees(orientation(data)))
+    }
+
     /** Cópia reduzida (sempre um bitmap novo, nunca o próprio [bitmap]). */
     fun scaled(bitmap: Bitmap, maxPx: Int): Bitmap {
         val longest = max(bitmap.width, bitmap.height)
@@ -122,14 +192,17 @@ object PhotoStore {
         ExifInterface(ByteArrayInputStream(data)).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
     }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
 
+    private fun degrees(orientation: Int) = when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> 90
+        ExifInterface.ORIENTATION_ROTATE_180 -> 180
+        ExifInterface.ORIENTATION_ROTATE_270 -> 270
+        else -> 0
+    }
+
     private fun rotate(bitmap: Bitmap, orientation: Int): Bitmap {
-        val degrees = when (orientation) {
-            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
-            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
-            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
-            else -> return bitmap
-        }
-        val m = Matrix().apply { postRotate(degrees) }
+        val degrees = degrees(orientation)
+        if (degrees == 0) return bitmap
+        val m = Matrix().apply { postRotate(degrees.toFloat()) }
         val rotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, m, true)
         bitmap.recycle()
         return rotated

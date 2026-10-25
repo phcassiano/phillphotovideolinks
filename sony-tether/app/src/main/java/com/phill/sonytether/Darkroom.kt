@@ -2,45 +2,68 @@ package com.phill.sonytether
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.RectF
 import android.net.Uri
 
-/** Uma foto pronta para a tela: [original] sem preset, [display] como vai ser compartilhada. */
-class Developed(val original: Bitmap, val display: Bitmap, val edited: Uri?, val thumb: Bitmap)
+/**
+ * Uma foto pronta para a tela: [original] sem preset, [display] como vai ser compartilhada.
+ * [width] e [height] são da foto inteira.
+ */
+class Developed(val original: Bitmap, val display: Bitmap, val edited: Uri?, val thumb: Bitmap, val width: Int, val height: Int)
 
-/** Aplica o preset numa foto e salva o JPEG que vai ser compartilhado. */
+/** Como a foto sai do app: preset (com intensidade) e marca d'água. */
+class Look(val preset: PresetLook?, val stamp: Watermark.Stamp?, val signature: String) {
+    /** Sem nada para aplicar, o JPEG da câmera é compartilhado como veio. */
+    fun needsJpeg(name: String) = preset != null || stamp != null || PhotoStore.isRaw(name)
+
+    fun apply(bitmap: Bitmap): Bitmap {
+        val edited = preset?.apply(bitmap) ?: bitmap
+        return stamp?.draw(edited) ?: edited
+    }
+}
+
+/** Aplica preset e marca d'água numa foto e salva o JPEG que vai ser compartilhado. */
 object Darkroom {
     /**
-     * Lado maior do JPEG com preset: sobra para Instagram, WhatsApp e impressão pequena.
+     * Lado maior do JPEG para compartilhar: sobra para Instagram, WhatsApp e impressão pequena.
      * A leitura reduz pela metade até caber, então 42 MP (7952 px) viram 3976 px.
      */
     const val EXPORT_PX = 4096
     const val DISPLAY_PX = 2048
-    private const val THUMB_PX = 240
+    const val THUMB_PX = 240
 
     /**
-     * Com preset, salva "<nome>_preset.jpg". Sem preset, só gera um JPEG se a foto for RAW
-     * (para ter algo que dê para compartilhar); JPEG da câmera é compartilhado como veio.
+     * Gera o JPEG para compartilhar ("<nome>.jpg" na pasta da sessão) quando há algo a aplicar
+     * ou a foto é RAW. [replacing] é a versão anterior, apagada antes para o nome ficar livre.
      */
-    fun develop(context: Context, name: String, data: ByteArray, look: PresetLook?): Developed? {
+    fun develop(context: Context, folder: String, name: String, data: ByteArray, look: Look, replacing: Uri? = null): Developed? {
         val full = PhotoStore.decodePreview(data, EXPORT_PX) ?: return null
+        val (width, height) = PhotoStore.sourceSize(data)
         val original = PhotoStore.scaled(full, DISPLAY_PX)
-        if (look == null && !PhotoStore.isRaw(name)) {
+        if (!look.needsJpeg(name)) {
             full.recycle()
-            return Developed(original, original, null, PhotoStore.scaled(original, THUMB_PX))
+            return Developed(original, original, null, PhotoStore.scaled(original, THUMB_PX), width, height)
         }
-        val edited = look?.apply(full) ?: full
-        val suffix = if (look != null) "_preset" else ""
-        val uri = PhotoStore.saveJpeg(context, name.substringBeforeLast('.') + "$suffix.jpg", edited)
+        val edited = look.apply(full)
+        replacing?.let { PhotoStore.delete(context, it) }
+        val uri = PhotoStore.saveJpeg(context, folder, name.substringBeforeLast('.') + ".jpg", edited)
         val display = PhotoStore.scaled(edited, DISPLAY_PX)
         edited.recycle()
-        return Developed(original, display, uri, PhotoStore.scaled(display, THUMB_PX))
+        return Developed(original, display, uri, PhotoStore.scaled(display, THUMB_PX), width, height)
     }
 
-    /** Só a imagem da tela, com o preset atual, a partir do original salvo. */
-    fun preview(context: Context, uri: Uri, look: PresetLook?): Pair<Bitmap, Bitmap>? {
+    /** Só a imagem da tela, com o visual atual, a partir do original salvo. */
+    fun preview(context: Context, uri: Uri, look: Look): Developed? {
         val data = PhotoStore.readBytes(context, uri) ?: return null
         val original = PhotoStore.decodePreview(data, DISPLAY_PX) ?: return null
-        val display = look?.apply(PhotoStore.scaled(original, DISPLAY_PX)) ?: original
-        return original to display
+        val (width, height) = PhotoStore.sourceSize(data)
+        val display = look.apply(PhotoStore.scaled(original, DISPLAY_PX))
+        return Developed(original, display, null, PhotoStore.scaled(display, THUMB_PX), width, height)
+    }
+
+    /** Trecho da foto em resolução cheia para o zoom, com o preset (a marca d'água fica de fora). */
+    fun detail(region: PhotoStore.Region, rect: RectF, minWidth: Int, look: Look): Bitmap? {
+        val bitmap = region.read(rect, minWidth) ?: return null
+        return look.preset?.apply(bitmap, rect) ?: bitmap
     }
 }

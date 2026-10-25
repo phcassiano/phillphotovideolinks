@@ -20,6 +20,8 @@ class CameraSession(
     private val connection: UsbDeviceConnection,
     private val iface: UsbInterface,
     private val listener: Listener,
+    /** Nome e pasta de cada foto que chega, pelo nome que ela tem na câmera. */
+    private val target: (String) -> ShotTarget,
 ) : Thread("camera") {
 
     interface Listener {
@@ -27,7 +29,7 @@ class CameraSession(
         fun onConnected(model: String)
 
         /** Foto recebida e salva como veio da câmera ([original] é null se não deu para salvar). */
-        fun onShot(name: String, data: ByteArray, original: Uri?)
+        fun onShot(target: ShotTarget, data: ByteArray, original: Uri?)
         fun onDisconnected(session: CameraSession, reason: String?)
     }
 
@@ -87,9 +89,10 @@ class CameraSession(
             while (running && camera.hasPendingShot() && downloads++ < 10) {
                 ui { listener.onStatus("Recebendo foto…") }
                 val shot = camera.downloadShot()
-                DiagLog.add("foto ${shot.name}, ${shot.data.size} bytes")
-                val uri = PhotoStore.saveOriginal(context, shot.name, shot.data)
-                ui { listener.onShot(shot.name, shot.data, uri) }
+                val to = target(shot.name)
+                DiagLog.add("foto ${shot.name} → ${to.name}, ${shot.data.size} bytes")
+                val uri = PhotoStore.saveOriginal(context, to.session.folder, to.name, shot.data)
+                ui { listener.onShot(to, shot.data, uri) }
                 if (!camera.refreshProps()) break
             }
         }
