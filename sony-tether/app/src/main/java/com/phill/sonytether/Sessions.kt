@@ -24,6 +24,16 @@ class SessionPhoto(val number: Int, var name: String) {
     var rating = 0
     var favorite = false
 
+    /** Escondida: some da tela, do compartilhamento e da galeria do cliente, mas os arquivos ficam. */
+    var hidden = false
+
+    /** Outros arquivos da mesma foto (o RAW, quando chega RAW+JPEG), para apagar junto. */
+    val extras = ArrayList<Uri>()
+
+    /** Apagada nesta execução: o que ainda estiver sendo feito com ela é descartado. */
+    @Volatile
+    var deleted = false
+
     /** Tamanho da foto inteira, já de pé (0 enquanto não se sabe). */
     var width = 0
     var height = 0
@@ -66,6 +76,7 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
                 .put("n", p.number).put("name", p.name)
                 .put("original", p.original?.toString()).put("edited", p.edited?.toString())
                 .put("editedWith", p.editedWith).put("rating", p.rating).put("fav", p.favorite)
+                .put("hidden", p.hidden).put("extras", JSONArray(p.extras.map { it.toString() }))
                 .put("w", p.width).put("h", p.height))
         })
 
@@ -82,6 +93,8 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
                     editedWith = p.optString("editedWith").takeIf { it.isNotEmpty() && it != "null" }
                     rating = p.optInt("rating")
                     favorite = p.optBoolean("fav")
+                    hidden = p.optBoolean("hidden")
+                    p.optJSONArray("extras")?.let { a -> for (k in 0 until a.length()) extras += Uri.parse(a.getString(k)) }
                     width = p.optInt("w")
                     height = p.optInt("h")
                 }

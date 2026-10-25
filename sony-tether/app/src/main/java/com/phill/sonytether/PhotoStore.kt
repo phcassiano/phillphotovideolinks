@@ -37,8 +37,14 @@ object PhotoStore {
         runCatching { context.contentResolver.loadThumbnail(uri, Size(maxPx, maxPx), null) }.getOrNull()
             ?: readBytes(context, uri)?.let { decodePreview(it, maxPx) }
 
-    fun delete(context: Context, uri: Uri) {
-        runCatching { context.contentResolver.delete(uri, null, null) }
+    /** true se o arquivo saiu (ou já não existia); false se o Android não deixou apagar. */
+    fun delete(context: Context, uri: Uri): Boolean = try {
+        context.contentResolver.delete(uri, null, null)
+        true
+    } catch (e: SecurityException) {
+        false
+    } catch (e: Exception) {
+        true
     }
 
     fun readBytes(context: Context, uri: Uri): ByteArray? =

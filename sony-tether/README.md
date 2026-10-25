@@ -13,8 +13,12 @@ pronta para compartilhar.
   pixel da tela) no ponto tocado; pinça amplia, arrastar move. Ampliada, a tela
   carrega o trecho em resolução cheia. Deslize para o lado para trocar de foto.
 - **Estrelas e favoritas**: ♥ e ★ no canto da foto. O filtro (Todas, Favoritas,
-  3★ ou mais, 5★) vale para as miniaturas, para "Compartilhar" e para a galeria
+  3★ ou mais, 5★, Escondidas) vale para as miniaturas, para "Compartilhar" e para a galeria
   do cliente.
+- **Esconder ou apagar fotos ruins**: ⊘ esconde a foto (some da tela, do
+  compartilhamento e da galeria do cliente; para recuperar, use o filtro
+  "Escondidas" e toque em 👁). 🗑 apaga do tablet o arquivo da câmera e a versão
+  com preset, depois de confirmar; a cópia no cartão da câmera continua.
 - **Sessões por cliente**: cada sessão tem pasta própria
   (**Imagens/SonyTether/2026-10-25 Maria**) e os arquivos ficam com o nome do
   cliente (**Maria_001.jpg**, **Maria_002.jpg**…). Dá para reabrir uma sessão

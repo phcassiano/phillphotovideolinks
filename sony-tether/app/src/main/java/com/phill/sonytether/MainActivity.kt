@@ -86,6 +86,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var ratingBar: LinearLayout
     private lateinit var heart: TextView
     private lateinit var stars: List<TextView>
+    private lateinit var hideButton: TextView
     private lateinit var strip: HorizontalScrollView
     private lateinit var thumbs: LinearLayout
     private lateinit var lock: TextView
@@ -316,10 +317,12 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 if (s === shoot) addTile(it, atStart = true)
             }
             twin.isRaw && !PhotoStore.isRaw(target.name) -> twin.also {
+                it.original?.let(it.extras::add)
                 it.name = target.name
                 it.original = original
             }
             else -> {
+                original?.let(twin.extras::add)
                 sessions.save(s)
                 setStatus("${target.name} salva")
                 return
@@ -438,6 +441,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                     setStatus("Não foi possível abrir ${photo.name}")
                     return@post
                 }
+                if (photo.deleted) {
+                    result.edited?.let { uri -> processor.execute { PhotoStore.delete(this, uri) } }
+                    return@post
+                }
                 photo.width = result.width
                 photo.height = result.height
                 sessions.save(s)
@@ -468,6 +475,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun show(photo: SessionPhoto, original: Bitmap, display: Bitmap, resetZoom: Boolean) {
+        if (photo.deleted) return
         val changed = photo !== current
         current = photo
         currentOriginal = original
@@ -500,6 +508,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
      * ou, sem nada a aplicar, o arquivo da câmera. Roda no [processor].
      */
     private fun prepare(photo: SessionPhoto, look: Look, s: ShootSession): Uri? {
+        if (photo.deleted) return null
         if (!look.needsJpeg(photo.name)) return photo.original
         if (photo.edited != null && photo.editedWith == look.signature) return photo.edited
         val data = photo.original?.let { PhotoStore.readBytes(this, it) } ?: return photo.edited ?: photo.original
@@ -583,11 +592,13 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     // ---- Estrelas, favoritas e filtro ----
 
+    /** As escondidas só aparecem no filtro "Escondidas". */
     private fun matches(p: SessionPhoto) = when (filter) {
-        1 -> p.favorite
-        2 -> p.rating >= 3
-        3 -> p.rating >= 5
-        else -> true
+        FILTER_HIDDEN -> p.hidden
+        1 -> !p.hidden && p.favorite
+        2 -> !p.hidden && p.rating >= 3
+        3 -> !p.hidden && p.rating >= 5
+        else -> !p.hidden
     }
 
     /** Fotos do filtro, na ordem das miniaturas (a mais nova primeiro). */
@@ -603,6 +614,75 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val photo = current ?: return
         photo.favorite = !photo.favorite
         ratingChanged(photo)
+    }
+
+    private fun toggleHidden() {
+        val photo = current ?: return
+        val before = visiblePhotos()
+        photo.hidden = !photo.hidden
+        ratingChanged(photo)
+        if (photo.hidden) {
+            Toast.makeText(this, "${photo.name} escondida. Para ver de novo: Mostrar → Escondidas.", Toast.LENGTH_SHORT).show()
+        }
+        if (!matches(photo)) showNeighbor(photo, before)
+    }
+
+    private fun confirmDelete() {
+        val photo = current ?: return
+        val files = 1 + (if (photo.edited != null) 1 else 0) + photo.extras.size
+        AlertDialog.Builder(this)
+            .setTitle("Apagar ${photo.name}?")
+            .setMessage(
+                "Apaga do tablet o arquivo da câmera e a versão com preset ($files ${if (files == 1) "arquivo" else "arquivos"}). " +
+                    "A cópia no cartão da câmera não é apagada. Não dá para desfazer.",
+            )
+            .setPositiveButton("Apagar") { _, _ -> delete(photo) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun delete(photo: SessionPhoto) {
+        val s = shoot
+        val before = visiblePhotos()
+        photo.deleted = true
+        s.photos.remove(photo)
+        tiles.remove(photo)?.let { thumbs.removeView(it.frame) }
+        saveSession()
+        thumbCache.clear()
+        updateCounter()
+        refreshGallery()
+        if (current === photo) showNeighbor(photo, before)
+        // No processador: espera o que já estava sendo feito com a foto (preset, compartilhar) terminar antes.
+        processor.execute {
+            val uris = listOfNotNull(photo.original, photo.edited) + photo.extras
+            val failed = uris.count { !PhotoStore.delete(this, it) }
+            main.post {
+                setStatus(
+                    if (failed == 0) "${photo.name} apagada."
+                    else "${photo.name} saiu da sessão, mas $failed arquivo(s) não puderam ser apagados (o app foi reinstalado?). Apague pela Galeria.",
+                )
+            }
+        }
+    }
+
+    /** Depois de esconder ou apagar: mostra a próxima foto do filtro (ou a anterior, se era a última). */
+    private fun showNeighbor(photo: SessionPhoto, before: List<SessionPhoto>) {
+        val after = visiblePhotos().toSet()
+        val i = before.indexOf(photo)
+        val next = before.drop(i + 1).firstOrNull { it in after } ?: before.take(maxOf(i, 0)).lastOrNull { it in after }
+        if (next != null) {
+            select(next)
+            return
+        }
+        selecting++
+        current = null
+        currentOriginal = null
+        currentShown = null
+        viewer.setImage(null, 0, resetZoom = true)
+        hint.text = "Nenhuma foto neste filtro."
+        hint.visibility = View.VISIBLE
+        shareButton.isEnabled = false
+        updateRatingBar()
     }
 
     private fun ratingChanged(photo: SessionPhoto) {
@@ -622,11 +702,17 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             star.text = if (i < photo.rating) "★" else "☆"
             star.setTextColor(if (i < photo.rating) ACCENT else Color.WHITE)
         }
+        hideButton.text = if (photo.hidden) "👁" else "⊘"
+        hideButton.contentDescription = if (photo.hidden) "Mostrar de novo" else "Esconder"
     }
 
     private fun updateMarks(photo: SessionPhoto) {
         val marks = tiles[photo]?.marks ?: return
-        val text = listOfNotNull(if (photo.favorite) "♥" else null, if (photo.rating > 0) "${photo.rating}★" else null).joinToString(" ")
+        val text = listOfNotNull(
+            if (photo.hidden) "⊘" else null,
+            if (photo.favorite) "♥" else null,
+            if (photo.rating > 0) "${photo.rating}★" else null,
+        ).joinToString(" ")
         marks.text = text
         marks.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
     }
@@ -997,8 +1083,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun updateCounter() {
         val n = shoot.photos.size
         val shown = visiblePhotos().size
+        val hidden = shoot.photos.count { it.hidden }
         val inFilter = if (filter == 0) "" else " ($shown no filtro)"
-        counter.text = "$n ${if (n == 1) "foto" else "fotos"}$inFilter · Imagens/${PhotoStore.FOLDER}/${shoot.folder}"
+        val hiddenText = if (hidden == 0) "" else " · $hidden ${if (hidden == 1) "escondida" else "escondidas"}"
+        counter.text = "$n ${if (n == 1) "foto" else "fotos"}$inFilter$hiddenText · Imagens/${PhotoStore.FOLDER}/${shoot.folder}"
         shareAllButton.text = if (filter == 0) "Compartilhar todas ($shown)" else "Compartilhar as do filtro ($shown)"
         shareAllButton.isEnabled = shown > 0
     }
@@ -1057,6 +1145,16 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 setOnClickListener { rate(n) }
             }
         }
+        hideButton = label("⊘", 24f, Color.WHITE).apply {
+            contentDescription = "Esconder"
+            setPadding(dp(14), 0, dp(8), 0)
+            setOnClickListener { toggleHidden() }
+        }
+        val trash = label("🗑", 22f, Color.WHITE).apply {
+            contentDescription = "Apagar"
+            setPadding(dp(8), 0, dp(6), 0)
+            setOnClickListener { confirmDelete() }
+        }
         ratingBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1064,6 +1162,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             setPadding(dp(8), dp(2), dp(10), dp(4))
             addView(heart)
             stars.forEach { addView(it) }
+            addView(View(this@MainActivity).apply { setBackgroundColor(0x55FFFFFF) }, LinearLayout.LayoutParams(dp(1), dp(24)).apply {
+                marginStart = dp(10)
+            })
+            addView(hideButton)
+            addView(trash)
             visibility = View.GONE
         }
         thumbs = LinearLayout(this).apply {
@@ -1181,7 +1284,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         counter = label("Nenhuma foto ainda", 13f, MUTED).apply { setPadding(0, dp(16), 0, 0) }
         column.addView(counter, fullWidth(WRAP_CONTENT))
         column.addView(label(
-            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · segure para ver sem o preset",
+            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · segure para ver sem o preset · ⊘ esconde e 🗑 apaga a foto",
             12f, MUTED,
         ).apply { setPadding(0, dp(8), 0, 0) }, fullWidth(WRAP_CONTENT))
 
@@ -1277,7 +1380,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val RETRY_MIN_MS = 3000L
         const val RETRY_MAX_MS = 20000L
         const val GALLERY_THUMB_PX = 480
-        val FILTERS = arrayOf("Todas", "Favoritas", "3★ ou mais", "5★")
+        val FILTERS = arrayOf("Todas", "Favoritas", "3★ ou mais", "5★", "Escondidas")
+        const val FILTER_HIDDEN = 4
         const val PANEL = 0xFF16161A.toInt()
         const val SURFACE = 0xFF2A2A31.toInt()
         const val ACCENT = 0xFFE8A33D.toInt()
