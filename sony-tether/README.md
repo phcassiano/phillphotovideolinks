@@ -19,6 +19,8 @@ pronta para compartilhar.
   compartilhamento e da galeria do cliente; para recuperar, use o filtro
   "Escondidas" e toque em 👁). 🗑 apaga do tablet o arquivo da câmera e a versão
   com preset, depois de confirmar; a cópia no cartão da câmera continua.
+  Os mesmos botões ficam no painel, em **FOTO DA TELA**, e aparecem ao segurar
+  uma miniatura.
 - **Sessões por cliente**: cada sessão tem pasta própria
   (**Imagens/SonyTether/2026-10-25 Maria**) e os arquivos ficam com o nome do
   cliente (**Maria_001.jpg**, **Maria_002.jpg**…). Dá para reabrir uma sessão

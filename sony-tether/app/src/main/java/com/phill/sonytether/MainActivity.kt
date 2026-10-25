@@ -87,6 +87,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var heart: TextView
     private lateinit var stars: List<TextView>
     private lateinit var hideButton: TextView
+    private lateinit var hidePanelButton: Button
+    private lateinit var deletePanelButton: Button
     private lateinit var strip: HorizontalScrollView
     private lateinit var thumbs: LinearLayout
     private lateinit var lock: TextView
@@ -361,7 +363,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         viewer.setImage(null, 0, resetZoom = true)
         hint.visibility = View.VISIBLE
         hint.text = if (camera != null) "Pronto. Dispare na câmera para ver a primeira foto." else "Conecte a câmera Sony pelo cabo USB"
-        ratingBar.visibility = View.GONE
+        updateRatingBar()
         shareButton.isEnabled = false
         sessionButton.text = "${s.label}  ▾"
         for (p in s.photos) addTile(p, atStart = true)
@@ -616,19 +618,19 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         ratingChanged(photo)
     }
 
-    private fun toggleHidden() {
-        val photo = current ?: return
+    private fun toggleHidden(photo: SessionPhoto? = current) {
+        photo ?: return
         val before = visiblePhotos()
         photo.hidden = !photo.hidden
         ratingChanged(photo)
         if (photo.hidden) {
             Toast.makeText(this, "${photo.name} escondida. Para ver de novo: Mostrar → Escondidas.", Toast.LENGTH_SHORT).show()
         }
-        if (!matches(photo)) showNeighbor(photo, before)
+        if (photo === current && !matches(photo)) showNeighbor(photo, before)
     }
 
-    private fun confirmDelete() {
-        val photo = current ?: return
+    private fun confirmDelete(photo: SessionPhoto? = current) {
+        photo ?: return
         val files = 1 + (if (photo.edited != null) 1 else 0) + photo.extras.size
         AlertDialog.Builder(this)
             .setTitle("Apagar ${photo.name}?")
@@ -693,6 +695,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun updateRatingBar() {
+        updatePhotoButtons()
         val photo = current
         ratingBar.visibility = if (photo == null || clientMode) View.GONE else View.VISIBLE
         if (photo == null) return
@@ -704,6 +707,26 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         hideButton.text = if (photo.hidden) "👁" else "⊘"
         hideButton.contentDescription = if (photo.hidden) "Mostrar de novo" else "Esconder"
+    }
+
+    /** Botões do painel para a foto da tela; ficam desligados sem foto. */
+    private fun updatePhotoButtons() {
+        val photo = current
+        hidePanelButton.isEnabled = photo != null
+        deletePanelButton.isEnabled = photo != null
+        hidePanelButton.text = if (photo?.hidden == true) "👁  Mostrar de novo" else "⊘  Esconder esta foto"
+        hidePanelButton.alpha = if (photo != null) 1f else 0.4f
+        deletePanelButton.alpha = if (photo != null) 1f else 0.4f
+    }
+
+    /** Segurar uma miniatura: esconder ou apagar sem precisar abrir a foto. */
+    private fun photoMenu(photo: SessionPhoto) {
+        AlertDialog.Builder(this)
+            .setTitle(photo.name)
+            .setItems(arrayOf(if (photo.hidden) "👁  Mostrar de novo" else "⊘  Esconder", "🗑  Apagar…")) { _, which ->
+                if (which == 0) toggleHidden(photo) else confirmDelete(photo)
+            }
+            .show()
     }
 
     private fun updateMarks(photo: SessionPhoto) {
@@ -1110,6 +1133,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             layoutParams = LinearLayout.LayoutParams(dp(96), dp(72)).apply { marginEnd = dp(6) }
             contentDescription = photo.name
             setOnClickListener { select(photo) }
+            setOnLongClickListener {
+                photoMenu(photo)
+                true
+            }
         }
         tiles[photo] = Tile(frame, image, marks)
         if (atStart) thumbs.addView(frame, 0) else thumbs.addView(frame)
@@ -1221,6 +1248,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             setPadding(dp(20), dp(20), dp(20), dp(20))
         }
         column.addView(label("Sony Tether", 22f, Color.WHITE).apply { typeface = Typeface.DEFAULT_BOLD })
+        column.addView(label("versão ${BuildConfig.VERSION_NAME}", 12f, MUTED))
         status = label("", 14f, MUTED).apply { setPadding(0, dp(6), 0, dp(12)) }
         column.addView(status)
         connectButton = button("Conectar câmera", ACCENT, Color.BLACK) {
@@ -1265,6 +1293,12 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         column.addView(section("MARCA D'ÁGUA"))
         watermarkButton = button("Desligada  ▾", SURFACE, Color.WHITE) { editWatermark() }
         column.addView(watermarkButton, fullWidth(dp(48)))
+
+        column.addView(section("FOTO DA TELA"))
+        hidePanelButton = button("⊘  Esconder esta foto", SURFACE, Color.WHITE) { toggleHidden() }
+        column.addView(hidePanelButton, fullWidth(dp(44)))
+        deletePanelButton = button("🗑  Apagar esta foto", SURFACE, DANGER) { confirmDelete() }
+        column.addView(deletePanelButton, fullWidth(dp(44)).apply { topMargin = dp(8) })
 
         column.addView(section("COMPARTILHAR"))
         shareButton = button("Compartilhar esta foto", ACCENT, Color.BLACK) { current?.let { share(listOf(it)) } }
@@ -1386,6 +1420,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val SURFACE = 0xFF2A2A31.toInt()
         const val ACCENT = 0xFFE8A33D.toInt()
         const val FAVORITE = 0xFFFF5A6E.toInt()
+        const val DANGER = 0xFFFF6B6B.toInt()
         const val MUTED = 0xFF9A9AA5.toInt()
     }
 }
