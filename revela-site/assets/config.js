@@ -8,8 +8,8 @@ window.REVELA = {
   precoMensal: "39",
   precoAnual: "348",
   precoAnualPorMes: "29",
-  checkoutMensal: "",
-  checkoutAnual: "",
+  checkoutMensal: "https://pay.kiwify.com.br/bFX2A4c",
+  checkoutAnual: "https://pay.kiwify.com.br/xK6NFjb",
   // Só números, com DDI e DDD. Ex.: "5511987654321"
   whatsapp: "",
 };
