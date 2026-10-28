@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
     const vendas = lista.map((l) => {
       // Ainda sem tablet: a chave é de ativação (liga ao primeiro tablet). Com tablet: chave dele.
       const { chave } = lib.assinar({ id: l.id, nome: l.name, plano: l.plan, ate: l.until, aparelho: l.device || "", online: !l.device });
-      const msg = lib.mensagemCliente(l.name, chave);
+      const msg = lib.mensagemCliente(l.name, chave, l.plan);
       const wa = lib.whatsappDe(l.phone);
       return {
         id: l.id, nome: l.name, email: l.email, telefone: l.phone, plano: l.plan, situacao: l.status, ate: l.until,

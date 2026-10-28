@@ -86,10 +86,10 @@ function whatsappDe(telefone) {
   return n;
 }
 
-function mensagemCliente(nome, chave) {
+function mensagemCliente(nome, chave, plano) {
   const primeiro = String(nome || "").trim().split(/\s+/)[0] || "";
   return (
-    `Oi${primeiro ? ", " + primeiro : ""}! Obrigado por assinar o Revela 📸\n\n` +
+    `Oi${primeiro ? ", " + primeiro : ""}! ${plano === "teste" ? "Obrigado por testar o Revela" : "Obrigado por assinar o Revela"} 📸\n\n` +
     `1) Instale o app no tablet: ${APK_URL}\n` +
     `2) Abra o Revela → Assinatura → Inserir chave\n` +
     `3) Cole esta chave (precisa de internet na primeira vez):\n\n${chave}\n\n` +

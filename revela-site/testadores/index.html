@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testadores do Revela · 15 vagas</title>
+  <meta name="description" content="15 fotógrafos vão usar o Revela de graça por 15 dias e ajudar a melhorar o app com o seu feedback. Cadastre-se e receba a sua chave na hora.">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0b0b0e">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Seja testador do Revela · 15 vagas">
+  <meta property="og:description" content="Use o Revela de graça por 15 dias e ajude a melhorar o app.">
+  <meta property="og:image" content="/assets/og.jpg">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    .panel { max-width: 640px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px; }
+    .panel h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin: 10px 0 6px; }
+    label { display: block; font-size: 0.92rem; color: var(--text-2); margin: 16px 0 6px; }
+    input, select, textarea { width: 100%; background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font: inherit; }
+    textarea { min-height: 90px; resize: vertical; }
+    .row { display: grid; gap: 0 12px; grid-template-columns: 1fr; }
+    @media (min-width: 620px) { .row { grid-template-columns: 1fr 1fr; } }
+    .check { display: flex; gap: 12px; align-items: flex-start; margin-top: 22px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px; padding: 16px; color: var(--text); font-size: 0.95rem; cursor: pointer; }
+    .check input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: var(--gold); }
+    .panel .btn { width: 100%; margin-top: 20px; }
+    .err { color: #ff7b7b; margin-top: 14px; min-height: 1.2em; }
+    .ok { color: var(--green); margin-top: 14px; }
+    .key { margin-top: 10px; background: var(--bg-2); border: 1px dashed rgba(233, 180, 90, 0.6); border-radius: 12px; padding: 14px; font-family: ui-monospace, monospace; font-size: 0.82rem; word-break: break-all; color: var(--text); }
+    .result { display: none; }
+    .result .btns { margin-top: 16px; }
+    .result .btns .btn { width: auto; margin-top: 0; flex: 1 1 200px; }
+    .vagas { display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(233, 180, 90, 0.4); color: var(--gold); border-radius: 999px; padding: 6px 14px; font-size: 0.88rem; font-weight: 600; background: var(--gold-soft); }
+    .reqs { display: grid; gap: 12px; grid-template-columns: 1fr; max-width: 900px; margin: 0 auto; }
+    @media (min-width: 760px) { .reqs { grid-template-columns: 1fr 1fr; } }
+    .req { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; color: var(--text-2); }
+    .req b { color: var(--text); display: block; margin-bottom: 4px; }
+    .timeline { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
+    .timeline li { display: flex; gap: 16px; align-items: baseline; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; color: var(--text-2); }
+    .timeline li b { color: var(--gold); font-family: "Fraunces", Georgia, serif; font-size: 1.15rem; min-width: 64px; }
+    .steps .step a { color: var(--gold); }
+  </style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="logo" href="/"><img src="/assets/favicon.svg" alt="">Revela</a>
+    <a class="btn btn-gold btn-sm" href="#cadastro">Quero testar</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap center">
+    <span class="vagas" id="vagas">● Programa de testadores · 15 vagas</span>
+    <h1 style="margin-left:auto;margin-right:auto">Use o Revela <em>de graça por 15 dias</em> e me ajude a deixar o app melhor.</h1>
+    <p class="lead" style="margin-left:auto;margin-right:auto">Estou procurando 15 fotógrafos para usar o Revela em ensaios de verdade. Você recebe a chave na hora do cadastro e, em troca, me conta o que funcionou, o que travou e o que falta.</p>
+    <div class="btns" style="justify-content:center">
+      <a class="btn btn-gold" href="#cadastro">Quero uma vaga</a>
+      <a class="btn btn-ghost" href="#passo-a-passo">Ver o passo a passo</a>
+    </div>
+    <div class="device">
+      <picture>
+        <source srcset="/assets/app-sessao.webp" type="image/webp">
+        <img src="/assets/app-sessao.jpg" width="1600" height="1000" alt="O Revela no tablet: a foto grande, as miniaturas da sessão e o painel com preset e entrega">
+      </picture>
+    </div>
+  </div>
+</header>
+
+<section style="padding-top:24px">
+  <div class="wrap">
+    <div class="section-head center">
+      <span class="eyebrow">Quem pode participar</span>
+      <h2>Confira se o seu equipamento roda o Revela</h2>
+    </div>
+    <div class="reqs">
+      <div class="req"><b>Tablet ou celular Android</b>Android 10 ou mais novo, com entrada USB-C. No iPad e no iPhone o app ainda não funciona.</div>
+      <div class="req"><b>Câmera compatível</b>Sony Alpha com PC Remoto, Canon EOS ou Nikon de 2015 para cá pelo cabo, ou qualquer câmera com FTP pelo Wi-Fi.</div>
+      <div class="req"><b>Pelo menos um ensaio nos 15 dias</b>O teste vale mais num ensaio de verdade, com cliente, do que só em casa.</div>
+      <div class="req"><b>Topar dar feedback</b>Respostas rápidas nos dias 3, 7 e 15, pelo WhatsApp ou pelo formulário desta página.</div>
+    </div>
+  </div>
+</section>
+
+<section id="passo-a-passo" style="padding-top:0">
+  <div class="wrap">
+    <div class="section-head center">
+      <span class="eyebrow">Passo a passo</span>
+      <h2>Do cadastro ao primeiro ensaio</h2>
+    </div>
+    <div class="steps">
+      <div class="step"><h3>Cadastre-se</h3><p>Preencha o formulário abaixo e aceite o compromisso de feedback. A sua chave de 15 dias aparece na hora. Copie e guarde.</p></div>
+      <div class="step"><h3>Instale o app</h3><p>No tablet, toque em <b>Baixar o Revela</b>. O Android vai pedir para permitir a instalação de "fontes desconhecidas": é só aceitar.</p></div>
+      <div class="step"><h3>Ative a chave</h3><p>Abra o Revela → <b>Assinatura</b> → <b>Inserir chave</b> e cole a chave. Precisa de internet só nessa hora; ela fica ligada a esse tablet.</p></div>
+      <div class="step"><h3>Conecte a câmera</h3><p>Ligue o cabo USB-C da câmera no tablet (na Sony, ative o <b>PC Remoto</b>) ou configure o envio por FTP pelo Wi-Fi, com os dados que aparecem no app.</p></div>
+      <div class="step"><h3>Use num ensaio</h3><p>Importe um preset seu do Lightroom, mostre as fotos ao cliente no tablet e entregue as favoritas por QR code.</p></div>
+      <div class="step"><h3>Conte o que achou</h3><p>Nos dias 3, 7 e 15, responda às minhas mensagens ou preencha o <a href="#feedback">formulário de feedback</a>. Leva 2 minutos.</p></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap long">
+    <span class="eyebrow">O combinado</span>
+    <h2 style="margin:14px 0 18px">Compromisso de feedback por 15 dias</h2>
+    <p>O teste é de graça porque o seu retorno vale muito para o app. Cada vaga é de uma pessoa que realmente vai usar e contar como foi. Ao se cadastrar, você topa:</p>
+    <ul class="timeline">
+      <li><b>Dia 3</b><span>Contar se conseguiu instalar, ativar e conectar a câmera, e onde travou.</span></li>
+      <li><b>Dia 7</b><span>Contar como foi usar num ensaio: o que ajudou, o que irritou e como o cliente reagiu.</span></li>
+      <li><b>Dia 15</b><span>Preencher o formulário final com a sua nota e o que falta para o Revela virar ferramenta do seu dia a dia.</span></li>
+    </ul>
+    <div class="callout"><p>Sem cartão de crédito e sem cobrança no fim. A chave vence sozinha depois de 15 dias. Se quiser continuar, você escolhe se assina.</p></div>
+  </div>
+</section>
+
+<section id="cadastro" style="padding-top:0">
+  <div class="wrap">
+    <div class="panel">
+      <div id="cadastro-form">
+        <span class="eyebrow">Cadastro</span>
+        <h2>Garanta a sua vaga</h2>
+        <p class="muted" id="vagas-texto">São 15 vagas no total.</p>
+        <form id="f" novalidate>
+          <div class="row">
+            <div><label for="nome">Nome</label><input id="nome" required autocomplete="name" placeholder="Maria Souza"></div>
+            <div><label for="instagram">Instagram</label><input id="instagram" autocomplete="off" placeholder="@seuperfil"></div>
+          </div>
+          <div class="row">
+            <div><label for="email">E-mail</label><input id="email" type="email" required autocomplete="email" placeholder="voce@email.com"></div>
+            <div><label for="whatsapp">WhatsApp com DDD</label><input id="whatsapp" type="tel" required autocomplete="tel" placeholder="(11) 91234-5678"></div>
+          </div>
+          <div class="row">
+            <div><label for="camera">Sua câmera</label><input id="camera" required placeholder="Sony A7 IV"></div>
+            <div><label for="tablet">Seu tablet ou celular Android</label><input id="tablet" required placeholder="Galaxy Tab S9"></div>
+          </div>
+          <label class="check"><input type="checkbox" id="compromisso"><span>Topo o compromisso de feedback: vou usar o Revela durante os 15 dias e contar o que achei nos dias 3, 7 e 15.</span></label>
+          <button class="btn btn-gold" type="submit" id="enviar">Quero minha chave de teste</button>
+          <p class="err" id="err" role="alert"></p>
+        </form>
+      </div>
+      <div class="result" id="result">
+        <span class="eyebrow">Vaga garantida</span>
+        <h2 id="result-titulo">Bem-vindo ao time de testadores!</h2>
+        <p class="muted">Esta é a sua chave, válida até <b id="ate"></b>. Copie e guarde: é com ela que você ativa o app.</p>
+        <div class="key" id="chave"></div>
+        <div class="btns">
+          <button class="btn btn-ghost" type="button" id="copiar">Copiar a chave</button>
+          <a class="btn btn-gold" id="apk" href="#">Baixar o Revela</a>
+        </div>
+        <p class="muted" style="margin-top:18px">Agora siga o <a href="#passo-a-passo" style="color:var(--gold)">passo a passo</a>: instale, abra em Assinatura → Inserir chave e conecte a câmera. Vou te chamar no WhatsApp nos próximos dias.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="feedback" style="padding-top:0">
+  <div class="wrap">
+    <div class="panel">
+      <span class="eyebrow">Para quem já está testando</span>
+      <h2>Formulário de feedback</h2>
+      <p class="muted">Use o e-mail do cadastro. Pode responder mais de uma vez: nos dias 3, 7 e 15.</p>
+      <form id="fb" novalidate>
+        <div class="row">
+          <div><label for="fb-email">E-mail do cadastro</label><input id="fb-email" type="email" required autocomplete="email"></div>
+          <div><label for="fb-dia">Dia do teste</label>
+            <select id="fb-dia"><option value="3">Dia 3</option><option value="7">Dia 7</option><option value="15">Dia 15 (final)</option><option value="">Outro</option></select></div>
+        </div>
+        <label for="fb-nota">De 0 a 10, quanto você indicaria o Revela a outro fotógrafo?</label>
+        <select id="fb-nota"><option value="">Escolha</option><option>10</option><option>9</option><option>8</option><option>7</option><option>6</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option><option>0</option></select>
+        <label for="fb-ajudou">O que mais ajudou?</label><textarea id="fb-ajudou"></textarea>
+        <label for="fb-travou">O que travou, irritou ou não funcionou? (câmera, cabo, Wi-Fi, preset…)</label><textarea id="fb-travou"></textarea>
+        <label for="fb-cliente">Como o cliente reagiu vendo as fotos no tablet?</label><textarea id="fb-cliente"></textarea>
+        <label for="fb-ideias">O que falta para você usar em todo ensaio?</label><textarea id="fb-ideias"></textarea>
+        <button class="btn btn-gold" type="submit" id="fb-enviar">Enviar feedback</button>
+        <p class="err" id="fb-err" role="alert"></p>
+        <p class="ok" id="fb-ok" style="display:none">Recebido! Obrigado, isso vai direto para as próximas versões do app.</p>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:0">
+  <div class="wrap">
+    <div class="faq">
+      <details><summary>É de graça mesmo?</summary><p>Sim. Não pedimos cartão e não há cobrança no fim. A chave de teste vence sozinha depois de 15 dias.</p></details>
+      <details><summary>E depois dos 15 dias?</summary><p>Se quiser continuar, você assina pelo site (mensal ou anual). Se não quiser, não precisa fazer nada.</p></details>
+      <details><summary>Posso usar em mais de um tablet?</summary><p>A chave fica ligada ao primeiro tablet em que for ativada. Se precisar trocar de aparelho, fale comigo.</p></details>
+      <details><summary>Perdi a minha chave. E agora?</summary><p>Preencha o cadastro de novo com o mesmo e-mail e o mesmo WhatsApp: a sua chave aparece outra vez.</p></details>
+      <details><summary>Minha câmera não está na lista. Posso testar?</summary><p>Se ela envia fotos por FTP pelo Wi-Fi, provavelmente funciona. Na dúvida, me chame antes de se cadastrar para não ocupar uma vaga à toa.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="/"><img src="/assets/favicon.svg" alt="">Revela</a>
+    <span>Tethering no tablet para fotógrafos · © 2026</span>
+    <a href="/">Conhecer o app</a>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+
+  function vagas(restantes) {
+    if (restantes <= 0) {
+      $("vagas").textContent = "● Vagas esgotadas";
+      $("vagas-texto").textContent = "As 15 vagas já foram preenchidas. Obrigado pelo interesse!";
+      $("enviar").disabled = true;
+      $("enviar").textContent = "Vagas esgotadas";
+    } else {
+      $("vagas").textContent = "● Programa de testadores · " + restantes + (restantes === 1 ? " vaga restante" : " vagas restantes");
+      $("vagas-texto").textContent = "Restam " + restantes + " de 15 vagas.";
+    }
+  }
+
+  fetch("/api/testadores", { cache: "no-store" }).then(function (r) { return r.json(); })
+    .then(function (d) { if (typeof d.restantes === "number") vagas(d.restantes); }).catch(function () {});
+
+  function post(dados) {
+    return fetch("/api/testadores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) })
+      .then(function (r) { return r.json().then(function (d) { d._ok = r.ok; return d; }); });
+  }
+
+  function dataBr(iso) { var p = String(iso || "").split("-"); return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0] : iso; }
+
+  $("f").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("err").textContent = "";
+    if (!$("compromisso").checked) { $("err").textContent = "Para entrar, marque o compromisso de feedback."; return; }
+    $("enviar").disabled = true;
+    $("enviar").textContent = "Gerando a sua chave…";
+    post({
+      acao: "cadastrar", nome: $("nome").value, instagram: $("instagram").value, email: $("email").value,
+      whatsapp: $("whatsapp").value, camera: $("camera").value, tablet: $("tablet").value, compromisso: true
+    }).then(function (d) {
+      if (!d._ok) {
+        $("err").textContent = d.erro || "Não deu certo. Tente de novo.";
+        if (d.cheio) vagas(0); else { $("enviar").disabled = false; $("enviar").textContent = "Quero minha chave de teste"; }
+        return;
+      }
+      $("chave").textContent = d.chave;
+      $("ate").textContent = dataBr(d.ate);
+      $("apk").href = d.apk;
+      if (d.recuperada) $("result-titulo").textContent = "Aqui está a sua chave de novo";
+      $("cadastro-form").style.display = "none";
+      $("result").style.display = "block";
+      $("cadastro").scrollIntoView({ behavior: "smooth", block: "start" });
+    }).catch(function () {
+      $("err").textContent = "Sem conexão com o servidor. Tente de novo.";
+      $("enviar").disabled = false; $("enviar").textContent = "Quero minha chave de teste";
+    });
+  });
+
+  $("copiar").addEventListener("click", function () {
+    var t = $("chave").textContent;
+    var feito = function () { $("copiar").textContent = "Copiada ✓"; };
+    if (navigator.clipboard) navigator.clipboard.writeText(t).then(feito, function () {});
+    else { var r = document.createRange(); r.selectNodeContents($("chave")); var s = getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); feito(); }
+  });
+
+  $("fb").addEventListener("submit", function (e) {
+    e.preventDefault();
+    $("fb-err").textContent = ""; $("fb-ok").style.display = "none";
+    $("fb-enviar").disabled = true;
+    post({
+      acao: "feedback", email: $("fb-email").value, dia: $("fb-dia").value, nota: $("fb-nota").value,
+      ajudou: $("fb-ajudou").value, travou: $("fb-travou").value, cliente: $("fb-cliente").value, ideias: $("fb-ideias").value
+    }).then(function (d) {
+      $("fb-enviar").disabled = false;
+      if (!d._ok) { $("fb-err").textContent = d.erro || "Não deu certo. Tente de novo."; return; }
+      $("fb-ok").style.display = "block";
+      ["fb-ajudou", "fb-travou", "fb-cliente", "fb-ideias"].forEach(function (id) { $(id).value = ""; });
+    }).catch(function () { $("fb-enviar").disabled = false; $("fb-err").textContent = "Sem conexão com o servidor. Tente de novo."; });
+  });
+})();
+</script>
+</body>
+</html>
