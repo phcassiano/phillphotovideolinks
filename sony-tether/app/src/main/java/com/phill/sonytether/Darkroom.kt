@@ -11,13 +11,21 @@ import android.net.Uri
  */
 class Developed(val original: Bitmap, val display: Bitmap, val edited: Uri?, val thumb: Bitmap, val width: Int, val height: Int)
 
-/** Como a foto sai do app: preset (com intensidade) e marca d'água. */
-class Look(val preset: PresetLook?, val stamp: Watermark.Stamp?, val signature: String) {
+/** Como a foto sai do app: preset (com intensidade), ajustes do editor e marca d'água. */
+class Look(val preset: PresetLook?, val stamp: Watermark.Stamp?, val signature: String, val manual: PresetLook? = null) {
     /** Sem nada para aplicar, o JPEG da câmera é compartilhado como veio. */
-    fun needsJpeg(name: String) = preset != null || stamp != null || PhotoStore.isRaw(name)
+    fun needsJpeg(name: String) = preset != null || manual != null || stamp != null || PhotoStore.isRaw(name)
+
+    val changesPhoto get() = preset != null || manual != null || stamp != null
+
+    /** Só a cor e a luz (preset e ajustes), sem a marca d'água. */
+    fun tones(bitmap: Bitmap, frame: RectF? = null): Bitmap {
+        val toned = preset?.apply(bitmap, frame) ?: bitmap
+        return manual?.apply(toned, frame) ?: toned
+    }
 
     fun apply(bitmap: Bitmap): Bitmap {
-        val edited = preset?.apply(bitmap) ?: bitmap
+        val edited = tones(bitmap)
         return stamp?.draw(edited) ?: edited
     }
 }
@@ -61,9 +69,9 @@ object Darkroom {
         return Developed(original, display, null, PhotoStore.scaled(display, THUMB_PX), width, height)
     }
 
-    /** Trecho da foto em resolução cheia para o zoom, com o preset (a marca d'água fica de fora). */
+    /** Trecho da foto em resolução cheia para o zoom, com preset e ajustes (a marca d'água fica de fora). */
     fun detail(region: PhotoStore.Region, rect: RectF, minWidth: Int, look: Look): Bitmap? {
         val bitmap = region.read(rect, minWidth) ?: return null
-        return look.preset?.apply(bitmap, rect) ?: bitmap
+        return look.tones(bitmap, rect)
     }
 }

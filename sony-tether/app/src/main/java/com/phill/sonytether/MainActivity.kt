@@ -85,6 +85,14 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     @Volatile
     private var look = Look(null, null, "none")
 
+    /** Tabelas dos ajustes do editor, pela assinatura: mexer num slider não refaz as outras. */
+    private val manualLooks = ConcurrentHashMap<String, PresetLook>()
+    private var editor: View? = null
+    private var copiedEdit: PhotoEdit? = null
+    private val latestRender = AtomicInteger()
+    private var editStart = ""
+    private val fullRender = Runnable { rerenderCurrent() }
+
     private val ui by lazy { Ui(this) }
     private lateinit var root: LinearLayout
     private lateinit var stage: FrameLayout
@@ -104,6 +112,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var statusTitle: TextView
     private lateinit var hidePanelButton: Button
     private lateinit var deletePanelButton: Button
+    private lateinit var editPanelButton: Button
     private lateinit var strip: HorizontalScrollView
     private lateinit var thumbs: LinearLayout
     private lateinit var lock: ImageView
@@ -487,7 +496,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     // ---- Fotos ----
 
     private fun develop(photo: SessionPhoto, data: ByteArray) {
-        val look = look
+        val look = lookFor(photo)
         val s = shoot
         setStatus(if (look.preset != null) "Aplicando preset em ${photo.name}…" else "Abrindo ${photo.name}…")
         processor.execute {
@@ -519,7 +528,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun select(photo: SessionPhoto) {
         val uri = photo.original ?: return
-        val look = look
+        val look = lookFor(photo)
         val ticket = ++selecting
         processor.execute {
             if (ticket != selecting) return@execute // já pediram outra foto
@@ -538,6 +547,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun show(photo: SessionPhoto, original: Bitmap, display: Bitmap, resetZoom: Boolean) {
         if (photo.deleted) return
         val changed = photo !== current
+        if (changed) closeEditor()
         current = photo
         currentOriginal = original
         currentShown = display
@@ -549,15 +559,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateRatingBar()
     }
 
-    /** Ao trocar de preset, intensidade ou marca d'água, a foto da tela é refeita na hora. */
-    private fun rerenderCurrent() {
+    /**
+     * Ao trocar de preset, intensidade, marca d'água ou ajuste, a foto da tela é refeita na hora.
+     * [maxPx] menor deixa o arrastar dos sliders do editor fluido; a versão cheia vem logo depois.
+     */
+    private fun rerenderCurrent(maxPx: Int = Darkroom.DISPLAY_PX) {
         val original = currentOriginal ?: return
         val photo = current ?: return
-        val look = look
+        val base = look
+        val ticket = latestRender.incrementAndGet()
         processor.execute {
-            val display = look.apply(PhotoStore.scaled(original, Darkroom.DISPLAY_PX))
+            if (ticket != latestRender.get()) return@execute // já mudou de novo
+            val display = lookFor(photo, base).apply(PhotoStore.scaled(original, maxPx))
             main.post {
-                if (current === photo) {
+                if (current === photo && ticket == latestRender.get()) {
                     currentShown = display
                     viewer.setImage(display, photo.width, resetZoom = false)
                 }
@@ -569,8 +584,9 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
      * Arquivo para entregar: o JPEG com o visual atual (refeito se o preset ou a marca mudaram)
      * ou, sem nada a aplicar, o arquivo da câmera. Roda no [processor].
      */
-    private fun prepare(photo: SessionPhoto, look: Look, s: ShootSession): Uri? {
+    private fun prepare(photo: SessionPhoto, base: Look, s: ShootSession): Uri? {
         if (photo.deleted) return null
+        val look = lookFor(photo, base)
         if (!look.needsJpeg(photo.name)) return photo.original?.takeIf { PhotoStore.canRead(this, it) }
         if (photo.edited != null && photo.editedWith == look.signature && PhotoStore.canRead(this, photo.edited)) return photo.edited
         val data = photo.original?.let { PhotoStore.readBytes(this, it) }
@@ -645,12 +661,157 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
     }
 
+    // ---- Editor ----
+
+    /** O visual de uma foto: o geral (preset e marca d'água) mais os ajustes feitos nela no editor. */
+    private fun lookFor(photo: SessionPhoto, base: Look = look): Look {
+        val edit = photo.edit
+        if (edit.isEmpty) return base
+        if (manualLooks.size > 48) manualLooks.clear()
+        val manual = manualLooks.getOrPut(edit.signature) { PresetLook(edit.toPreset(), 1f) }
+        return Look(base.preset, base.stamp, "${base.signature}|${edit.signature}", manual)
+    }
+
+    private fun toggleEditor() = if (editor != null) closeEditor() else openEditor()
+
+    /** Sliders de luz e cor ao lado da foto; a foto da tela acompanha cada mudança. */
+    private fun openEditor() {
+        val photo = current ?: return
+        if (clientMode || !requireLicense()) return
+        closeEditor()
+        editStart = photo.edit.signature
+        val values = HashMap(photo.edit.values)
+        fun changed() {
+            photo.edit = PhotoEdit(values)
+            updateMarks(photo)
+            rerenderCurrent(EDIT_PREVIEW_PX)
+            main.removeCallbacks(fullRender)
+            main.postDelayed(fullRender, 400)
+        }
+
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+        }
+        column.addView(ui.text("Editar foto", 16f, Color.WHITE, bold = true))
+        column.addView(ui.text("Vai por cima do preset. Toque no número para zerar e segure a foto para ver o original.", 12f, Palette.TEXT2), ui.wrap(4))
+        for (s in PhotoEdit.SLIDERS) {
+            val value = ui.text(s.format(values[s.key] ?: 0), 13f, Color.WHITE).apply {
+                gravity = Gravity.END
+                setPadding(dp(12), dp(4), 0, dp(4))
+            }
+            column.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(ui.text(s.label, 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(value)
+            }, ui.wrap(8))
+            var ready = false
+            val bar = slider(s.min, s.max, values[s.key] ?: 0) { v ->
+                value.text = s.format(v)
+                if (ready && (values[s.key] ?: 0) != v) {
+                    values[s.key] = v
+                    changed()
+                }
+            }
+            ready = true
+            value.setOnClickListener { bar.progress = -s.min }
+            column.addView(bar)
+        }
+
+        fun action(text: String, onClick: () -> Unit) = ui.text(text, 13f, Palette.GOLD, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(12), dp(4), dp(12))
+            background = ui.ripple(null, 8)
+            setOnClickListener { onClick() }
+        }
+        column.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(action("Zerar") { setEdit(photo, PhotoEdit.NONE) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Copiar") {
+                copiedEdit = PhotoEdit(values)
+                Toast.makeText(this@MainActivity, "Ajustes copiados. Abra outra foto e toque em Colar.", Toast.LENGTH_SHORT).show()
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Colar") {
+                copiedEdit?.let { setEdit(photo, it) }
+                    ?: Toast.makeText(this@MainActivity, "Copie os ajustes de uma foto primeiro.", Toast.LENGTH_SHORT).show()
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Em todas") { editAll(PhotoEdit(values)) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }, ui.wrap(8))
+        column.addView(ui.primary(null, "Pronto") { closeEditor() }, ui.matchWidth(48, 6))
+
+        val panel = ScrollView(this).apply {
+            background = ui.rounded(0xF01B1B21.toInt(), 16, 0x26FFFFFF)
+            isVerticalScrollBarEnabled = false
+            addView(column)
+        }
+        val width = if (stage.width > 0) minOf(dp(320), stage.width * 9 / 10) else dp(320)
+        stage.addView(panel, FrameLayout.LayoutParams(width, MATCH_PARENT, Gravity.END).apply {
+            setMargins(0, dp(76), dp(12), dp(112))
+        })
+        editor = panel
+    }
+
+    /** Fecha o editor; se algo mudou, salva e refaz a foto em tamanho cheio e a miniatura. */
+    private fun closeEditor() {
+        val panel = editor ?: return
+        editor = null
+        stage.removeView(panel)
+        main.removeCallbacks(fullRender)
+        val photo = current ?: return
+        if (photo.edit.signature == editStart) return
+        rerenderCurrent()
+        refreshThumb(photo)
+        saveSession()
+    }
+
+    /** Troca os ajustes de uma vez (zerar, colar) e reabre o editor com os sliders no lugar. */
+    private fun setEdit(photo: SessionPhoto, edit: PhotoEdit) {
+        val start = editStart
+        photo.edit = edit
+        updateMarks(photo)
+        closeEditor()
+        openEditor()
+        editStart = start
+        rerenderCurrent()
+    }
+
+    private fun editAll(edit: PhotoEdit) {
+        val list = visiblePhotos()
+        AlertDialog.Builder(this)
+            .setTitle("Usar em todas?")
+            .setMessage("Estes ajustes vão para as ${list.size} fotos do filtro \"${FILTERS[filter]}\". Os ajustes que elas já tinham são trocados.")
+            .setPositiveButton("Usar em todas") { _, _ ->
+                for (p in list) {
+                    p.edit = edit
+                    updateMarks(p)
+                    if (p !== current) refreshThumb(p)
+                }
+                saveSession()
+                setStatus("Ajustes aplicados em ${list.size} fotos.")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /** Miniatura da faixa refeita com o visual atual da foto (depois de editar). */
+    private fun refreshThumb(photo: SessionPhoto) {
+        val uri = photo.original ?: return
+        val base = look
+        processor.execute {
+            if (photo.deleted) return@execute
+            val thumb = PhotoStore.thumbnail(this, uri, Darkroom.THUMB_PX) ?: return@execute
+            val shown = runCatching { lookFor(photo, base).apply(thumb) }.getOrNull() ?: return@execute
+            main.post { setThumb(photo, shown) }
+        }
+    }
+
     // ---- Zoom ----
 
     override fun onDetailNeeded(rect: RectF, widthPx: Int, token: Int) {
         val photo = current ?: return
         val uri = photo.original ?: return
-        val look = look
+        val look = lookFor(photo)
         val ticket = latestDetail.incrementAndGet()
         detailer.execute {
             if (ticket != latestDetail.get()) return@execute
@@ -666,7 +827,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     override fun onHold(holding: Boolean) {
         val original = currentOriginal ?: return
-        if (look.preset == null && look.stamp == null) return
+        val photo = current ?: return
+        if (!lookFor(photo).changesPhoto) return
         viewer.swapImage(if (holding) original else currentShown)
         badge.visibility = if (holding) View.VISIBLE else View.GONE
     }
@@ -732,6 +894,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun delete(photo: SessionPhoto) {
+        if (current === photo) closeEditor()
         val s = shoot
         val before = visiblePhotos()
         photo.deleted = true
@@ -802,6 +965,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val photo = current
         hidePanelButton.isEnabled = photo != null
         deletePanelButton.isEnabled = photo != null
+        editPanelButton.isEnabled = photo != null
         hidePanelButton.text = if (photo?.hidden == true) "Mostrar" else "Esconder"
         ui.setIcon(hidePanelButton, if (photo?.hidden == true) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
     }
@@ -822,6 +986,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             if (photo.hidden) "⊘" else null,
             if (photo.favorite) "♥" else null,
             if (photo.rating > 0) "${photo.rating}★" else null,
+            if (!photo.edit.isEmpty) "✎" else null,
         ).joinToString(" ")
         marks.text = text
         marks.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
@@ -858,8 +1023,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     override fun items(): List<Pair<Int, String>> = galleryPhotos.map { it.number to it.name }
 
     /** Prepara no [processor] (o mesmo que revela as fotos) e espera; roda numa thread do servidor. */
+    private fun sharedPhoto(number: Int) = galleryPhotos.firstOrNull { it.number == number } ?: slidePhotos.firstOrNull { it.number == number }
+
     private fun preparedUri(number: Int): Uri? {
-        val photo = galleryPhotos.firstOrNull { it.number == number } ?: slidePhotos.firstOrNull { it.number == number } ?: return null
+        val photo = sharedPhoto(number) ?: return null
         val look = look
         val s = shoot
         return runCatching { processor.submit<Uri?> { prepare(photo, look, s) }.get(2, TimeUnit.MINUTES) }.getOrNull()
@@ -868,7 +1035,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     override fun photo(number: Int): ByteArray? = preparedUri(number)?.let { PhotoStore.readBytes(this, it) }
 
     override fun thumbnail(number: Int): ByteArray? {
-        val key = "$number|${look.signature}"
+        val key = "$number|${look.signature}|${sharedPhoto(number)?.edit?.signature}"
         thumbCache[key]?.let { return it }
         val uri = preparedUri(number) ?: return null
         val bitmap = PhotoStore.thumbnail(this, uri, GALLERY_THUMB_PX) ?: return null
@@ -925,7 +1092,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     override fun slideshowItems(): List<Int> = slidePhotos.map { it.number }
 
     override fun screen(number: Int): ByteArray? {
-        val key = "s$number|${look.signature}"
+        val key = "s$number|${look.signature}|${sharedPhoto(number)?.edit?.signature}"
         thumbCache[key]?.let { return it }
         val uri = preparedUri(number) ?: return null
         val data = PhotoStore.readBytes(this, uri) ?: return null
@@ -1371,6 +1538,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private val exitClientMode = Runnable { setClientMode(false) }
 
     private fun setClientMode(on: Boolean) {
+        if (on) closeEditor()
         clientMode = on
         panel.visibility = if (on) View.GONE else View.VISIBLE
         strip.visibility = if (on) View.GONE else View.VISIBLE
@@ -1762,6 +1930,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         stars = (1..5).map { n -> iconButton(R.drawable.ic_star_border, "$n estrelas") { rate(n) }.apply { setPadding(dp(9), dp(9), dp(9), dp(9)) } }
         hideButton = iconButton(R.drawable.ic_visibility_off, "Esconder") { toggleHidden() }
         val trash = iconButton(R.drawable.ic_delete_outline, "Apagar") { confirmDelete() }
+        val edit = iconButton(R.drawable.ic_tune, "Editar foto") { toggleEditor() }
         ratingBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -1773,6 +1942,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 marginStart = dp(6)
                 marginEnd = dp(6)
             })
+            addView(edit)
             addView(hideButton)
             addView(trash)
         }
@@ -1953,6 +2123,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
         // Foto da tela
         frameButton = ui.row(R.drawable.ic_crop, "Moldura: Nenhuma") { chooseFrame() }
+        editPanelButton = ui.row(R.drawable.ic_tune, "Editar foto: luz e cor") { toggleEditor() }
         hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
         deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
         column.addView(ui.card().apply {
@@ -1962,6 +2133,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 addView(hidePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
                 addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
             })
+            addView(editPanelButton, ui.matchWidth(48, 8))
             addView(frameButton, ui.matchWidth(48, 8))
         }, ui.wrap(12))
 
@@ -2072,6 +2244,9 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val KEY_SLIDE_MODE = "slideMode"
         const val KEY_FRAME = "frame"
         const val SCREEN_PX = 1920
+
+        /** Enquanto um slider do editor é arrastado, a prévia sai menor para acompanhar o dedo. */
+        const val EDIT_PREVIEW_PX = 1024
         const val KEY_FILTER = "filter"
         const val RETRY_MIN_MS = 3000L
         const val RETRY_MAX_MS = 20000L

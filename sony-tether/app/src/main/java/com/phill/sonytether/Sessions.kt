@@ -24,6 +24,10 @@ class SessionPhoto(val number: Int, var name: String) {
     var rating = 0
     var favorite = false
 
+    /** Ajustes feitos à mão no editor, por cima do preset. */
+    @Volatile
+    var edit = PhotoEdit.NONE
+
     /** Escondida: some da tela, do compartilhamento e da galeria do cliente, mas os arquivos ficam. */
     var hidden = false
 
@@ -77,7 +81,8 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
                 .put("original", p.original?.toString()).put("edited", p.edited?.toString())
                 .put("editedWith", p.editedWith).put("rating", p.rating).put("fav", p.favorite)
                 .put("hidden", p.hidden).put("extras", JSONArray(p.extras.map { it.toString() }))
-                .put("w", p.width).put("h", p.height))
+                .put("w", p.width).put("h", p.height)
+                .apply { if (!p.edit.isEmpty) put("edit", p.edit.toJson()) })
         })
 
     companion object {
@@ -97,6 +102,7 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
                     p.optJSONArray("extras")?.let { a -> for (k in 0 until a.length()) extras += Uri.parse(a.getString(k)) }
                     width = p.optInt("w")
                     height = p.optInt("h")
+                    edit = PhotoEdit.fromJson(p.optJSONObject("edit"))
                 }
             }
             s.next = maxOf(s.next, (s.photos.maxOfOrNull { it.number } ?: 0) + 1)
