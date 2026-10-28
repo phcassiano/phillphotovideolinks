@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Revela · Gerar chave</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <style>
+    .panel { max-width: 560px; margin: 48px auto; background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px; }
+    label { display: block; font-size: 0.9rem; color: var(--text-2); margin: 16px 0 6px; }
+    input, select, textarea { width: 100%; background: var(--bg-2); color: var(--text); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font: inherit; }
+    textarea { min-height: 120px; font-family: ui-monospace, monospace; font-size: 0.85rem; word-break: break-all; }
+    .row { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+    .out { margin-top: 22px; display: none; }
+    .err { color: #ff6b6b; margin-top: 14px; min-height: 1.2em; }
+    .btn { width: 100%; margin-top: 20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <a class="logo" href="/"><img src="/assets/favicon.svg" alt="">Revela</a>
+    <h2 style="font-size:1.8rem;margin:18px 0 6px">Gerar chave de ativação</h2>
+    <p class="muted">O cliente vê o código do tablet em <b>Assinatura</b>, no painel do app.</p>
+    <form id="f">
+      <label for="nome">Nome do cliente</label>
+      <input id="nome" required placeholder="Maria Souza">
+      <div class="row">
+        <div>
+          <label for="plano">Plano</label>
+          <select id="plano">
+            <option value="mensal">Mensal (36 dias)</option>
+            <option value="anual">Anual (371 dias)</option>
+            <option value="cortesia">Cortesia (35 dias)</option>
+            <option value="vitalicia">Vitalícia</option>
+          </select>
+        </div>
+        <div>
+          <label for="aparelho">Código do tablet</label>
+          <input id="aparelho" placeholder="ABCD2345 ou *" maxlength="8" autocapitalize="characters">
+        </div>
+      </div>
+      <label for="ate">Validade (opcional, substitui o plano)</label>
+      <input id="ate" type="date">
+      <label for="senha">Senha de administrador</label>
+      <input id="senha" type="password" required autocomplete="current-password">
+      <button class="btn btn-gold" type="submit">Gerar chave</button>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="out" id="out">
+      <label>Chave (válida até <b id="ate-out"></b>)</label>
+      <textarea id="chave" readonly></textarea>
+      <button class="btn btn-ghost" id="copiar" type="button">Copiar mensagem para o cliente</button>
+    </div>
+  </div>
+</div>
+<script>
+  var f = document.getElementById("f");
+  try { document.getElementById("senha").value = sessionStorage.getItem("revela-senha") || ""; } catch (e) {}
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var err = document.getElementById("err");
+    err.textContent = "";
+    var dados = {
+      nome: document.getElementById("nome").value,
+      plano: document.getElementById("plano").value,
+      aparelho: document.getElementById("aparelho").value.trim() || "*",
+      ate: document.getElementById("ate").value,
+      senha: document.getElementById("senha").value,
+    };
+    fetch("/api/licenca", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        if (!r.ok) { err.textContent = r.j.erro || "Erro"; return; }
+        try { sessionStorage.setItem("revela-senha", dados.senha); } catch (e) {}
+        document.getElementById("chave").value = r.j.chave;
+        document.getElementById("ate-out").textContent = r.j.ate.split("-").reverse().join("/");
+        document.getElementById("out").style.display = "block";
+      })
+      .catch(function () { err.textContent = "Sem conexão com o servidor"; });
+  });
+  document.getElementById("copiar").addEventListener("click", function () {
+    var nome = document.getElementById("nome").value.split(" ")[0];
+    var msg = "Oi, " + nome + "! Sua chave do Revela:\n\n" + document.getElementById("chave").value +
+      "\n\nNo app: painel → Assinatura → Inserir chave → cole e confirme.";
+    navigator.clipboard.writeText(msg).then(function () { document.getElementById("copiar").textContent = "Copiado!"; });
+  });
+</script>
+</body>
+</html>

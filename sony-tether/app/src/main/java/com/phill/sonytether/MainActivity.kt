@@ -61,6 +61,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var sessions: SessionStore
     private lateinit var watermark: Watermark
     private lateinit var brandSettings: BrandSettings
+    private lateinit var license: LicenseManager
+    private lateinit var licenseTitle: TextView
+    private lateinit var licenseDetail: TextView
+    private lateinit var licenseDevice: TextView
+    private lateinit var renewButton: Button
     private lateinit var presetStrip: PresetStrip
     private var camera: CameraSession? = null
     private val main = Handler(Looper.getMainLooper())
@@ -184,6 +189,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         sessions = SessionStore(this)
         watermark = Watermark(this)
         brandSettings = BrandSettings(this)
+        license = LicenseManager(this)
         filter = prefs().getInt(KEY_FILTER, 0).coerceIn(FILTERS.indices)
         slideMode = prefs().getInt(KEY_SLIDE_MODE, 0)
         frameIndex = prefs().getInt(KEY_FRAME, 0).coerceIn(Frames.ALL.indices)
@@ -206,7 +212,13 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         // Antes do Android 13 a flag é ignorada; a partir dele, impede outros apps de mandar esses avisos.
         registerReceiver(usbReceiver, usbEvents, Context.RECEIVER_NOT_EXPORTED)
 
-        if (ftpEnabled) startFtp()
+        updateLicense()
+        if (!license.state().active) showPaywall()
+        Thread {
+            license.refreshRevoked()
+            main.post { if (!isDestroyed) updateLicense() }
+        }.start()
+        if (ftpEnabled && license.state().active) startFtp()
         if (!handleUsbIntent(intent)) tryReconnect()
     }
 
@@ -307,6 +319,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun open(device: UsbDevice) {
         if (camera != null) return
         main.removeCallbacks(reconnect)
+        if (!requireLicense(quiet = true)) {
+            setStatus("Assinatura vencida: a câmera não foi conectada. Toque em Assinatura para inserir uma chave.")
+            return
+        }
         val iface = ptpInterface(device)
         if (iface == null) {
             DiagLog.describe(device)
@@ -568,7 +584,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun share(list: List<SessionPhoto>) {
-        if (list.isEmpty()) return
+        if (list.isEmpty() || !requireLicense()) return
         val look = look
         val s = shoot
         setStatus("Preparando para compartilhar…")
@@ -833,6 +849,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun showQr() {
+        if (!requireLicense()) return
         val server = startServer() ?: return
         val local = server.url() ?: return
         val qr = qrImage(local)
@@ -918,6 +935,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun showSlideshow() {
+        if (!requireLicense()) return
         val server = startServer() ?: return
         val url = server.slideshowUrl() ?: return
         val modes = arrayOf("Só as favoritas ♥ (você aprova cada foto com o coração)", "Todas as fotos (menos as escondidas)")
@@ -1057,6 +1075,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun startFtp() {
         if (ftp?.running == true) return
+        if (!requireLicense()) {
+            updateFtpButton()
+            return
+        }
         val server = FtpServer(ftpUser, ftpPassword, object : FtpServer.Listener {
             override fun onFile(name: String, data: ByteArray, from: String) = receiveFromWifi(name, data)
 
@@ -1179,6 +1201,124 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             .setTitle("Receber pelo Wi-Fi (FTP)")
             .setView(ScrollView(this).apply { addView(column) })
             .setPositiveButton("Fechar", null)
+            .show()
+    }
+
+    // ---- Assinatura ----
+
+    private var paywallShown = false
+
+    /**
+     * Libera as funções pagas (receber fotos, entregar). Sem assinatura ativa, mostra o aviso
+     * (uma vez por abertura do app quando [quiet], para a reconexão automática não insistir).
+     */
+    private fun requireLicense(quiet: Boolean = false): Boolean {
+        val state = license.state()
+        if (state.active) return true
+        if (!quiet || !paywallShown) showPaywall(state)
+        return false
+    }
+
+    private fun updateLicense() {
+        val state = license.state()
+        val (title, detail, color) = when (state) {
+            is LicenseManager.State.Trial -> Triple(
+                "Teste grátis",
+                if (state.daysLeft == 0L) "Último dia de teste." else "${state.daysLeft + 1} dias restantes de teste.",
+                if (state.daysLeft <= 2) Palette.GOLD else Palette.TEXT2,
+            )
+            is LicenseManager.State.Licensed -> Triple(
+                "Plano ${state.license.plan}",
+                "Válida até ${LicenseManager.format(state.license.until)}" + (state.license.name.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "") +
+                    if (state.daysLeft <= 7) ". Renove para não parar." else ".",
+                if (state.daysLeft <= 7) Palette.GOLD else Palette.TEXT2,
+            )
+            is LicenseManager.State.Expired -> Triple(
+                "Assinatura vencida",
+                state.license?.let { "Venceu em ${LicenseManager.format(it.until)}. Insira uma chave nova." } ?: "O teste grátis acabou. Assine para continuar recebendo fotos.",
+                Palette.RED,
+            )
+            is LicenseManager.State.Revoked -> Triple("Chave cancelada", "Fale com o suporte do Revela.", Palette.RED)
+        }
+        licenseTitle.text = title
+        licenseDetail.text = detail
+        licenseDetail.setTextColor(color)
+        licenseDevice.text = "Código deste tablet: ${license.deviceCode}"
+        renewButton.text = if (state is LicenseManager.State.Licensed) "Renovar assinatura" else "Assinar o Revela"
+    }
+
+    private fun showPaywall(state: LicenseManager.State = license.state()) {
+        paywallShown = true
+        val (title, message) = when (state) {
+            is LicenseManager.State.Revoked -> "Chave cancelada" to "Esta chave foi cancelada. Fale com o suporte do Revela."
+            is LicenseManager.State.Expired -> if (state.license != null) {
+                "Sua assinatura venceu" to "Ela valeu até ${LicenseManager.format(state.license.until)}. Renove e insira a chave nova para voltar a receber e entregar fotos."
+            } else {
+                "O teste grátis acabou" to "Assine o Revela para continuar recebendo fotos da câmera e entregando para os clientes."
+            }
+            else -> return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("$message\n\nSuas sessões e fotos continuam aqui. Código deste tablet: ${license.deviceCode}")
+            .setPositiveButton("Inserir chave") { _, _ -> enterKey() }
+            .setNeutralButton("Assinar") { _, _ -> openSubscribe() }
+            .setNegativeButton("Agora não", null)
+            .show()
+    }
+
+    private fun openSubscribe() {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${LicenseManager.SUBSCRIBE_URL}?aparelho=${license.deviceCode}"))) }
+    }
+
+    private fun enterKey() {
+        val input = EditText(this).apply {
+            hint = "Cole aqui a chave (começa com REVELA-)"
+            minLines = 3
+            maxLines = 6
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            textSize = 13f
+        }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.primaryClip?.getItemAt(0)?.text?.toString()?.takeIf { it.contains(LicenseVerifier.PREFIX) }?.let {
+            input.setText(it.substring(it.indexOf(LicenseVerifier.PREFIX)).substringBefore("\n\n").trim())
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label("Você recebe a chave depois de assinar. Para ela valer neste tablet, informe este código:", 13f, MUTED))
+            addView(ui.text(license.deviceCode, 26f, Palette.GOLD, bold = true).apply {
+                letterSpacing = 0.15f
+                setTextIsSelectable(true)
+                setPadding(0, dp(10), 0, dp(12))
+            })
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Inserir chave de ativação")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Ativar") { _, _ ->
+                val error = license.activate(input.text.toString())
+                if (error != null) {
+                    AlertDialog.Builder(this)
+                        .setTitle("A chave não foi aceita")
+                        .setMessage(error)
+                        .setPositiveButton("Tentar de novo") { _, _ -> enterKey() }
+                        .setNegativeButton("Fechar", null)
+                        .show()
+                } else {
+                    updateLicense()
+                    Toast.makeText(this, "Revela ativado. Bom trabalho!", Toast.LENGTH_LONG).show()
+                    paywallShown = false
+                    if (ftpEnabled) startFtp()
+                    tryReconnect()
+                }
+            }
+            .setNeutralButton("Copiar código") { _, _ ->
+                clipboard.setPrimaryClip(ClipData.newPlainText("Código do tablet", license.deviceCode))
+                Toast.makeText(this, "Código ${license.deviceCode} copiado", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancelar", null)
             .show()
     }
 
@@ -1797,6 +1937,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             addView(slideshowButton, ui.matchWidth(48, 8))
             addView(brandButton, ui.matchWidth(48, 8))
             addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
+        }, ui.wrap(12))
+
+        // Assinatura
+        licenseTitle = ui.text("", 16f, Palette.TEXT, bold = true)
+        licenseDetail = ui.text("", 13f, Palette.TEXT2)
+        licenseDevice = ui.text("", 12f, Palette.TEXT3).apply { setTextIsSelectable(true) }
+        renewButton = ui.row(R.drawable.ic_workspace_premium, "Assinar o Revela") { openSubscribe() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_workspace_premium, "Assinatura"))
+            addView(licenseTitle)
+            addView(licenseDetail, ui.wrap(4))
+            addView(ui.row(R.drawable.ic_key, "Inserir chave de ativação") { enterKey() }, ui.matchWidth(48, 14))
+            addView(renewButton, ui.matchWidth(48, 8))
+            addView(licenseDevice, ui.wrap(10))
         }, ui.wrap(12))
 
         column.addView(ui.text(

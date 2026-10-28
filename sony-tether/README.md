@@ -88,6 +88,20 @@ Instagram 4:5, quadrado, Story/Reels 9:16 (com as faixas que o Instagram cobre),
 capa de revista A4 (com o espaço do título) ou lâmina de álbum 2:1 (com a dobra no
 meio). Serve só para enquadrar: a foto salva não é cortada.
 
+## Assinatura
+
+Na primeira instalação, o app tem **7 dias de teste grátis** (`LicenseManager.TRIAL_DAYS`).
+Depois, receber fotos (cabo e Wi-Fi) e entregar (compartilhar, QR code, slideshow) pedem
+uma **chave de ativação**: painel → **Assinatura → Inserir chave**. As sessões e as fotos
+já recebidas continuam acessíveis.
+
+- A chave é ligada ao **código do tablet** (8 letras, aparece no cartão Assinatura) e tem
+  data de validade. Chaves com aparelho `*` valem em qualquer tablet.
+- As chaves são geradas no site (`/admin`), assinadas com uma chave privada que só o
+  servidor tem; o app confere com a chave pública. Detalhes em `revela-site/README.md`.
+- Chaves canceladas são bloqueadas quando o tablet tem internet (lista baixada uma vez por dia).
+- Atrasar o relógio do tablet não estende a validade: o app usa o dia mais recente que já viu.
+
 ## Câmeras compatíveis
 
 | Como | Câmeras | Observações |

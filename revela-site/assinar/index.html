@@ -112,6 +112,7 @@
       <h2>Escolha como assinar</h2>
       <p class="lead">Os mesmos recursos nos dois planos. No anual, você paga menos por mês e garante o preço de lançamento.</p>
     </div>
+    <p id="aparelho" class="beta" style="display:none;margin:0 auto 28px"></p>
     <div class="plans" style="text-align:left">
       <div class="plan">
         <h3>Mensal</h3>
@@ -157,7 +158,7 @@
     </div>
     <div class="faq">
       <details><summary>O que eu preciso para usar?</summary><p>Um tablet (ou celular) Android 10 ou mais novo, com USB-C, e uma câmera compatível: Sony Alpha com PC Remoto, Canon EOS ou Nikon de 2015 para cá pelo cabo, ou qualquer câmera com transferência FTP pelo Wi-Fi. Um cabo USB-C para USB-C (ou o da sua câmera com adaptador) resolve a conexão.</p></details>
-      <details><summary>Como recebo o app?</summary><p>Depois da assinatura, você recebe o link para instalar o Revela no tablet e um passo a passo para configurar a sua câmera.</p></details>
+      <details><summary>Como recebo o app?</summary><p>Depois da assinatura, você recebe o link para instalar o Revela e uma chave de ativação para o seu tablet. No app, toque em Assinatura → Inserir chave. A primeira instalação já vem com 7 dias de teste grátis.</p></details>
       <details><summary>Posso cancelar quando quiser?</summary><p>Sim. No mensal, a assinatura para de ser renovada no próximo ciclo. No anual, você usa até o fim do período pago. Nos primeiros 7 dias, devolvemos o valor.</p></details>
       <details><summary>Minha câmera não está na lista. E agora?</summary><p>Se ela tem transferência FTP pelo Wi-Fi, já deve funcionar. Se não, fale com a gente antes de assinar: estamos validando novos modelos durante o beta.</p></details>
       <details><summary>O que significa estar em beta?</summary><p>Que o Revela está em uso e em evolução rápida, com atualizações frequentes. Algumas combinações de câmera e tablet ainda estão sendo validadas. Em troca, quem entra agora paga menos e ajuda a decidir as próximas funções.</p></details>
@@ -190,6 +191,13 @@
     var c = window.REVELA;
     var economia = Math.round(Number(c.precoMensal) * 12 - Number(c.precoAnual));
     if (economia > 0) document.getElementById("economia").textContent = economia;
+    // Vindo do app: mostra o código do tablet, que vai na chave de ativação.
+    var codigo = new URLSearchParams(location.search).get("aparelho");
+    if (codigo && /^[A-Z0-9]{8}$/.test(codigo)) {
+      var el = document.getElementById("aparelho");
+      el.textContent = "Código do seu tablet: " + codigo + " · informe na compra";
+      el.style.display = "inline-flex";
+    }
   });
 </script>
 </body>
