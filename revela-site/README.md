@@ -7,20 +7,26 @@ Landing page (`/`) e página de vendas (`/assinar`), em HTML estático, publicad
 - No ar: https://revela-beta-nine.vercel.app (projeto "revela" no Vercel).
 - Publicar de novo: `npx vercel deploy --prod` nesta pasta (precisa de um token do Vercel).
 
-## Chaves de ativação (assinatura)
+## Assinatura, vendas e teste grátis
 
-O app tem 7 dias de teste grátis e depois pede uma chave. A chave é assinada pelo
-servidor (`api/licenca.js`) com a chave privada guardada no Vercel
-(`REVELA_CHAVE_PRIVADA`, secreta) e conferida no app com a chave pública
-(`License.kt`). Ninguém consegue fabricar uma chave só com o app.
+Servidor em `api/` (funções do Vercel) com banco no Supabase (projeto buscaleads, esquema
+`revela`, acessado só pelas funções `revela_*`, que exigem o segredo do servidor).
 
-- **Gerar uma chave:** abra `/admin`, preencha o nome, o plano e o código do tablet
-  (aparece no app, em Assinatura) e use a senha de administrador (`REVELA_ADMIN_SENHA`).
-  "Copiar mensagem para o cliente" já monta o texto para o WhatsApp.
-- **Validade:** mensal = 31 dias, anual = 366 dias, cortesia = 30 dias, sempre +5 dias
-  de folga para a renovação. Renovar = gerar uma chave nova.
-- **Cancelar uma chave** (reembolso, uso indevido): ponha o id dela em
-  `licencas/revogadas.json` e publique o site. O app baixa a lista uma vez por dia
-  quando tem internet.
-- **Guarde a chave privada** fora do Vercel (ela é secreta lá e não dá para ler de
-  volta). Se ela se perder, só uma versão nova do app com outra chave pública resolve.
+| Rota | O que faz |
+|---|---|
+| `/api/kiwify?k=…` | Webhook da Kiwify: venda cria a chave, renovação estende, reembolso/chargeback cancelam |
+| `/api/vendas` | Lista para o `/admin → Vendas`, com links de WhatsApp e e-mail (exige a senha) |
+| `/api/licenca` | Chave manual (cortesia, venda fora da Kiwify) |
+| `/api/ativar` | O app ativa a chave (liga ao 1º tablet) e busca renovações |
+| `/api/trial` | Registra o teste grátis por tablet (reinstalar não zera) |
+| `/api/revogadas` | Chaves canceladas, que o app bloqueia |
+
+Chaves são assinadas com ECDSA P-256 (`REVELA_CHAVE_PRIVADA`, secreta no Vercel) e
+conferidas no app com a chave pública (`License.kt`). Teste grátis: 3 dias.
+
+Variáveis no Vercel: `REVELA_CHAVE_PRIVADA`, `REVELA_ADMIN_SENHA`, `REVELA_DB_SEGREDO`,
+`REVELA_SUPABASE_URL`, `REVELA_SUPABASE_CHAVE`, `REVELA_KIWIFY_K` e, opcional,
+`REVELA_KIWIFY_TOKEN`. Teste do fluxo: `node test/fluxo.test.js`. Kiwify: `KIWIFY.md`.
+
+Guarde a chave privada fora do Vercel (lá ela é secreta e não dá para ler de volta). Se ela se
+perder, só uma versão nova do app com outra chave pública resolve.

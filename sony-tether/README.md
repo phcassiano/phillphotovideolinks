@@ -90,7 +90,8 @@ meio). Serve só para enquadrar: a foto salva não é cortada.
 
 ## Assinatura
 
-Na primeira instalação, o app tem **7 dias de teste grátis** (`LicenseManager.TRIAL_DAYS`).
+Na primeira instalação, o app tem **3 dias de teste grátis** (`LicenseManager.TRIAL_DAYS`),
+registrados no servidor pelo código do tablet: reinstalar não começa um teste novo.
 Depois, receber fotos (cabo e Wi-Fi) e entregar (compartilhar, QR code, slideshow) pedem
 uma **chave de ativação**: painel → **Assinatura → Inserir chave**. As sessões e as fotos
 já recebidas continuam acessíveis.
@@ -99,7 +100,9 @@ já recebidas continuam acessíveis.
   data de validade. Chaves com aparelho `*` valem em qualquer tablet.
 - As chaves são geradas no site (`/admin`), assinadas com uma chave privada que só o
   servidor tem; o app confere com a chave pública. Detalhes em `revela-site/README.md`.
-- Chaves canceladas são bloqueadas quando o tablet tem internet (lista baixada uma vez por dia).
+- Chaves vendidas na Kiwify são ativadas pela internet e ficam ligadas ao primeiro tablet;
+  as renovações chegam sozinhas quando o tablet tem internet.
+- Chaves canceladas (reembolso, chargeback) são bloqueadas quando o tablet tem internet.
 - Atrasar o relógio do tablet não estende a validade: o app usa o dia mais recente que já viu.
 
 ## Câmeras compatíveis

@@ -16,14 +16,39 @@
     .out { margin-top: 22px; display: none; }
     .err { color: #ff6b6b; margin-top: 14px; min-height: 1.2em; }
     .btn { width: 100%; margin-top: 20px; }
+    .tabs { display: flex; gap: 8px; margin: 20px 0 4px; }
+    .tabs button { flex: 1; background: var(--bg-2); color: var(--text-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px; font: inherit; font-weight: 600; cursor: pointer; }
+    .tabs button.on { background: var(--gold); color: #1a1307; border-color: var(--gold); }
+    .sale { border: 1px solid var(--line); background: var(--bg-2); border-radius: 16px; padding: 16px; margin-top: 12px; }
+    .sale h4 { margin: 0 0 4px; font-size: 1.02rem; }
+    .sale .meta { color: var(--text-2); font-size: 0.88rem; line-height: 1.5; }
+    .sale .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .sale .acts a, .sale .acts button { flex: 1 1 auto; text-align: center; text-decoration: none; background: var(--card-2); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 0.9rem; cursor: pointer; }
+    .sale .acts .wa { background: #1f3a2a; border-color: #2c5a3d; }
+    .pill { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+    .pill.nova { background: var(--gold); color: #1a1307; }
+    .pill.ok { background: #1f3a2a; color: #7ee2a8; }
+    .pill.ruim { background: #3a1f1f; color: #ff8a8a; }
+    #pane-chave { display: none; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <div class="panel">
     <a class="logo" href="/"><img src="/assets/favicon.svg" alt="">Revela</a>
-    <h2 style="font-size:1.8rem;margin:18px 0 6px">Gerar chave de ativação</h2>
-    <p class="muted">O cliente vê o código do tablet em <b>Assinatura</b>, no painel do app.</p>
+    <label for="senha">Senha de administrador</label>
+    <input id="senha" type="password" required autocomplete="current-password">
+    <div class="tabs"><button id="t-vendas" class="on" type="button">Vendas</button><button id="t-chave" type="button">Gerar chave</button></div>
+
+    <div id="pane-vendas">
+      <p class="muted" style="margin-top:12px">Cada venda aprovada na Kiwify aparece aqui com a chave pronta. Toque em <b>WhatsApp</b> ou <b>E-mail</b> para mandar ao cliente.</p>
+      <button class="btn btn-gold" id="carregar" type="button">Ver vendas</button>
+      <div class="err" id="err-vendas"></div>
+      <div id="lista"></div>
+    </div>
+
+    <div id="pane-chave">
+    <p class="muted" style="margin-top:12px">Para cortesias e vendas fora da Kiwify. Com o código do tablet (aparece em <b>Assinatura</b> no app), a chave vale só nele e funciona sem internet; sem código, ela se liga ao primeiro tablet que a ativar.</p>
     <form id="f">
       <label for="nome">Nome do cliente</label>
       <input id="nome" required placeholder="Maria Souza">
@@ -39,13 +64,11 @@
         </div>
         <div>
           <label for="aparelho">Código do tablet</label>
-          <input id="aparelho" placeholder="ABCD2345 ou *" maxlength="8" autocapitalize="characters">
+          <input id="aparelho" placeholder="ABCD2345 (opcional)" maxlength="8" autocapitalize="characters">
         </div>
       </div>
       <label for="ate">Validade (opcional, substitui o plano)</label>
       <input id="ate" type="date">
-      <label for="senha">Senha de administrador</label>
-      <input id="senha" type="password" required autocomplete="current-password">
       <button class="btn btn-gold" type="submit">Gerar chave</button>
       <div class="err" id="err"></div>
     </form>
@@ -54,9 +77,68 @@
       <textarea id="chave" readonly></textarea>
       <button class="btn btn-ghost" id="copiar" type="button">Copiar mensagem para o cliente</button>
     </div>
+    </div>
   </div>
 </div>
 <script>
+  function tab(qual) {
+    document.getElementById("pane-vendas").style.display = qual === "vendas" ? "block" : "none";
+    document.getElementById("pane-chave").style.display = qual === "chave" ? "block" : "none";
+    document.getElementById("t-vendas").classList.toggle("on", qual === "vendas");
+    document.getElementById("t-chave").classList.toggle("on", qual === "chave");
+  }
+  document.getElementById("t-vendas").onclick = function () { tab("vendas"); };
+  document.getElementById("t-chave").onclick = function () { tab("chave"); };
+
+  function esc(t) { return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function data(iso) { return iso ? iso.slice(0, 10).split("-").reverse().join("/") : ""; }
+
+  function vendas(acao, id) {
+    var err = document.getElementById("err-vendas");
+    err.textContent = "Carregando…";
+    var senha = document.getElementById("senha").value;
+    fetch("/api/vendas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senha: senha, acao: acao, id: id }) })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (r) {
+        if (!r.ok) { err.textContent = r.j.erro || "Erro"; return; }
+        err.textContent = r.j.vendas.length ? "" : "Nenhuma venda ainda.";
+        try { sessionStorage.setItem("revela-senha", senha); } catch (e) {}
+        document.getElementById("lista").innerHTML = r.j.vendas.map(function (v) {
+          var sit = v.situacao === "ativa" ? (v.enviada ? '<span class="pill ok">enviada</span>' : '<span class="pill nova">nova</span>')
+            : '<span class="pill ruim">' + esc(v.situacao) + "</span>";
+          return '<div class="sale"><h4>' + esc(v.nome || "Sem nome") + sit + "</h4>" +
+            '<div class="meta">Plano ' + esc(v.plano) + " · válida até " + data(v.ate) + " · " + esc(v.origem) + " · " + data(v.criada) +
+            (v.email ? "<br>" + esc(v.email) : "") + (v.telefone ? " · " + esc(v.telefone) : "") +
+            "<br>Tablet: " + (v.aparelho ? esc(v.aparelho) : "ainda não ativada") + "</div>" +
+            '<div class="acts">' +
+            (v.whatsapp ? '<a class="wa" target="_blank" rel="noopener" href="' + esc(v.whatsapp) + '" data-enviar="' + esc(v.id) + '">WhatsApp</a>' : "") +
+            (v.email_link ? '<a href="' + esc(v.email_link) + '" data-enviar="' + esc(v.id) + '">E-mail</a>' : "") +
+            '<button type="button" data-copiar="' + esc(v.id) + '">Copiar mensagem</button>' +
+            (v.aparelho ? '<button type="button" data-liberar="' + esc(v.id) + '">Trocar tablet</button>' : "") +
+            (v.situacao === "ativa" ? '<button type="button" data-revogar="' + esc(v.id) + '">Cancelar chave</button>' : "") +
+            "</div></div>";
+        }).join("");
+        window.__vendas = r.j.vendas;
+      })
+      .catch(function () { err.textContent = "Sem conexão com o servidor"; });
+  }
+  document.getElementById("carregar").onclick = function () { vendas("listar"); };
+  document.getElementById("lista").addEventListener("click", function (e) {
+    var t = e.target;
+    var id = t.getAttribute("data-enviar");
+    if (id) { setTimeout(function () { vendas("enviada", id); }, 1500); return; }
+    id = t.getAttribute("data-copiar");
+    if (id) {
+      var v = (window.__vendas || []).filter(function (x) { return x.id === id; })[0];
+      navigator.clipboard.writeText(v.mensagem).then(function () { t.textContent = "Copiado!"; });
+      return;
+    }
+    id = t.getAttribute("data-liberar");
+    if (id && confirm("Liberar a chave para o cliente ativar em outro tablet?")) { vendas("liberar", id); return; }
+    id = t.getAttribute("data-revogar");
+    if (id && confirm("Cancelar esta chave? O app do cliente para de funcionar quando tiver internet.")) vendas("revogar", id);
+  });
+
   var f = document.getElementById("f");
   try { document.getElementById("senha").value = sessionStorage.getItem("revela-senha") || ""; } catch (e) {}
   f.addEventListener("submit", function (e) {
@@ -84,7 +166,7 @@
   document.getElementById("copiar").addEventListener("click", function () {
     var nome = document.getElementById("nome").value.split(" ")[0];
     var msg = "Oi, " + nome + "! Sua chave do Revela:\n\n" + document.getElementById("chave").value +
-      "\n\nNo app: painel → Assinatura → Inserir chave → cole e confirme.";
+      "\n\nNo app: painel → Assinatura → Inserir chave → cole e confirme (na primeira vez, com internet).";
     navigator.clipboard.writeText(msg).then(function () { document.getElementById("copiar").textContent = "Copiado!"; });
   });
 </script>

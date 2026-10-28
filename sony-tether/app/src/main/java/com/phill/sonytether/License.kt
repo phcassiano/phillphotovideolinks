@@ -22,6 +22,8 @@ class LicenseKey(
     val until: LocalDate,
     /** Código do aparelho ("*" = qualquer aparelho). */
     val device: String,
+    /** Chave vendida pela Kiwify: precisa ser ativada pela internet, que a liga ao 1º tablet. */
+    val online: Boolean = false,
 )
 
 /**
@@ -56,7 +58,7 @@ class LicenseVerifier(publicKeyBase64: String) {
         val json = String(payload, Charsets.UTF_8)
         val until = runCatching { LocalDate.parse(field(json, "a")) }.getOrNull()
             ?: return Result.Invalid("Chave com data inválida.")
-        return Result.Ok(LicenseKey(field(json, "i"), field(json, "n"), field(json, "p"), until, field(json, "d").ifEmpty { "*" }))
+        return Result.Ok(LicenseKey(field(json, "i"), field(json, "n"), field(json, "p"), until, field(json, "d").ifEmpty { "*" }, field(json, "o") == "1"))
     }
 
     companion object {
@@ -111,9 +113,17 @@ class LicenseManager(private val context: Context, private val verifier: License
         return LocalDate.ofEpochDay(maxOf(now, seen))
     }
 
+    /**
+     * Primeiro dia do teste: o mais antigo entre o que este app anotou e o que o servidor
+     * registrou para este tablet (reinstalar não começa um teste novo).
+     */
     private val trialStart: Long
-        get() = prefs.getLong(KEY_TRIAL, -1).takeIf { it >= 0 }
-            ?: today().toEpochDay().also { prefs.edit().putLong(KEY_TRIAL, it).apply() }
+        get() {
+            val local = prefs.getLong(KEY_TRIAL, -1).takeIf { it >= 0 }
+                ?: today().toEpochDay().also { prefs.edit().putLong(KEY_TRIAL, it).apply() }
+            val server = prefs.getLong(KEY_TRIAL_SERVER, -1)
+            return if (server >= 0) minOf(local, server) else local
+        }
 
     fun state(): State {
         val today = today()
@@ -128,11 +138,28 @@ class LicenseManager(private val context: Context, private val verifier: License
         return State.Expired(stored)
     }
 
-    /** Confere e guarda a chave. Devolve null se deu certo, ou o motivo. */
-    fun activate(text: String): String? {
-        val license = when (val r = verifier.read(text)) {
+    /**
+     * Confere e guarda a chave. Devolve null se deu certo, ou o motivo. Chaves da Kiwify vão ao
+     * servidor, que as liga a este tablet: precisa de internet e roda fora da thread da tela.
+     */
+    fun activate(input: String): String? {
+        var text = input.filterNot { it.isWhitespace() }
+        var license = when (val r = verifier.read(text)) {
             is LicenseVerifier.Result.Invalid -> return r.reason
             is LicenseVerifier.Result.Ok -> r.license
+        }
+        if (license.online) {
+            val reply = try {
+                post(ACTIVATE_URL, "{\"chave\":\"${text}\",\"aparelho\":\"$deviceCode\"}")
+            } catch (e: Exception) {
+                return "Sem internet. Na primeira vez a chave precisa de internet para ser ativada neste tablet."
+            }
+            if (reply.first != 200) {
+                if (reply.second.contains("\"revogada\":true")) markRevoked(license.id)
+                return LicenseVerifier.field(reply.second, "erro").ifEmpty { "O servidor recusou a chave (${reply.first})." }
+            }
+            text = LicenseVerifier.field(reply.second, "chave")
+            license = (verifier.read(text) as? LicenseVerifier.Result.Ok)?.license ?: return "Resposta inválida do servidor. Tente de novo."
         }
         if (license.device != "*" && !license.device.equals(deviceCode, ignoreCase = true)) {
             return "Essa chave é de outro aparelho (${license.device}). O código deste tablet é $deviceCode."
@@ -144,6 +171,57 @@ class LicenseManager(private val context: Context, private val verifier: License
     }
 
     fun remove() = prefs.edit().remove(KEY_LICENSE).apply()
+
+    private fun markRevoked(id: String) {
+        prefs.edit().putStringSet(KEY_REVOKED, revoked() + id).apply()
+    }
+
+    /**
+     * Fala com o servidor quando há internet (fora da thread da tela): registra o teste grátis
+     * deste tablet, atualiza a validade da chave (renovações da Kiwify) e a lista de canceladas.
+     */
+    fun sync() {
+        runCatching {
+            val (code, body) = post(TRIAL_URL, "{\"aparelho\":\"$deviceCode\"}")
+            if (code == 200) {
+                val start = LocalDate.parse(LicenseVerifier.field(body, "inicio")).toEpochDay()
+                prefs.edit().putLong(KEY_TRIAL_SERVER, start).apply()
+            }
+        }
+        val stored = prefs.getString(KEY_LICENSE, null)
+        val current = stored?.let { verifier.read(it) as? LicenseVerifier.Result.Ok }?.license
+        if (stored != null && current != null) runCatching {
+            val (code, body) = post(ACTIVATE_URL, "{\"chave\":\"$stored\",\"aparelho\":\"$deviceCode\"}")
+            if (code == 200) {
+                val fresh = LicenseVerifier.field(body, "chave")
+                val renewed = (verifier.read(fresh) as? LicenseVerifier.Result.Ok)?.license
+                if (renewed != null && renewed.id == current.id && renewed.until >= current.until) {
+                    prefs.edit().putString(KEY_LICENSE, fresh).apply()
+                }
+            } else if (code == 403 && body.contains("\"revogada\":true")) {
+                markRevoked(current.id)
+            }
+        }
+        refreshRevoked()
+    }
+
+    /** POST com JSON; devolve o código HTTP e o corpo. */
+    private fun post(url: String, json: String): Pair<Int, String> {
+        val c = URL(url).openConnection() as HttpURLConnection
+        try {
+            c.connectTimeout = 10_000
+            c.readTimeout = 15_000
+            c.requestMethod = "POST"
+            c.doOutput = true
+            c.setRequestProperty("Content-Type", "application/json")
+            c.outputStream.use { it.write(json.toByteArray()) }
+            val code = c.responseCode
+            val body = (if (code < 400) c.inputStream else c.errorStream)?.use { String(it.readBytes()) } ?: ""
+            return code to body
+        } finally {
+            c.disconnect()
+        }
+    }
 
     private fun revoked(): Set<String> = prefs.getStringSet(KEY_REVOKED, emptySet()) ?: emptySet()
 
@@ -166,11 +244,13 @@ class LicenseManager(private val context: Context, private val verifier: License
 
     companion object {
         /** Dias de teste grátis na primeira instalação. 0 = sem teste. */
-        const val TRIAL_DAYS = 7
+        const val TRIAL_DAYS = 3
 
         const val SITE = "https://revela-beta-nine.vercel.app"
         const val SUBSCRIBE_URL = "$SITE/assinar"
-        private const val REVOKED_URL = "$SITE/licencas/revogadas.json"
+        private const val REVOKED_URL = "$SITE/api/revogadas"
+        private const val TRIAL_URL = "$SITE/api/trial"
+        private const val ACTIVATE_URL = "$SITE/api/ativar"
 
         /** Chave pública do Revela (a privada fica só no servidor). */
         const val PUBLIC_KEY =
@@ -178,6 +258,7 @@ class LicenseManager(private val context: Context, private val verifier: License
 
         private const val KEY_LICENSE = "license.key"
         private const val KEY_TRIAL = "license.trialStart"
+        private const val KEY_TRIAL_SERVER = "license.trialServer"
         private const val KEY_MAX_DAY = "license.maxDay"
         private const val KEY_REVOKED = "license.revoked"
         private const val KEY_REVOKED_AT = "license.revokedAt"

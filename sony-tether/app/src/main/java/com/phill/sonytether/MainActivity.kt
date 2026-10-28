@@ -215,7 +215,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateLicense()
         if (!license.state().active) showPaywall()
         Thread {
-            license.refreshRevoked()
+            license.sync()
             main.post { if (!isDestroyed) updateLicense() }
         }.start()
         if (ftpEnabled && license.state().active) startFtp()
@@ -1298,21 +1298,13 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             .setTitle("Inserir chave de ativação")
             .setView(ScrollView(this).apply { addView(column) })
             .setPositiveButton("Ativar") { _, _ ->
-                val error = license.activate(input.text.toString())
-                if (error != null) {
-                    AlertDialog.Builder(this)
-                        .setTitle("A chave não foi aceita")
-                        .setMessage(error)
-                        .setPositiveButton("Tentar de novo") { _, _ -> enterKey() }
-                        .setNegativeButton("Fechar", null)
-                        .show()
-                } else {
-                    updateLicense()
-                    Toast.makeText(this, "Revela ativado. Bom trabalho!", Toast.LENGTH_LONG).show()
-                    paywallShown = false
-                    if (ftpEnabled) startFtp()
-                    tryReconnect()
-                }
+                val text = input.text.toString()
+                setStatus("Ativando a chave…")
+                // A chave da Kiwify é ativada pela internet: fora da thread da tela.
+                Thread {
+                    val error = license.activate(text)
+                    main.post { if (!isDestroyed) keyActivated(error) }
+                }.start()
             }
             .setNeutralButton("Copiar código") { _, _ ->
                 clipboard.setPrimaryClip(ClipData.newPlainText("Código do tablet", license.deviceCode))
@@ -1320,6 +1312,23 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    private fun keyActivated(error: String?) {
+        if (error != null) {
+            AlertDialog.Builder(this)
+                .setTitle("A chave não foi aceita")
+                .setMessage(error)
+                .setPositiveButton("Tentar de novo") { _, _ -> enterKey() }
+                .setNegativeButton("Fechar", null)
+                .show()
+        } else {
+            updateLicense()
+            Toast.makeText(this, "Revela ativado. Bom trabalho!", Toast.LENGTH_LONG).show()
+            paywallShown = false
+            if (ftpEnabled) startFtp()
+            tryReconnect()
+        }
     }
 
     // ---- Modo cliente ----
