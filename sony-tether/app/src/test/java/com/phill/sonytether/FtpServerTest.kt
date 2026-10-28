@@ -69,6 +69,16 @@ class FtpServerTest {
     }
 
     @Test
+    fun jpegWithoutExtensionIsDelivered() {
+        val ftp = client()
+        val real = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE1.toByte()) + jpeg
+        assertTrue(ftp.storeFile("DSC09999", real.inputStream()))
+        waitFor(1)
+        assertEquals("DSC09999.jpg", received.single().first)
+        assertTrue(server.cameraAddress != null)
+    }
+
+    @Test
     fun temporaryNameThenRename() {
         val ftp = client()
         assertTrue(ftp.storeFile("DSC00001.JPG.tmp", jpeg.inputStream()))

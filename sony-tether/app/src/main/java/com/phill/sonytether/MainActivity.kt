@@ -1084,8 +1084,14 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
             override fun onLog(text: String) {
                 DiagLog.add(text)
-                if (text.contains("entrou") || text.contains("errados")) main.post { setStatus(text.removePrefix("FTP: ").replaceFirstChar { it.uppercase() }) }
+                main.post {
+                    if (isDestroyed) return@post
+                    setStatus(text.removePrefix("FTP: ").replaceFirstChar { it.uppercase() })
+                    if (text.contains("entrou")) updateFtpButton()
+                }
             }
+
+            override fun onTrace(text: String) = DiagLog.add(text)
         })
         try {
             server.start()
@@ -1119,7 +1125,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun updateFtpButton() {
         val server = ftp
         ftpButton.text = if (server?.running == true) {
-            "Wi-Fi (FTP): ${GalleryServer.localAddress() ?: "sem rede"}:${server.port}"
+            "Wi-Fi (FTP): ${server.cameraAddress ?: GalleryServer.localAddress() ?: "sem rede"}:${server.port}"
         } else {
             "Receber pelo Wi-Fi (FTP)"
         }
@@ -1134,7 +1140,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             setTextColor(Palette.TEXT)
             textSize = 16f
         }
-        val ip = GalleryServer.localAddress()
+        val ip = ftp?.cameraAddress ?: GalleryServer.localAddress()
         fun field(label: String, value: String) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, dp(6), 0, dp(6))

@@ -30,6 +30,9 @@ class FtpServer(
 
         /** Avisos para o Diagnóstico e o painel (câmera conectou, login errado…). */
         fun onLog(text: String)
+
+        /** Cada comando da câmera, só para o Diagnóstico. */
+        fun onTrace(text: String) {}
     }
 
     private var server: ServerSocket? = null
@@ -39,6 +42,11 @@ class FtpServer(
     private val pending = ConcurrentHashMap<String, ByteArray>()
 
     val port get() = server?.localPort ?: 0
+
+    /** Endereço do tablet que a última câmera usou para entrar (o certo, quando o tablet tem mais de uma rede). */
+    @Volatile
+    var cameraAddress: String? = null
+        private set
     val running get() = server?.isClosed == false
 
     fun start() {
@@ -84,6 +92,7 @@ class FtpServer(
                         val line = input.readLine() ?: break
                         val command = line.substringBefore(' ').uppercase()
                         val arg = line.substringAfter(' ', "").trim()
+                        listener.onTrace("FTP ‹ " + if (command == "PASS") "PASS ***" else line.take(200))
                         if (!handle(command, arg)) break
                     }
                 }.onFailure { listener.onLog("FTP: conexão de $from caiu (${it.message})") }
@@ -103,6 +112,7 @@ class FtpServer(
                 }
                 "PASS" -> if (userOk && arg == password) {
                     loggedIn = true
+                    cameraAddress = control.localAddress.hostAddress
                     listener.onLog("FTP: câmera $from entrou")
                     reply(230, "Bem-vinda")
                 } else {
@@ -159,7 +169,7 @@ class FtpServer(
         private fun pasv(extended: Boolean) {
             closeData()
             val socket = ServerSocket(0, 1, control.localAddress)
-            socket.soTimeout = 30_000
+            socket.soTimeout = 60_000
             passive = socket
             val p = socket.localPort
             if (extended) {
@@ -202,8 +212,12 @@ class FtpServer(
 
         private fun store(arg: String) {
             val path = resolve(arg)
+            listener.onLog("FTP: recebendo ${path.substringAfterLast('/')}…")
             reply(150, "Pode enviar")
-            val data = openData() ?: return reply(425, "Não consegui abrir a conexão de dados")
+            val data = openData() ?: run {
+                listener.onLog("FTP: a câmera não abriu a conexão de dados de ${path.substringAfterLast('/')} (confira firewall/VPN e o modo passivo na câmera)")
+                return reply(425, "Não consegui abrir a conexão de dados")
+            }
             val bytes = try {
                 data.use { s ->
                     s.soTimeout = 60_000
@@ -240,7 +254,11 @@ class FtpServer(
             val name = path.substringAfterLast('/')
             if (GenericPtpCamera.isPhoto(name) && name.contains('.')) {
                 listener.onFile(name, bytes, from)
+            } else if (!name.contains('.') && isJpeg(bytes)) {
+                // Sem extensão, mas o conteúdo é um JPEG: entrega mesmo assim.
+                listener.onFile(name.ifBlank { "foto_${System.currentTimeMillis()}" } + ".jpg", bytes, from)
             } else {
+                listener.onTrace("FTP: ${name.ifBlank { "(sem nome)" }} guardado até a câmera renomear (${bytes.size} bytes)")
                 pending[path] = bytes
                 // Não deixa acumular arquivos que nunca serão renomeados.
                 while (pending.size > 4) pending.keys.firstOrNull()?.let(pending::remove)
@@ -289,6 +307,8 @@ class FtpServer(
     }
 
     companion object {
+        fun isJpeg(bytes: ByteArray) = bytes.size > 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte()
+
         /** Portas abaixo de 1024 são proibidas para apps no Android. */
         const val DEFAULT_PORT = 2121
         private const val MAX_FILE = 400L * 1024 * 1024
