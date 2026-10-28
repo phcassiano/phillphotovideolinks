@@ -27,12 +27,11 @@ class Preset(
         private val LR_CURVE = Regex("""\b(ToneCurvePV2012(?:Red|Green|Blue)?)\s*=\s*\{([^}]*)\}""")
         private val NUMBER = Regex("""[-+]?\d+(?:\.\d+)?""")
 
-        private val NOT_REPRODUCED = linkedMapOf(
-            "Clarity2012" to "Claridade",
-            "Texture" to "Textura",
-            "Dehaze" to "Remover névoa",
-            "GrainAmount" to "Granulado",
-        )
+        /**
+         * Ajustes de aparência que o app lê mas não reproduz, para avisar (nome no XMP → nome no
+         * Lightroom). Nitidez e redução de ruído ficam de fora de propósito: são da câmera, não do visual.
+         */
+        private val NOT_REPRODUCED = linkedMapOf<String, String>()
 
         fun parse(fileName: String, bytes: ByteArray): Preset? {
             val text = String(bytes, Charsets.ISO_8859_1)

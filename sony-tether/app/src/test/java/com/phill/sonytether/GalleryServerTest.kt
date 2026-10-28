@@ -15,9 +15,14 @@ class GalleryServerTest {
 
     private val server = GalleryServer(object : GalleryServer.Source {
         override val galleryTitle = "Maria & <Júlia>"
+        override val brand = GalleryServer.Brand("Phill Foto", "@phill.foto", "(11) 98765-4321", hasLogo = true)
+        override val driveLink = "https://drive.google.com/drive/folders/abc"
         override fun items() = listOf(2 to "Maria_002.arw", 1 to "Maria_001.jpg")
+        override fun slideshowItems() = listOf(1)
         override fun photo(number: Int) = photos[number]
         override fun thumbnail(number: Int) = byteArrayOf(9)
+        override fun screen(number: Int) = byteArrayOf(7, number.toByte())
+        override fun logo() = byteArrayOf(5)
     }).apply { start() }
 
     @After
@@ -67,5 +72,26 @@ class GalleryServerTest {
             }
         }
         assertEquals(listOf("Maria_002.jpg", "Maria_001.jpg"), names)
+    }
+
+    @Test
+    fun pageShowsTheBrand() {
+        val html = String(get(server.path).second)
+        assertTrue(html.contains("logo.png"))
+        assertTrue(html.contains("Fotos por <b>Phill Foto</b>"))
+        assertTrue(html.contains("https://wa.me/5511987654321"))
+        assertTrue(html.contains("https://instagram.com/phill.foto"))
+        assertTrue(html.contains("https://drive.google.com/drive/folders/abc"))
+        assertArrayEquals(byteArrayOf(5), get("${server.path}logo.png").second)
+    }
+
+    @Test
+    fun slideshowOnlyServesApprovedPhotos() {
+        val (code, body) = get("${server.path}tv")
+        assertEquals(200, code)
+        assertTrue(String(body).contains("slides.json"))
+        assertEquals("{\"items\":[1]}", String(get("${server.path}slides.json").second))
+        assertArrayEquals(byteArrayOf(7, 1), get("${server.path}screen/1.jpg").second)
+        assertEquals(404, get("${server.path}screen/2.jpg").first)
     }
 }

@@ -53,6 +53,13 @@ class ZoomImageView(context: Context) : View(context) {
     private val dst = RectF()
     private val detailDst = RectF()
 
+    /** Moldura de recorte por cima da foto (índice em [Frames.ALL]); 0 = nenhuma. */
+    var frame = 0
+        set(value) {
+            field = value
+            invalidate()
+        }
+
     val isZoomed get() = zoom > 1.01f
 
     /** [resetZoom] = false mantém o enquadramento (mesma foto com outro preset). */
@@ -180,6 +187,7 @@ class ZoomImageView(context: Context) : View(context) {
             detailDst.set(dst.left + r.left * dw, dst.top + r.top * dh, dst.left + r.right * dw, dst.top + r.bottom * dh)
             canvas.drawBitmap(d, null, detailDst, paint)
         }
+        if (frame != 0 && !holding) Frames.draw(canvas, frame, dst, resources.displayMetrics.density)
     }
 
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {

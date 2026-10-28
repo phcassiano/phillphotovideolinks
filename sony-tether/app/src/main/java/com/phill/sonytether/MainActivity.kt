@@ -54,12 +54,15 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener, GalleryServer.Source {
+class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener, GalleryServer.Source, DriveSync.Host {
 
     private lateinit var usb: UsbManager
     private lateinit var library: PresetLibrary
     private lateinit var sessions: SessionStore
     private lateinit var watermark: Watermark
+    private lateinit var brandSettings: BrandSettings
+    private lateinit var drive: DriveSync
+    private lateinit var presetStrip: PresetStrip
     private var camera: CameraSession? = null
     private val main = Handler(Looper.getMainLooper())
 
@@ -113,6 +116,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var shareAllButton: Button
     private lateinit var qrButton: Button
     private lateinit var counter: TextView
+    private lateinit var frameButton: Button
+    private lateinit var slideshowButton: Button
+    private lateinit var driveButton: Button
+    private lateinit var driveStatusLabel: TextView
+    private lateinit var brandButton: Button
 
     private class Tile(val frame: FrameLayout, val image: ImageView, val marks: TextView)
 
@@ -131,6 +139,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private var galleryPhotos: List<SessionPhoto> = emptyList()
     private var server: GalleryServer? = null
     private val thumbCache = ConcurrentHashMap<String, ByteArray>()
+
+    /** O que o slideshow mostra: favoritas (ou todas), da mais antiga para a mais nova. */
+    @Volatile
+    private var slidePhotos: List<SessionPhoto> = emptyList()
+    private var slideMode = 0
+
+    @Volatile
+    private var logoCache: ByteArray? = null
+
+    /** Para onde volta a escolha do logo: marca d'água ou sua marca. */
+    private var logoFor = REQUEST_LOGO
+    private var frameIndex = 0
+    private var driveStatusText = ""
+    private var lastAmount = -1
 
     private var clientMode = false
 
@@ -163,11 +185,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         library = PresetLibrary(this)
         sessions = SessionStore(this)
         watermark = Watermark(this)
+        brandSettings = BrandSettings(this)
+        drive = DriveSync(this, this)
         filter = prefs().getInt(KEY_FILTER, 0).coerceIn(FILTERS.indices)
+        slideMode = prefs().getInt(KEY_SLIDE_MODE, 0)
+        frameIndex = prefs().getInt(KEY_FRAME, 0).coerceIn(Frames.ALL.indices)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         buildUi()
         applyOrientation(resources.configuration)
         setLink(LINK_OFF)
+        viewer.frame = frameIndex
+        updateFrameButton()
+        updateBrandButton()
+        updateDriveButton()
+        presetStrip.rebuild()
         lookChanged(rerender = false)
         openSession(sessions.current() ?: sessions.create(SessionNames.DEFAULT_NAME))
 
@@ -212,6 +243,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         main.removeCallbacks(reconnect)
         camera?.shutdown()
         server?.stop()
+        drive.shutdown()
+        presetStrip.shutdown()
         processor.shutdownNow()
         detailer.shutdownNow()
         super.onDestroy()
@@ -387,6 +420,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         applyFilter()
         visiblePhotos().firstOrNull()?.let(::select)
+        driveStatusText = ""
+        if (::drive.isInitialized) {
+            updateDriveButton()
+            drive.sync(s)
+        }
     }
 
     private fun chooseSession() {
@@ -463,6 +501,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 setThumb(photo, result.thumb)
                 show(photo, result.original, result.display, resetZoom = true)
                 setStatus("${photo.name} pronta${if (look.preset != null) ", com preset" else ""}")
+                syncDriveSoon(300)
             }
         }
     }
@@ -492,6 +531,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         currentOriginal = original
         currentShown = display
         viewer.setImage(display, photo.width, resetZoom = resetZoom || changed)
+        if (changed) presetStrip.setPhoto(original)
         emptyState.visibility = View.GONE
         highlightTiles()
         shareButton.isEnabled = true
@@ -656,6 +696,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val s = shoot
         val before = visiblePhotos()
         photo.deleted = true
+        photo.driveId?.let(drive::forget)
         s.photos.remove(photo)
         tiles.remove(photo)?.let { thumbs.removeView(it.frame) }
         saveSession()
@@ -663,6 +704,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateCounter()
         refreshGallery()
         if (current === photo) showNeighbor(photo, before)
+        syncDriveSoon()
         // No processador: espera o que já estava sendo feito com a foto (preset, compartilhar) terminar antes.
         processor.execute {
             val uris = listOfNotNull(photo.original, photo.edited) + photo.extras
@@ -701,6 +743,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateRatingBar()
         updateMarks(photo)
         applyFilter()
+        syncDriveSoon()
     }
 
     private fun updateRatingBar() {
@@ -771,6 +814,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun refreshGallery() {
         galleryPhotos = visiblePhotos()
+        slidePhotos = shoot.photos.filter { !it.hidden && (slideMode == 1 || it.favorite) }
     }
 
     override val galleryTitle: String get() = shoot.name
@@ -779,7 +823,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     /** Prepara no [processor] (o mesmo que revela as fotos) e espera; roda numa thread do servidor. */
     private fun preparedUri(number: Int): Uri? {
-        val photo = galleryPhotos.firstOrNull { it.number == number } ?: return null
+        val photo = galleryPhotos.firstOrNull { it.number == number } ?: slidePhotos.firstOrNull { it.number == number } ?: return null
         val look = look
         val s = shoot
         return runCatching { processor.submit<Uri?> { prepare(photo, look, s) }.get(2, TimeUnit.MINUTES) }.getOrNull()
@@ -798,43 +842,42 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun showQr() {
-        val server = server ?: GalleryServer(this).also { server = it }
-        try {
-            server.start()
-        } catch (e: Exception) {
-            Toast.makeText(this, "Não foi possível abrir a galeria: ${e.message}", Toast.LENGTH_LONG).show()
-            return
+        val server = startServer() ?: return
+        val local = server.url() ?: return
+        val driveUrl = driveLink
+        val qr = qrImage(local)
+        val urlText = label(local, 15f, Color.WHITE).apply {
+            gravity = Gravity.CENTER
+            setTextIsSelectable(true)
+            setPadding(0, dp(12), 0, dp(8))
         }
-        updateQrButton()
-        val url = server.url()
-        if (url == null) {
-            AlertDialog.Builder(this)
-                .setTitle("Sem rede Wi-Fi")
-                .setMessage("Ligue o Wi-Fi do tablet (na mesma rede do celular do cliente) ou o ponto de acesso do tablet e tente de novo. Não precisa de internet.")
-                .setPositiveButton("OK", null)
-                .show()
-            return
-        }
-        val qr = ImageView(this).apply {
-            setImageBitmap(QrCode.encode(url).toBitmap(12))
-            scaleType = ImageView.ScaleType.FIT_CENTER
+        val localHelp = "O cliente aponta a câmera do celular para o código. O celular precisa estar no mesmo Wi-Fi do " +
+            "tablet (ou no ponto de acesso dele); não precisa de internet. A página mostra as fotos do " +
+            "filtro \"${FILTERS[filter]}\" (${galleryPhotos.size}), com preset, marca d'água e a sua marca."
+        val driveHelp = "Link da pasta da sessão no Google Drive: funciona em qualquer lugar, com internet, e continua " +
+            "valendo depois do ensaio. Mostra as fotos já enviadas."
+        val help = label(localHelp, 13f, MUTED)
+        var showingDrive = false
+        val toggle = Button(this).apply {
+            isAllCaps = false
+            text = "Mostrar o link do Google Drive"
+            visibility = if (driveUrl != null) View.VISIBLE else View.GONE
+            setOnClickListener {
+                showingDrive = !showingDrive
+                val target = if (showingDrive) driveUrl!! else local
+                qr.setImageBitmap(QrCode.encode(target).toBitmap(12))
+                urlText.text = target
+                help.text = if (showingDrive) driveHelp else localHelp
+                text = if (showingDrive) "Mostrar a galeria do Wi-Fi" else "Mostrar o link do Google Drive"
+            }
         }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(12), dp(20), dp(4))
             addView(qr, LinearLayout.LayoutParams(MATCH_PARENT, dp(300)))
-            addView(label(url, 15f, Color.WHITE).apply {
-                gravity = Gravity.CENTER
-                setTextIsSelectable(true)
-                setPadding(0, dp(12), 0, dp(8))
-            })
-            addView(label(
-                "O cliente aponta a câmera do celular para o código. O celular precisa estar no mesmo Wi-Fi do " +
-                    "tablet (ou no ponto de acesso dele); não precisa de internet. A página mostra as fotos do " +
-                    "filtro \"${FILTERS[filter]}\" (${galleryPhotos.size}), com preset e marca d'água, e se atualiza " +
-                    "quando o cliente puxa a página.",
-                13f, MUTED,
-            ))
+            addView(urlText)
+            addView(help)
+            addView(toggle, ui.wrap(8))
         }
         AlertDialog.Builder(this)
             .setTitle("Galeria para o cliente")
@@ -844,13 +887,378 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 server.stop()
                 this.server = null
                 updateQrButton()
-                setStatus("Galeria do cliente desligada.")
+                setStatus("Galeria do cliente e slideshow desligados.")
             }
             .show()
     }
 
     private fun updateQrButton() {
-        qrButton.text = if (server?.running == true) "QR code para o cliente (no ar)" else "QR code para o cliente"
+        val on = server?.running == true
+        qrButton.text = if (on) "QR code para o cliente (no ar)" else "QR code para o cliente"
+        slideshowButton.text = if (on) "Slideshow para TV (no ar)" else "Slideshow para TV"
+    }
+
+    // ---- Slideshow, marca, Google Drive e moldura ----
+
+    override val brand: GalleryServer.Brand
+        get() = GalleryServer.Brand(brandSettings.studio, brandSettings.instagram, brandSettings.whatsapp, brandSettings.useLogo && watermark.hasLogo)
+
+    override val driveLink: String? get() = if (drive.active) shoot.driveLink else null
+
+    override fun slideshowItems(): List<Int> = slidePhotos.map { it.number }
+
+    override fun screen(number: Int): ByteArray? {
+        val key = "s$number|${look.signature}"
+        thumbCache[key]?.let { return it }
+        val uri = preparedUri(number) ?: return null
+        val data = PhotoStore.readBytes(this, uri) ?: return null
+        val bitmap = PhotoStore.decodePreview(data, SCREEN_PX) ?: return null
+        val bytes = ByteArrayOutputStream().also { PhotoStore.scaled(bitmap, SCREEN_PX).compress(Bitmap.CompressFormat.JPEG, 86, it) }.toByteArray()
+        thumbCache[key] = bytes
+        return bytes
+    }
+
+    override fun logo(): ByteArray? = if (brandSettings.useLogo) logoCache ?: watermark.logoPng().also { logoCache = it } else null
+
+    /** O servidor local, ligado na primeira vez que a galeria ou o slideshow são abertos. */
+    private fun startServer(): GalleryServer? {
+        val server = server ?: GalleryServer(this).also { server = it }
+        try {
+            server.start()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Não foi possível abrir a galeria: ${e.message}", Toast.LENGTH_LONG).show()
+            return null
+        }
+        updateQrButton()
+        if (server.url() == null) {
+            AlertDialog.Builder(this)
+                .setTitle("Sem rede Wi-Fi")
+                .setMessage("Ligue o Wi-Fi do tablet (na mesma rede do celular ou da TV) ou o ponto de acesso do tablet e tente de novo. Não precisa de internet.")
+                .setPositiveButton("OK", null)
+                .show()
+            return null
+        }
+        return server
+    }
+
+    private fun qrImage(text: String) = ImageView(this).apply {
+        setImageBitmap(QrCode.encode(text).toBitmap(12))
+        scaleType = ImageView.ScaleType.FIT_CENTER
+    }
+
+    private fun showSlideshow() {
+        val server = startServer() ?: return
+        val url = server.slideshowUrl() ?: return
+        val modes = arrayOf("Só as favoritas ♥ (você aprova cada foto com o coração)", "Todas as fotos (menos as escondidas)")
+        val group = android.widget.RadioGroup(this)
+        modes.forEachIndexed { i, text ->
+            group.addView(android.widget.RadioButton(this).apply {
+                id = i + 1
+                this.text = text
+                setTextColor(Palette.TEXT)
+                isChecked = slideMode == i
+            })
+        }
+        group.setOnCheckedChangeListener { _, id ->
+            slideMode = id - 1
+            prefs().edit().putInt(KEY_SLIDE_MODE, slideMode).apply()
+            refreshGallery()
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+            addView(label("No navegador da TV ou do notebook, digite:", 13f, MUTED))
+            addView(ui.text(url, 20f, Palette.GOLD, bold = true).apply {
+                setTextIsSelectable(true)
+                setPadding(0, dp(8), 0, dp(12))
+            })
+            addView(qrImage(url), LinearLayout.LayoutParams(MATCH_PARENT, dp(220)))
+            addView(label("Ou aponte a câmera de um celular ou tablet para o código. A TV precisa estar no mesmo Wi-Fi do tablet.", 13f, MUTED).apply {
+                setPadding(0, dp(10), 0, dp(14))
+            })
+            addView(ui.text("O que aparece no telão", 13f, Palette.TEXT, bold = true))
+            addView(group)
+            addView(label("As fotos novas entram na hora; as outras se revezam a cada 7 segundos. Clique na tela da TV para tela cheia.", 12f, MUTED).apply {
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Slideshow para TV")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .show()
+    }
+
+    private fun editBrand() {
+        fun field(hint: String, value: String, type: Int) = EditText(this).apply {
+            this.hint = hint
+            setText(value)
+            inputType = type
+            setSingleLine()
+        }
+        val studio = field("Nome do estúdio ou fotógrafo", brandSettings.studio, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+        val instagram = field("Instagram (ex.: @seuestudio)", brandSettings.instagram, InputType.TYPE_CLASS_TEXT)
+        val whatsapp = field("WhatsApp com DDD (ex.: 11 98765-4321)", brandSettings.whatsapp, InputType.TYPE_CLASS_PHONE)
+        val useLogo = Switch(this).apply {
+            text = if (watermark.hasLogo) "Mostrar meu logo" else "Mostrar meu logo (escolha um abaixo)"
+            isChecked = brandSettings.useLogo
+            setTextColor(Palette.TEXT)
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        lateinit var dialog: AlertDialog
+        fun save() {
+            brandSettings.studio = studio.text.toString()
+            brandSettings.instagram = instagram.text.toString()
+            brandSettings.whatsapp = whatsapp.text.toString()
+            brandSettings.useLogo = useLogo.isChecked
+            logoCache = null
+            updateBrandButton()
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label("Aparece no topo da galeria do cliente (QR code), com botões de WhatsApp e Instagram, e no canto do slideshow.", 13f, MUTED).apply {
+                setPadding(0, 0, 0, dp(8))
+            })
+            addView(studio)
+            addView(instagram)
+            addView(whatsapp)
+            addView(useLogo)
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                text = if (watermark.hasLogo) "Trocar logo…" else "Escolher logo (PNG)…"
+                setOnClickListener {
+                    save()
+                    dialog.dismiss()
+                    logoFor = REQUEST_BRAND
+                    chooseLogo()
+                }
+            })
+            addView(label("O logo é o mesmo da marca d'água.", 12f, MUTED))
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Sua marca")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Salvar") { _, _ -> save() }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun updateBrandButton() {
+        brandButton.text = brandSettings.studio.ifEmpty { "Sua marca na galeria" }
+    }
+
+    private fun chooseFrame() {
+        AlertDialog.Builder(this)
+            .setTitle("Moldura de recorte")
+            .setSingleChoiceItems(Frames.NAMES, frameIndex) { d, which ->
+                frameIndex = which
+                prefs().edit().putInt(KEY_FRAME, which).apply()
+                viewer.frame = if (clientMode) 0 else which
+                updateFrameButton()
+                d.dismiss()
+            }
+            .show()
+    }
+
+    private fun updateFrameButton() {
+        frameButton.text = "Moldura: ${Frames.ALL[frameIndex].name}"
+    }
+
+    // Google Drive
+
+    override val signature: String get() = look.signature
+
+    override fun deliverable(photo: SessionPhoto, session: ShootSession): Pair<ByteArray, String>? {
+        val look = look
+        val uri = runCatching { processor.submit<Uri?> { prepare(photo, look, session) }.get(5, TimeUnit.MINUTES) }.getOrNull() ?: return null
+        val data = PhotoStore.readBytes(this, uri) ?: return null
+        return data to look.signature
+    }
+
+    override fun driveChanged(session: ShootSession) {
+        sessions.save(session)
+        updateDriveButton()
+    }
+
+    override fun driveStatus(text: String) {
+        driveStatusText = text
+        updateDriveButton()
+    }
+
+    private val driveSoon = Runnable { drive.sync(shoot) }
+
+    /** Pede uma sincronização daqui a pouco (junta várias mudanças seguidas numa só). */
+    private fun syncDriveSoon(delayMs: Long = 1500) {
+        main.removeCallbacks(driveSoon)
+        main.postDelayed(driveSoon, delayMs)
+    }
+
+    private fun updateDriveButton() {
+        driveButton.text = when {
+            !drive.hasCredentials || !drive.connected -> "Google Drive: conectar"
+            drive.mode == DriveSync.MODE_OFF -> "Google Drive: pausado"
+            else -> "Google Drive: ${DriveSync.MODES[drive.mode].lowercase()}"
+        }
+        val text = when {
+            !drive.connected -> ""
+            drive.mode == DriveSync.MODE_OFF -> "O envio está pausado."
+            else -> driveStatusText
+        }
+        driveStatusLabel.text = text
+        driveStatusLabel.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun driveDialog() {
+        when {
+            !drive.hasCredentials -> driveSetup()
+            !drive.connected -> driveLogin()
+            else -> {
+                val link = shoot.driveLink
+                AlertDialog.Builder(this)
+                    .setTitle("Google Drive: o que enviar")
+                    .setSingleChoiceItems(DriveSync.MODES, drive.mode) { d, which ->
+                        drive.mode = which
+                        updateDriveButton()
+                        drive.sync(shoot)
+                        d.dismiss()
+                    }
+                    .setPositiveButton("Fechar", null)
+                    .setNeutralButton("Desconectar") { _, _ ->
+                        drive.signOut()
+                        updateDriveButton()
+                    }
+                    .apply {
+                        if (link != null) setNegativeButton("Abrir a pasta") { _, _ ->
+                            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }
+                        }
+                    }
+                    .show()
+            }
+        }
+    }
+
+    /** Primeira vez: as credenciais do projeto no Google Cloud (só o dono da conta pode criar). */
+    private fun driveSetup() {
+        val id = EditText(this).apply {
+            hint = "ID do cliente (…apps.googleusercontent.com)"
+            setText(drive.clientId)
+            setSingleLine()
+        }
+        val secret = EditText(this).apply {
+            hint = "Chave secreta do cliente"
+            setText(drive.clientSecret)
+            setSingleLine()
+        }
+        lateinit var dialog: AlertDialog
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label(
+                "As fotos vão para o SEU Google Drive, sem mensalidade. Na primeira vez, o Google exige um " +
+                    "\"projeto\" seu (gratuito, uns 10 minutos, de preferência num computador):\n\n" +
+                    "1. Entre em console.cloud.google.com e crie um projeto (ex.: Sony Tether).\n" +
+                    "2. Em APIs e serviços → Biblioteca, ative a \"Google Drive API\".\n" +
+                    "3. Em Google Auth Platform (tela de permissão OAuth): tipo Externo, preencha nome e e-mail e " +
+                    "depois clique em Publicar o app. Sem publicar, o acesso vence a cada 7 dias.\n" +
+                    "4. Em Clientes (Credenciais) → Criar cliente: tipo \"TVs e dispositivos de entrada limitada\".\n" +
+                    "5. Baixe o arquivo JSON e importe aqui, ou copie o ID e a chave secreta.",
+                13f, MUTED,
+            ))
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                text = "Importar o arquivo JSON…"
+                setOnClickListener {
+                    dialog.dismiss()
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(intent, REQUEST_DRIVE_JSON)
+                }
+            }, ui.wrap(12))
+            addView(id)
+            addView(secret)
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Conectar o Google Drive")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Continuar") { _, _ ->
+                if (id.text.isBlank()) return@setPositiveButton
+                drive.setCredentials(id.text.toString(), secret.text.toString())
+                driveLogin()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /** Login pelo código: o app mostra um código e a pessoa confirma em google.com/device. */
+    private fun driveLogin() {
+        val client = drive.client ?: return driveSetup()
+        setStatus("Pedindo um código ao Google…")
+        Thread {
+            val code = try {
+                client.startDeviceLogin()
+            } catch (e: Exception) {
+                main.post {
+                    AlertDialog.Builder(this)
+                        .setTitle("Não deu para falar com o Google")
+                        .setMessage("${e.message}\n\nConfira a internet do tablet e o ID do cliente.")
+                        .setPositiveButton("Corrigir dados") { _, _ -> driveSetup() }
+                        .setNegativeButton("Fechar", null)
+                        .show()
+                }
+                return@Thread
+            }
+            main.post { showDeviceCode(client, code) }
+        }.start()
+    }
+
+    private fun showDeviceCode(client: DriveClient, code: DriveClient.DeviceCode) {
+        var waiting = true
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label("1. No celular, abra ${code.verificationUrl.removePrefix("https://")} (ou leia o código QR).", 14f, Palette.TEXT))
+            addView(qrImage(code.verificationUrl), LinearLayout.LayoutParams(dp(180), dp(180)).apply { topMargin = dp(10) })
+            addView(label("2. Entre na conta Google onde as fotos devem ficar e digite:", 14f, Palette.TEXT).apply {
+                setPadding(0, dp(10), 0, 0)
+            })
+            addView(ui.text(code.userCode, 32f, Palette.GOLD, bold = true).apply {
+                letterSpacing = 0.12f
+                setTextIsSelectable(true)
+                setPadding(0, dp(10), 0, dp(10))
+            })
+            addView(label("3. Autorize. O Google pode avisar que o app não foi verificado: toque em Avançado → Acessar. O app só enxerga as pastas que ele mesmo criar.", 12f, MUTED))
+        }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Conectar o Google Drive")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setNegativeButton("Cancelar") { _, _ -> waiting = false }
+            .setOnDismissListener { waiting = false }
+            .show()
+        Thread {
+            while (waiting) {
+                Thread.sleep(code.intervalMs)
+                if (!waiting) break
+                val result = runCatching { client.pollDeviceLogin(code) }
+                val error = result.exceptionOrNull()
+                if (result.getOrNull() == true || error is DriveClient.LoginFailed) {
+                    main.post {
+                        dialog.dismiss()
+                        if (error != null) {
+                            Toast.makeText(this, error.message, Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(this, "Google Drive conectado.", Toast.LENGTH_LONG).show()
+                            if (drive.mode == DriveSync.MODE_OFF) drive.mode = DriveSync.MODE_ALL
+                            driveStatusText = "Drive: preparando a pasta…"
+                            updateDriveButton()
+                            drive.sync(shoot)
+                        }
+                    }
+                    break
+                }
+            }
+        }.start()
     }
 
     // ---- Modo cliente ----
@@ -862,6 +1270,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         panel.visibility = if (on) View.GONE else View.VISIBLE
         strip.visibility = if (on) View.GONE else View.VISIBLE
         lock.visibility = if (on) View.VISIBLE else View.GONE
+        viewer.frame = if (on) 0 else frameIndex
         updateRatingBar()
         setFullScreen(on)
         if (on) Toast.makeText(this, "Modo cliente. Para sair, segure o cadeado por 2 segundos.", Toast.LENGTH_LONG).show()
@@ -906,7 +1315,16 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             watermark.hasLogo -> "Ligada: logo"
             else -> "Ligada: \"${watermark.text.trim()}\""
         }
-        if (rerender) rerenderCurrent()
+        presetStrip.highlight()
+        if (lastAmount != library.amount) {
+            if (lastAmount >= 0) presetStrip.refresh()
+            lastAmount = library.amount
+        }
+        if (rerender) {
+            rerenderCurrent()
+            // Fotos já enviadas ao Drive são atualizadas com o visual novo (espera você terminar de ajustar).
+            syncDriveSoon(6000)
+        }
     }
 
     private fun choosePreset() {
@@ -924,6 +1342,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             .setNegativeButton("Remover o atual") { _, _ ->
                 library.activeFile?.let {
                     library.remove(it)
+                    presetStrip.rebuild()
                     lookChanged()
                 }
             }
@@ -1056,20 +1475,34 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         @Suppress("DEPRECATION")
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK || data == null) {
-            if (requestCode == REQUEST_LOGO) editWatermark()
+            if (requestCode == REQUEST_LOGO) if (logoFor == REQUEST_BRAND) editBrand() else editWatermark()
             return
         }
         when (requestCode) {
             REQUEST_IMPORT -> importedPresets(data)
             REQUEST_LOGO -> {
                 val bytes = data.data?.let { PhotoStore.readBytes(this, it) }
+                val forBrand = logoFor == REQUEST_BRAND
+                logoFor = REQUEST_LOGO
                 if (bytes != null && watermark.setLogo(bytes)) {
-                    watermark.enabled = true
+                    logoCache = null
+                    if (forBrand) brandSettings.useLogo = true else watermark.enabled = true
                     lookChanged()
                 } else {
                     Toast.makeText(this, "Não consegui abrir essa imagem.", Toast.LENGTH_LONG).show()
                 }
-                editWatermark()
+                if (forBrand) editBrand() else editWatermark()
+            }
+            REQUEST_DRIVE_JSON -> {
+                val text = data.data?.let { PhotoStore.readBytes(this, it) }?.toString(Charsets.UTF_8)
+                val credentials = text?.let(DriveClient::credentialsFromJson)
+                if (credentials == null) {
+                    Toast.makeText(this, "Esse arquivo não tem as credenciais do Google (client_id).", Toast.LENGTH_LONG).show()
+                    driveSetup()
+                } else {
+                    drive.setCredentials(credentials.first, credentials.second)
+                    driveLogin()
+                }
             }
         }
     }
@@ -1086,6 +1519,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         imported.lastOrNull()?.let {
             library.activeFile = it.file
+            presetStrip.rebuild()
             lookChanged()
         }
         val message = when {
@@ -1379,6 +1813,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }, ui.wrap(12))
 
         // Preset
+        presetStrip = PresetStrip(this, ui, library) { file ->
+            library.activeFile = file
+            lookChanged()
+        }
         presetButton = ui.row(R.drawable.ic_tune, "Sem preset") { choosePreset() }
         amountLabel = ui.text("", 13f, Palette.GOLD, bold = true)
         amountBar = SeekBar(this).apply {
@@ -1402,6 +1840,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         presetNote = ui.text("", 12f, Palette.TEXT3)
         column.addView(ui.card().apply {
             addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Preset do Lightroom"))
+            addView(presetStrip.view, ui.wrap(2).apply { bottomMargin = dp(12) })
             addView(presetButton, ui.matchWidth(48))
             addView(ui.row(R.drawable.ic_upload_file, "Importar preset…", chevron = false) { importPreset() }, ui.matchWidth(48, 8))
             addView(LinearLayout(this@MainActivity).apply {
@@ -1421,6 +1860,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }, ui.wrap(12))
 
         // Foto da tela
+        frameButton = ui.row(R.drawable.ic_crop, "Moldura: Nenhuma") { chooseFrame() }
         hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
         deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
         column.addView(ui.card().apply {
@@ -1430,6 +1870,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 addView(hidePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
                 addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
             })
+            addView(frameButton, ui.matchWidth(48, 8))
         }, ui.wrap(12))
 
         // Entregar
@@ -1438,11 +1879,19 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         shareAllButton = ui.row(R.drawable.ic_photo_library, "Compartilhar todas (0)", chevron = false) { share(visiblePhotos()) }
         shareAllButton.isEnabled = false
         qrButton = ui.row(R.drawable.ic_qr_code_2, "QR code para o cliente") { showQr() }
+        slideshowButton = ui.row(R.drawable.ic_tv, "Slideshow para TV") { showSlideshow() }
+        driveButton = ui.row(R.drawable.ic_cloud_upload, "Google Drive: conectar") { driveDialog() }
+        driveStatusLabel = ui.text("", 12f, Palette.TEXT3).apply { setPadding(dp(4), 0, dp(4), 0) }
+        brandButton = ui.row(R.drawable.ic_storefront, "Sua marca na galeria") { editBrand() }
         column.addView(ui.card().apply {
             addView(ui.cardTitle(R.drawable.ic_share, "Entregar"))
             addView(shareButton, ui.matchWidth(50))
             addView(shareAllButton, ui.matchWidth(48, 8))
             addView(qrButton, ui.matchWidth(48, 8))
+            addView(slideshowButton, ui.matchWidth(48, 8))
+            addView(driveButton, ui.matchWidth(48, 8))
+            addView(driveStatusLabel, ui.wrap(6))
+            addView(brandButton, ui.matchWidth(48, 8))
             addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
         }, ui.wrap(12))
 
@@ -1518,6 +1967,11 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val SONY_VENDOR_ID = 0x054C
         const val REQUEST_IMPORT = 1
         const val REQUEST_LOGO = 2
+        const val REQUEST_DRIVE_JSON = 3
+        const val REQUEST_BRAND = 4
+        const val KEY_SLIDE_MODE = "slideMode"
+        const val KEY_FRAME = "frame"
+        const val SCREEN_PX = 1920
         const val KEY_FILTER = "filter"
         const val RETRY_MIN_MS = 3000L
         const val RETRY_MAX_MS = 20000L

@@ -10,14 +10,15 @@ import kotlin.math.sqrt
 
 /**
  * Aproximação dos ajustes do Lightroom em cima de um JPEG: balanço de branco, exposição, tons
- * (contraste, realces, sombras, brancos, pretos), curvas, HSL, vibração, saturação, color grading
- * e vinheta. Não é o motor da Adobe, então o resultado fica próximo, não idêntico.
+ * (contraste, realces, sombras, brancos, pretos), remover névoa, curvas, HSL, vibração, saturação,
+ * color grading e vinheta; claridade, textura e granulado ficam em [LocalEffects]. Não é o motor da Adobe, então o resultado fica próximo, não idêntico.
  *
  * A parte de cor vira uma tabela 3D (LUT) de 33×33×33; cada pixel só faz uma interpolação nela.
  */
 class PresetLook(preset: Preset, private val amount: Float) {
 
     private val p = Params(preset)
+    private val effects = LocalEffects.from(preset, amount)
     private val table = FloatArray(N * N * N * 3)
 
     init {
@@ -97,6 +98,13 @@ class PresetLook(preset: Preset, private val amount: Float) {
             bitmap.setPixels(pixels, 0, w, 0, top, w, count)
             top += count
         }
+        if (!effects.isEmpty) {
+            // Claridade, textura e grão olham a vizinhança: precisam da imagem inteira de uma vez.
+            val all = IntArray(w * h)
+            bitmap.getPixels(all, 0, w, 0, 0, w, h)
+            effects.apply(all, w, h, fullW, fullH, offX, offY)
+            bitmap.setPixels(all, 0, w, 0, 0, w, h)
+        }
         return bitmap
     }
 
@@ -130,9 +138,9 @@ class PresetLook(preset: Preset, private val amount: Float) {
         var b = linear(b0) * p.wbBlue * p.exposure
 
         // Tons e curvas em valores de tela.
-        r = p.curveRed.at(p.curveMaster.at(tone(gamma(r))))
-        g = p.curveGreen.at(p.curveMaster.at(tone(gamma(g))))
-        b = p.curveBlue.at(p.curveMaster.at(tone(gamma(b))))
+        r = p.curveRed.at(p.curveMaster.at(tone(dehaze(gamma(r)))))
+        g = p.curveGreen.at(p.curveMaster.at(tone(dehaze(gamma(g)))))
+        b = p.curveBlue.at(p.curveMaster.at(tone(dehaze(gamma(b)))))
 
         // HSL, vibração e saturação.
         val hsl = rgbToHsl(r, g, b)
@@ -147,6 +155,7 @@ class PresetLook(preset: Preset, private val amount: Float) {
             lum += (p.lum[band] * wa + p.lum[next] * t) * 0.3f * sat * (1f - abs(2f * lum - 1f))
         }
         if (p.vibrance != 0f) sat *= 1f + p.vibrance * (1f - sat)
+        if (p.dehaze != 0f) sat *= 1f + p.dehaze * 0.35f
         sat = (sat * (1f + p.saturation)).coerceIn(0f, 1f)
         hslToRgb(hue, sat, lum.coerceIn(0f, 1f), out)
         r = out[0]
@@ -177,6 +186,22 @@ class PresetLook(preset: Preset, private val amount: Float) {
         out[0] = r.coerceIn(0f, 1f)
         out[1] = g.coerceIn(0f, 1f)
         out[2] = b.coerceIn(0f, 1f)
+    }
+
+    /**
+     * Remover névoa: tira (ou, negativo, põe) um véu claro uniforme. Aproximação global; o
+     * Lightroom estima a névoa por região.
+     */
+    private fun dehaze(x: Float): Float {
+        val d = p.dehaze
+        if (d == 0f) return x
+        return if (d > 0f) {
+            val haze = 0.09f * d
+            ((x - haze) / (1f - haze)).coerceIn(0f, 1f)
+        } else {
+            val haze = -0.18f * d
+            x * (1f - haze) + haze
+        }
     }
 
     /** Pretos, sombras, realces, brancos, contraste e curva paramétrica, num canal de 0 a 1. */
@@ -293,6 +318,7 @@ class PresetLook(preset: Preset, private val amount: Float) {
         val blacks = (preset.n("Blacks2012") / 100).toFloat()
         val vibrance = (preset.n("Vibrance") / 100).toFloat()
         val saturation = (preset.n("Saturation") / 100).toFloat()
+        val dehaze = (preset.n("Dehaze") / 100).toFloat().coerceIn(-1f, 1f)
         val curveMaster = Curve(preset.curves["ToneCurvePV2012"])
         val curveRed = Curve(preset.curves["ToneCurvePV2012Red"])
         val curveGreen = Curve(preset.curves["ToneCurvePV2012Green"])

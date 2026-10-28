@@ -13,23 +13,39 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 /**
- * Página com as fotos para o cliente abrir no celular pelo QR code. Roda no próprio tablet,
- * na rede Wi-Fi (ou no ponto de acesso do tablet), sem internet. O endereço leva um código
- * aleatório para quem está na mesma rede não ver as fotos só por adivinhar o endereço.
+ * Páginas servidas pelo próprio tablet na rede Wi-Fi (ou no ponto de acesso dele), sem internet:
+ * a galeria do cliente, aberta pelo QR code, e o slideshow para uma TV ou notebook. O endereço
+ * leva um código aleatório para quem está na mesma rede não ver as fotos só por adivinhar.
  */
 class GalleryServer(private val source: Source) {
 
+    /** Dados do fotógrafo na galeria e no slideshow (campos vazios ficam de fora). */
+    data class Brand(val studio: String, val instagram: String, val whatsapp: String, val hasLogo: Boolean)
+
     interface Source {
         val galleryTitle: String
+        val brand: Brand
+
+        /** Link da pasta no Google Drive, se as fotos estiverem indo para lá. */
+        val driveLink: String?
 
         /** Fotos que o cliente vê agora (número e nome do arquivo). */
         fun items(): List<Pair<Int, String>>
+
+        /** Fotos aprovadas para o slideshow, da mais antiga para a mais nova. */
+        fun slideshowItems(): List<Int>
 
         /** JPEG pronto para entregar (com preset e marca d'água), ou null. Pode demorar. */
         fun photo(number: Int): ByteArray?
 
         /** Miniatura em JPEG para a página. */
         fun thumbnail(number: Int): ByteArray?
+
+        /** JPEG do tamanho de uma TV (1920 px) para o slideshow. */
+        fun screen(number: Int): ByteArray?
+
+        /** Logo em PNG, se houver. */
+        fun logo(): ByteArray?
     }
 
     private val token = (1..8).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
@@ -44,6 +60,9 @@ class GalleryServer(private val source: Source) {
 
     /** Endereço para o QR code, ou null se o tablet não estiver em nenhuma rede local. */
     fun url(): String? = localAddress()?.let { "http://$it:$port$path" }
+
+    /** Endereço curto do slideshow, para digitar no navegador da TV. */
+    fun slideshowUrl(): String? = url()?.let { "${it}tv" }
 
     fun start() {
         if (running) return
@@ -86,6 +105,11 @@ class GalleryServer(private val source: Source) {
         when {
             rest.isEmpty() -> send(out, 200, "text/html; charset=utf-8", page().toByteArray(), head)
             rest == "fotos.zip" -> zip(out)
+            rest == "tv" || rest == "slideshow" -> send(out, 200, "text/html; charset=utf-8", slideshow().toByteArray(), head)
+            rest == "slides.json" -> send(out, 200, "application/json", slidesJson().toByteArray(), head)
+            rest == "logo.png" -> source.logo()?.let { send(out, 200, "image/png", it, head) }
+                ?: send(out, 404, "text/plain", "Sem logo".toByteArray(), head)
+            rest.startsWith("screen/") -> screen(out, rest.removePrefix("screen/"), head)
             rest.startsWith("thumb/") -> image(out, rest.removePrefix("thumb/"), head, null) { source.thumbnail(it) }
             rest.startsWith("photo/") -> image(out, rest.removePrefix("photo/"), head, query.contains("dl=1")) { source.photo(it) }
             else -> send(out, 404, "text/plain", "Não encontrado".toByteArray(), head)
@@ -100,6 +124,16 @@ class GalleryServer(private val source: Source) {
         val disposition = if (download == true) "attachment" else "inline"
         send(out, 200, "image/jpeg", data, head, "Content-Disposition: $disposition; filename=\"${jpegName(item.second)}\"\r\n")
     }
+
+    private fun screen(out: OutputStream, id: String, head: Boolean) {
+        val number = id.substringBefore('.').toIntOrNull()
+        val data = number?.takeIf { it in source.slideshowItems() }?.let { source.screen(it) }
+            ?: return send(out, 404, "text/plain", "Foto indisponível".toByteArray(), head)
+        send(out, 200, "image/jpeg", data, head)
+    }
+
+    /** Lista do slideshow: números das fotos aprovadas; a página consulta a cada poucos segundos. */
+    fun slidesJson(): String = "{\"items\":[${source.slideshowItems().joinToString(",")}]}"
 
     private fun zip(out: OutputStream) {
         out.write(
@@ -123,31 +157,111 @@ class GalleryServer(private val source: Source) {
     private fun page(): String {
         val items = source.items()
         val title = escape(source.galleryTitle)
+        val brand = source.brand
+        val studio = escape(brand.studio)
         val cards = items.joinToString("\n") { (number, name) ->
             """<a href="photo/$number.jpg"><img loading="lazy" src="thumb/$number.jpg" alt="${escape(name)}"></a>"""
         }
         val empty = if (items.isEmpty()) "<p class=\"hint\">Ainda não há fotos aqui. Atualize a página daqui a pouco.</p>" else ""
+        val logo = if (brand.hasLogo) "<img class=\"logo\" src=\"logo.png\" alt=\"$studio\">" else ""
+        val contacts = listOfNotNull(
+            whatsappLink(brand.whatsapp)?.let { "<a class=\"chip\" href=\"$it\">WhatsApp</a>" },
+            instagramLink(brand.instagram)?.let { "<a class=\"chip\" href=\"$it\">Instagram</a>" },
+            source.driveLink?.let { "<a class=\"chip\" href=\"${escape(it)}\">Google Drive</a>" },
+        ).joinToString("")
+        val by = if (studio.isNotEmpty()) "<p class=\"by\">Fotos por <b>$studio</b></p>" else ""
         return """<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>$title</title>
+<meta name="theme-color" content="#0d0d10">
+<title>$title${if (studio.isNotEmpty()) " · $studio" else ""}</title>
 <style>
-body{margin:0;background:#16161a;color:#eee;font-family:system-ui,-apple-system,sans-serif}
-header{padding:20px 16px 8px}h1{margin:0;font-size:22px}
-.hint{color:#9a9aa5;font-size:14px;margin:6px 0 0;line-height:1.4}
-.bar{display:flex;gap:8px;padding:12px 16px}
-.btn{flex:1;text-align:center;background:#e8a33d;color:#000;text-decoration:none;padding:12px;border-radius:10px;font-weight:600}
-.btn.alt{background:#2a2a31;color:#fff}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:4px;padding:4px 16px 32px}
-.grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#2a2a31;border-radius:4px}
+*{box-sizing:border-box}
+body{margin:0;background:#0d0d10;color:#f2f2f5;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:28px 18px 6px;text-align:center}
+.logo{max-height:64px;max-width:60%;object-fit:contain;margin-bottom:14px}
+.by{margin:0 0 4px;color:#a1a1ad;font-size:13px;letter-spacing:.04em}.by b{color:#e9b45a;font-weight:600}
+h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.01em}
+.hint{color:#a1a1ad;font-size:14px;margin:8px 0 0;line-height:1.45}
+.chips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+.chip{color:#f2f2f5;text-decoration:none;border:1px solid #33333d;border-radius:999px;padding:8px 14px;font-size:14px;background:#1b1b21}
+.bar{display:flex;gap:10px;padding:18px 18px 12px;max-width:640px;margin:0 auto}
+.btn{flex:1;text-align:center;background:linear-gradient(135deg,#e9b45a,#c98a2e);color:#1a1307;text-decoration:none;padding:13px;border-radius:12px;font-weight:600}
+.btn.alt{background:#1b1b21;color:#f2f2f5;border:1px solid #292931}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;padding:4px 18px 40px}
+.grid img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#1b1b21;border-radius:8px}
+footer{color:#6e6e7a;font-size:12px;text-align:center;padding:0 18px 28px}
 </style></head><body>
-<header><h1>$title</h1>
-<p class="hint">${items.size} ${if (items.size == 1) "foto" else "fotos"}. Toque numa foto para abrir; no celular, segure a foto aberta para salvar.</p></header>
+<header>$logo$by<h1>$title</h1>
+<p class="hint">${items.size} ${if (items.size == 1) "foto" else "fotos"}. Toque numa foto para abrir; no celular, segure a foto aberta para salvar.</p>
+${if (contacts.isNotEmpty()) "<div class=\"chips\">$contacts</div>" else ""}</header>
 <div class="bar"><a class="btn" href="fotos.zip">Baixar todas (.zip)</a><a class="btn alt" href="./">Atualizar</a></div>
 $empty
 <div class="grid">
 $cards
-</div></body></html>"""
+</div>
+${if (studio.isNotEmpty()) "<footer>© $studio</footer>" else ""}
+</body></html>"""
+    }
+
+    /** Tela cheia para TV: troca a foto sozinho e mostra na hora cada foto nova aprovada. */
+    private fun slideshow(): String {
+        val brand = source.brand
+        val studio = escape(brand.studio)
+        val mark = when {
+            brand.hasLogo -> "<img id=\"mark\" src=\"logo.png\" alt=\"$studio\">"
+            studio.isNotEmpty() -> "<div id=\"mark\" class=\"text\">$studio</div>"
+            else -> ""
+        }
+        return """<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escape(source.galleryTitle)} · ao vivo</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none;font-family:system-ui,-apple-system,Roboto,sans-serif}
+.slide{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity 1.2s ease}
+.slide.on{opacity:1;animation:drift 9s ease-out forwards}
+@keyframes drift{from{transform:scale(1)}to{transform:scale(1.035)}}
+#mark{position:absolute;right:3vw;bottom:3vh;max-height:8vh;max-width:18vw;opacity:.85;object-fit:contain}
+#mark.text{color:#fff;font-size:2.4vh;letter-spacing:.12em;text-transform:uppercase;text-shadow:0 1px 6px #000}
+#wait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#a1a1ad;font-size:3vh;text-align:center}
+#wait b{color:#e9b45a;font-weight:600;font-size:4vh;margin-bottom:1vh}
+#tip{position:absolute;left:50%;top:3vh;transform:translateX(-50%);background:#1b1b21cc;color:#f2f2f5;padding:10px 18px;border-radius:999px;font-size:14px;transition:opacity .6s}
+</style></head><body>
+<img class="slide" id="a" alt=""><img class="slide" id="b" alt="">
+<div id="wait"><b>Ao vivo</b>As fotos aparecem aqui assim que forem aprovadas.</div>
+$mark
+<div id="tip">Toque ou clique para tela cheia</div>
+<script>
+var items=[],seen={},queue=[],pos=-1,front='a',timer=null,started=false;
+function el(id){return document.getElementById(id)}
+function show(n){
+  var next=front==='a'?'b':'a',img=el(next);
+  img.onload=function(){img.className='slide on';el(front).className='slide';front=next;el('wait').style.display='none';};
+  img.src='screen/'+n+'.jpg';
+}
+function advance(){
+  if(!items.length)return;
+  var n;
+  if(queue.length){n=queue.shift();pos=items.indexOf(n);}else{pos=(pos+1)%items.length;n=items[pos];}
+  show(n);
+}
+function poll(){
+  fetch('slides.json',{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
+    var fresh=d.items.filter(function(n){return !seen[n]});
+    fresh.forEach(function(n){seen[n]=1});
+    items=d.items;
+    queue=queue.filter(function(n){return items.indexOf(n)>=0});
+    if(started)queue=queue.concat(fresh);
+    if(!started&&items.length){started=true;pos=items.length-2;advance();}
+    else if(fresh.length&&started){advance();restart();}
+  }).catch(function(){});
+}
+function restart(){clearInterval(timer);timer=setInterval(advance,7000);}
+document.addEventListener('click',function(){var d=document.documentElement;(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d);el('tip').style.opacity=0;});
+setTimeout(function(){el('tip').style.opacity=0},6000);
+poll();setInterval(poll,4000);restart();
+</script></body></html>"""
     }
 
     private fun send(out: OutputStream, code: Int, type: String, body: ByteArray, head: Boolean, extra: String = "") {
@@ -172,6 +286,18 @@ $cards
             if (line.length > 8192) return null
             line.append(c.toChar())
         }
+    }
+
+    private fun whatsappLink(number: String): String? {
+        val digits = number.filter { it.isDigit() }
+        if (digits.length < 8) return null
+        // Número brasileiro sem DDI: põe o 55.
+        return "https://wa.me/" + if (digits.length <= 11) "55$digits" else digits
+    }
+
+    private fun instagramLink(handle: String): String? {
+        val user = handle.trim().removePrefix("@").substringAfterLast("instagram.com/").trim('/').filter { it.isLetterOrDigit() || it == '.' || it == '_' }
+        return if (user.isEmpty()) null else "https://instagram.com/$user"
     }
 
     private fun jpegName(name: String) = name.substringBeforeLast('.') + ".jpg"

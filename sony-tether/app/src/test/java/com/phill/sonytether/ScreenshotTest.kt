@@ -63,6 +63,12 @@ class ScreenshotTest {
 
     @Test
     fun screens() {
+        val library = PresetLibrary(org.robolectric.RuntimeEnvironment.getApplication())
+        fun xmp(name: String, settings: String) = """<x:xmpmeta><rdf:Description xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/" $settings>
+            <crs:Name><rdf:Alt><rdf:li xml:lang="x-default">$name</rdf:li></rdf:Alt></crs:Name></rdf:Description></x:xmpmeta>""".toByteArray()
+        library.import("pb.xmp", xmp("P&B Contraste", """crs:Saturation="-100" crs:Contrast2012="+40" crs:Clarity2012="+30""""))
+        library.import("quente.xmp", xmp("Casamento Quente", """crs:IncrementalTemperature="+35" crs:Exposure2012="+0.3" crs:Vibrance="+20""""))
+        library.import("filme.xmp", xmp("Filme Fosco", """crs:Blacks2012="+40" crs:Saturation="-25" crs:GrainAmount="45" crs:Dehaze="-20""""))
         val activity = Robolectric.buildActivity(MainActivity::class.java).setup().get()
         val root = activity.window.decorView
         save(root, "1-sem-fotos")
@@ -87,15 +93,23 @@ class ScreenshotTest {
         shadowOf(android.os.Looper.getMainLooper()).idle()
         root.measure(View.MeasureSpec.makeMeasureSpec(root.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(root.height, View.MeasureSpec.EXACTLY))
         root.layout(0, 0, root.width, root.height)
+        Thread.sleep(3000) // miniaturas dos presets
+        shadowOf(android.os.Looper.getMainLooper()).idle()
         save(root, "2-com-foto")
 
         val panel = activity.javaClass.getDeclaredField("panel").apply { isAccessible = true }.get(activity) as ScrollView
-        panel.scrollTo(0, 10_000)
-        save(root, "3-painel-rolado")
+        panel.scrollTo(0, 700)
+        val viewer = activity.javaClass.getDeclaredField("viewer").apply { isAccessible = true }.get(activity) as ZoomImageView
+        viewer.frame = 4 // story 9:16
+        save(root, "3-moldura-e-presets")
 
-        call(activity, "choosePreset")
+        viewer.frame = 0
+        panel.scrollTo(0, 10_000)
+        save(root, "4-painel-entregar")
+
+        call(activity, "editBrand")
         shadowOf(android.os.Looper.getMainLooper()).idle()
         val dialog = ShadowDialog.getLatestDialog() as AlertDialog
-        save(dialog.window!!.decorView, "4-dialogo")
+        save(dialog.window!!.decorView, "5-dialogo-marca")
     }
 }

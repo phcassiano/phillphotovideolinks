@@ -51,7 +51,7 @@ class PresetTest {
         assertEquals(20.0, p.n("Contrast2012"), 1e-9)
         assertEquals("As Shot", p.texts["WhiteBalance"])
         assertEquals(listOf(0.0 to 20.0, 128.0 to 128.0, 255.0 to 240.0), p.curves["ToneCurvePV2012"])
-        assertEquals(listOf("Claridade"), p.ignored)
+        assertEquals(emptyList<String>(), p.ignored) // claridade agora é reproduzida
     }
 
     @Test

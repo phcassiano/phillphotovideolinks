@@ -55,6 +55,14 @@ class Watermark(context: Context) {
         return true
     }
 
+    /** O logo em PNG (até 800 px), para a galeria e o slideshow; null se não houver. */
+    fun logoPng(): ByteArray? {
+        if (!hasLogo) return null
+        val bitmap = BitmapFactory.decodeFile(logoFile.path) ?: return null
+        val scaled = PhotoStore.scaled(bitmap, 800)
+        return java.io.ByteArrayOutputStream().also { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }.toByteArray()
+    }
+
     /** null se estiver desligada ou sem nada para desenhar. */
     fun snapshot(): Stamp? {
         if (!enabled) return null
