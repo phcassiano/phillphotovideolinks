@@ -1,9 +1,13 @@
 package com.phill.sonytether
 
+import android.content.Context
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.os.Build
 import android.os.SystemClock
+import java.io.File
+import java.io.PrintWriter
+import java.io.StringWriter
 import java.util.ArrayDeque
 import java.util.Locale
 
@@ -18,6 +22,30 @@ object DiagLog {
         val t = (SystemClock.elapsedRealtime() - start) / 1000.0
         lines.addLast(String.format(Locale.US, "%8.2f  %s", t, text))
         while (lines.size > MAX_LINES) lines.removeFirst()
+    }
+
+    /**
+     * Guarda o erro de um fechamento inesperado num arquivo; na próxima abertura ele entra no
+     * Diagnóstico, para dar para mandar e corrigir.
+     */
+    fun install(context: Context) {
+        val file = File(context.filesDir, "ultimo-erro.txt")
+        if (file.exists()) {
+            val previous = runCatching { file.readText() }.getOrDefault("")
+            file.delete()
+            if (previous.isNotBlank()) {
+                add("O APP FECHOU NA ÚLTIMA VEZ:")
+                previous.lineSequence().take(40).forEach { add("  $it") }
+            }
+        }
+        val next = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching {
+                val trace = StringWriter().also { error.printStackTrace(PrintWriter(it)) }.toString()
+                file.writeText("Revela ${BuildConfig.VERSION_NAME} · thread ${thread.name}\n" + trace.take(6000) + "\n--- antes do erro ---\n" + text().lines().takeLast(25).joinToString("\n"))
+            }
+            next?.uncaughtException(thread, error)
+        }
     }
 
     @Synchronized

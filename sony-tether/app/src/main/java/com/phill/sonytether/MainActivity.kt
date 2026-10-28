@@ -184,6 +184,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        DiagLog.install(applicationContext)
         usb = getSystemService(Context.USB_SERVICE) as UsbManager
         library = PresetLibrary(this)
         sessions = SessionStore(this)
@@ -589,11 +590,23 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val s = shoot
         setStatus("Preparando para compartilhar…")
         processor.execute {
+            var failed = 0
             val uris = list.mapIndexedNotNull { i, photo ->
                 if (list.size > 1) main.post { setStatus("Preparando ${i + 1} de ${list.size}…") }
-                prepare(photo, look, s)
+                // Uma foto com problema (ou sem memória) não pode derrubar o app: compartilha as outras.
+                try {
+                    prepare(photo, look, s)
+                } catch (e: Throwable) {
+                    failed++
+                    DiagLog.add("compartilhar: ${photo.name} falhou (${e.javaClass.simpleName}: ${e.message})")
+                    System.gc()
+                    photo.edited ?: photo.original
+                }
             }
-            main.post { send(uris) }
+            main.post {
+                send(uris)
+                if (failed > 0) Toast.makeText(this, "$failed foto(s) foram com a versão anterior. Detalhes no Diagnóstico.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -613,7 +626,12 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             uris.drop(1).forEach { addItem(ClipData.Item(it)) }
         }
         setStatus(if (uris.size == 1) "Escolha onde compartilhar." else "Escolha onde compartilhar as ${uris.size} fotos.")
-        startActivity(Intent.createChooser(intent, "Compartilhar"))
+        try {
+            startActivity(Intent.createChooser(intent, "Compartilhar"))
+        } catch (e: Exception) {
+            DiagLog.add("compartilhar: não abriu (${e.javaClass.simpleName}: ${e.message})")
+            setStatus("Não deu para abrir o compartilhamento com ${uris.size} fotos. Tente com menos fotos ou pelo QR code.")
+        }
     }
 
     // ---- Zoom ----
