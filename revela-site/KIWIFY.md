@@ -13,7 +13,7 @@ menus podem mudar um pouco conforme a versão do painel da Kiwify.
 | Tipo | Assinatura (cobrança recorrente) |
 | Categoria | Software / Aplicativos (ou Fotografia) |
 | Descrição curta | Suas fotos no tablet na hora do clique, já com o seu preset do Lightroom. Mostre, aprove e entregue para o cliente no próprio ensaio, sem notebook e sem internet. |
-| Página de vendas | https://revela-beta-nine.vercel.app/assinar |
+| Página de vendas | https://revela.phillcassiano.com/assinar |
 | E-mail de suporte | o seu |
 
 Descrição longa (cole na descrição do produto):
@@ -43,7 +43,7 @@ recorrência, para dar 1 ano de validade).
 
 - Peça o **telefone (WhatsApp)** do comprador: é com ele que o /admin monta o link do WhatsApp.
 - **Página de obrigado / redirecionamento após a compra:**
-  https://revela-beta-nine.vercel.app/obrigado
+  https://revela.phillcassiano.com/obrigado
 - **Entrega do produto:** link externo para a mesma página de obrigado (a chave vai por
   WhatsApp ou e-mail, pelo /admin).
 - Garantia: 7 dias.

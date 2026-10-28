@@ -246,7 +246,7 @@ class LicenseManager(private val context: Context, private val verifier: License
         /** Dias de teste grátis na primeira instalação. 0 = sem teste. */
         const val TRIAL_DAYS = 3
 
-        const val SITE = "https://revela-beta-nine.vercel.app"
+        const val SITE = "https://revela.phillcassiano.com"
         const val SUBSCRIBE_URL = "$SITE/assinar"
         private const val REVOKED_URL = "$SITE/api/revogadas"
         private const val TRIAL_URL = "$SITE/api/trial"
