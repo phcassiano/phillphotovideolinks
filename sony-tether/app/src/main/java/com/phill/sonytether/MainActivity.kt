@@ -88,6 +88,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     /** Tabelas dos ajustes do editor, pela assinatura: mexer num slider não refaz as outras. */
     private val manualLooks = ConcurrentHashMap<String, PresetLook>()
     private var editor: View? = null
+    private var cropper: View? = null
     private var copiedEdit: PhotoEdit? = null
     private val latestRender = AtomicInteger()
     private var editStart = ""
@@ -113,6 +114,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var hidePanelButton: Button
     private lateinit var deletePanelButton: Button
     private lateinit var editPanelButton: Button
+    private lateinit var cropPanelButton: Button
     private lateinit var strip: HorizontalScrollView
     private lateinit var thumbs: LinearLayout
     private lateinit var lock: ImageView
@@ -547,11 +549,14 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun show(photo: SessionPhoto, original: Bitmap, display: Bitmap, resetZoom: Boolean) {
         if (photo.deleted) return
         val changed = photo !== current
-        if (changed) closeEditor()
+        if (changed) {
+            closeEditor()
+            closeCrop()
+        }
         current = photo
         currentOriginal = original
         currentShown = display
-        viewer.setImage(display, photo.width, resetZoom = resetZoom || changed)
+        viewer.setImage(display, viewWidth(photo), resetZoom = resetZoom || changed)
         if (changed) presetStrip.setPhoto(original)
         emptyState.visibility = View.GONE
         highlightTiles()
@@ -574,7 +579,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             main.post {
                 if (current === photo && ticket == latestRender.get()) {
                     currentShown = display
-                    viewer.setImage(display, photo.width, resetZoom = false)
+                    viewer.setImage(display, viewWidth(photo), resetZoom = false)
                 }
             }
         }
@@ -668,9 +673,16 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val edit = photo.edit
         if (edit.isEmpty) return base
         if (manualLooks.size > 48) manualLooks.clear()
-        val manual = manualLooks.getOrPut(edit.signature) { PresetLook(edit.toPreset(), 1f) }
-        return Look(base.preset, base.stamp, "${base.signature}|${edit.signature}", manual)
+        val tones = edit.tonesOnly()
+        val manual = if (tones.isEmpty) null else manualLooks.getOrPut(tones.signature) { PresetLook(tones.toPreset(), 1f) }
+        return Look(base.preset, base.stamp, "${base.signature}|${edit.signature}", manual, edit.takeIf { it.hasGeometry })
     }
+
+    /**
+     * Largura da foto inteira para o zoom. Girada ou recortada, o zoom fica só na imagem da tela
+     * (0 desliga os trechos em resolução cheia, que vêm da foto original).
+     */
+    private fun viewWidth(photo: SessionPhoto) = if (photo.edit.hasGeometry) 0 else photo.width
 
     private fun toggleEditor() = if (editor != null) closeEditor() else openEditor()
 
@@ -695,6 +707,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         column.addView(ui.text("Editar foto", 16f, Color.WHITE, bold = true))
         column.addView(ui.text("Vai por cima do preset. Toque no número para zerar e segure a foto para ver o original.", 12f, Palette.TEXT2), ui.wrap(4))
+        column.addView(ui.row(R.drawable.ic_crop, "Recortar e girar") { openCrop() }, ui.matchWidth(48, 10))
         for (s in PhotoEdit.SLIDERS) {
             val value = ui.text(s.format(values[s.key] ?: 0), 13f, Color.WHITE).apply {
                 gravity = Gravity.END
@@ -727,16 +740,16 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         column.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            addView(action("Zerar") { setEdit(photo, PhotoEdit.NONE) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Zerar") { setEdit(photo, photo.edit.geometryOnly()) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             addView(action("Copiar") {
-                copiedEdit = PhotoEdit(values)
-                Toast.makeText(this@MainActivity, "Ajustes copiados. Abra outra foto e toque em Colar.", Toast.LENGTH_SHORT).show()
+                copiedEdit = PhotoEdit(values).tonesOnly()
+                Toast.makeText(this@MainActivity, "Luz e cor copiadas (o recorte não vai junto). Abra outra foto e toque em Colar.", Toast.LENGTH_SHORT).show()
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             addView(action("Colar") {
-                copiedEdit?.let { setEdit(photo, it) }
+                copiedEdit?.let { setEdit(photo, withTones(photo, it)) }
                     ?: Toast.makeText(this@MainActivity, "Copie os ajustes de uma foto primeiro.", Toast.LENGTH_SHORT).show()
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(action("Em todas") { editAll(PhotoEdit(values)) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Em todas") { editAll(PhotoEdit(values).tonesOnly()) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
         }, ui.wrap(8))
         column.addView(ui.primary(null, "Pronto") { closeEditor() }, ui.matchWidth(48, 6))
 
@@ -776,14 +789,17 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         rerenderCurrent()
     }
 
+    /** A luz e a cor de [tones] com o recorte que a foto já tinha. */
+    private fun withTones(photo: SessionPhoto, tones: PhotoEdit) = PhotoEdit(photo.edit.geometryOnly().values + tones.values)
+
     private fun editAll(edit: PhotoEdit) {
         val list = visiblePhotos()
         AlertDialog.Builder(this)
             .setTitle("Usar em todas?")
-            .setMessage("Estes ajustes vão para as ${list.size} fotos do filtro \"${FILTERS[filter]}\". Os ajustes que elas já tinham são trocados.")
+            .setMessage("A luz e a cor desta foto vão para as ${list.size} fotos do filtro \"${FILTERS[filter]}\". Os ajustes de luz e cor que elas já tinham são trocados; o recorte de cada uma continua.")
             .setPositiveButton("Usar em todas") { _, _ ->
                 for (p in list) {
-                    p.edit = edit
+                    p.edit = withTones(p, edit)
                     updateMarks(p)
                     if (p !== current) refreshThumb(p)
                 }
@@ -792,6 +808,154 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             }
             .setNegativeButton("Cancelar", null)
             .show()
+    }
+
+    /**
+     * Tela de recorte por cima da foto: girar 90°, endireitar, proporção e a moldura para arrastar.
+     * A prévia sai da imagem da tela com cor e luz, sem o recorte, para dar para aumentar de novo.
+     */
+    private fun openCrop() {
+        val photo = current ?: return
+        val original = currentOriginal ?: return
+        if (clientMode || !requireLicense()) return
+        closeEditor()
+        closeCrop()
+        var quarters = photo.edit.quarters
+        var straighten = photo.edit.straighten
+        val view = CropView(this).apply { crop = photo.edit.crop }
+        val base = look
+        val renders = AtomicInteger()
+        var toned: Bitmap? = null
+        fun render() {
+            val ticket = renders.incrementAndGet()
+            val q = quarters
+            val st = straighten
+            processor.execute {
+                if (ticket != renders.get()) return@execute
+                val source = toned ?: lookFor(photo, base).tones(PhotoStore.scaled(original, CROP_PREVIEW_PX)).also { toned = it }
+                val shaped = PhotoEdit.NONE.withGeometry(q, st, RectF(0f, 0f, 1f, 1f)).shape(source, cropped = false)
+                main.post { if (ticket == renders.get() && cropper != null) view.setImage(shaped) }
+            }
+        }
+
+        val angleLabel = ui.text("", 13f, Color.WHITE)
+        fun showAngle() {
+            angleLabel.text = String.format(java.util.Locale("pt", "BR"), "%+.1f°", straighten / 10f)
+        }
+        showAngle()
+        var ready = false
+        val angleBar = slider(-PhotoEdit.MAX_STRAIGHTEN, PhotoEdit.MAX_STRAIGHTEN, straighten) { v ->
+            if (ready && v != straighten) {
+                straighten = v
+                showAngle()
+                render()
+            }
+        }
+        ready = true
+        angleLabel.setPadding(dp(12), dp(4), 0, dp(4))
+        angleLabel.setOnClickListener { angleBar.progress = PhotoEdit.MAX_STRAIGHTEN }
+
+        val aspects = linkedMapOf<String, () -> Float?>(
+            "Livre" to { null },
+            "Original" to { view.imageAspect },
+            "1:1" to { 1f },
+            "4:5" to { 4f / 5f },
+            "3:2" to { if (view.imageAspect >= 1f) 3f / 2f else 2f / 3f },
+            "16:9" to { if (view.imageAspect >= 1f) 16f / 9f else 9f / 16f },
+        )
+        var aspectName = "Livre"
+        val chips = ArrayList<TextView>()
+        fun chip(text: String, onClick: () -> Unit) = ui.text(text, 13f, Color.WHITE, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(9), dp(14), dp(9))
+            background = ui.rounded(0x26FFFFFF, 18)
+            setOnClickListener { onClick() }
+        }
+        fun paintChips() = chips.forEach {
+            val on = it.text == aspectName
+            it.setTextColor(if (on) 0xFF1A1307.toInt() else Color.WHITE)
+            it.background = ui.rounded(if (on) Palette.GOLD else 0x26FFFFFF, 18)
+        }
+        val chipRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        chipRow.addView(chip("⟳ Girar 90°") {
+            quarters = (quarters + 1) % 4
+            aspectName = "Livre"
+            paintChips()
+            view.aspect = null
+            view.crop = RectF(0f, 0f, 1f, 1f)
+            render()
+        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(16) })
+        for ((name, ratio) in aspects) {
+            chips += chip(name) {
+                aspectName = name
+                paintChips()
+                view.aspect = ratio()
+            }.also { chipRow.addView(it, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(8) }) }
+        }
+        paintChips()
+
+        fun button(text: String, primary: Boolean, onClick: () -> Unit): View =
+            if (primary) ui.primary(null, text, onClick) else ui.text(text, 14f, Color.WHITE, bold = true).apply {
+                gravity = Gravity.CENTER
+                background = ui.rounded(Palette.ROW, 12, Palette.STROKE)
+                setOnClickListener { onClick() }
+            }
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Palette.PANEL)
+            setPadding(dp(16), dp(10), dp(16), dp(14))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(ui.text("Endireitar", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(angleLabel)
+            })
+            addView(angleBar)
+            addView(HorizontalScrollView(this@MainActivity).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(chipRow)
+            }, ui.wrap(6))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(button("Desfazer recorte", false) {
+                    quarters = 0
+                    straighten = 0
+                    angleBar.progress = PhotoEdit.MAX_STRAIGHTEN
+                    aspectName = "Livre"
+                    paintChips()
+                    view.aspect = null
+                    view.crop = RectF(0f, 0f, 1f, 1f)
+                    render()
+                }, LinearLayout.LayoutParams(0, dp(48), 1f))
+                addView(button("Cancelar", false) { closeCrop() }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+                addView(button("Aplicar", true) {
+                    val edit = photo.edit.withGeometry(quarters, straighten, view.crop)
+                    closeCrop()
+                    if (edit.signature == photo.edit.signature) return@button
+                    photo.edit = edit
+                    updateMarks(photo)
+                    rerenderCurrent()
+                    refreshThumb(photo)
+                    saveSession()
+                }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+            }, ui.wrap(10))
+        }
+        val overlay = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.BLACK)
+            isClickable = true
+            addView(view, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(controls)
+        }
+        stage.addView(overlay, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        cropper = overlay
+        render()
+    }
+
+    private fun closeCrop() {
+        val overlay = cropper ?: return
+        cropper = null
+        stage.removeView(overlay)
     }
 
     /** Miniatura da faixa refeita com o visual atual da foto (depois de editar). */
@@ -811,6 +975,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     override fun onDetailNeeded(rect: RectF, widthPx: Int, token: Int) {
         val photo = current ?: return
         val uri = photo.original ?: return
+        if (photo.edit.hasGeometry) return
         val look = lookFor(photo)
         val ticket = latestDetail.incrementAndGet()
         detailer.execute {
@@ -894,7 +1059,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun delete(photo: SessionPhoto) {
-        if (current === photo) closeEditor()
+        if (current === photo) {
+            closeEditor()
+            closeCrop()
+        }
         val s = shoot
         val before = visiblePhotos()
         photo.deleted = true
@@ -966,6 +1134,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         hidePanelButton.isEnabled = photo != null
         deletePanelButton.isEnabled = photo != null
         editPanelButton.isEnabled = photo != null
+        cropPanelButton.isEnabled = photo != null
         hidePanelButton.text = if (photo?.hidden == true) "Mostrar" else "Esconder"
         ui.setIcon(hidePanelButton, if (photo?.hidden == true) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
     }
@@ -1538,7 +1707,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private val exitClientMode = Runnable { setClientMode(false) }
 
     private fun setClientMode(on: Boolean) {
-        if (on) closeEditor()
+        if (on) {
+            closeEditor()
+            closeCrop()
+        }
         clientMode = on
         panel.visibility = if (on) View.GONE else View.VISIBLE
         strip.visibility = if (on) View.GONE else View.VISIBLE
@@ -2124,6 +2296,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         // Foto da tela
         frameButton = ui.row(R.drawable.ic_crop, "Moldura: Nenhuma") { chooseFrame() }
         editPanelButton = ui.row(R.drawable.ic_tune, "Editar foto: luz e cor") { toggleEditor() }
+        cropPanelButton = ui.row(R.drawable.ic_crop, "Recortar e girar") { openCrop() }
         hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
         deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
         column.addView(ui.card().apply {
@@ -2134,6 +2307,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
             })
             addView(editPanelButton, ui.matchWidth(48, 8))
+            addView(cropPanelButton, ui.matchWidth(48, 8))
             addView(frameButton, ui.matchWidth(48, 8))
         }, ui.wrap(12))
 
@@ -2247,6 +2421,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
         /** Enquanto um slider do editor é arrastado, a prévia sai menor para acompanhar o dedo. */
         const val EDIT_PREVIEW_PX = 1024
+        const val CROP_PREVIEW_PX = 1600
         const val KEY_FILTER = "filter"
         const val RETRY_MIN_MS = 3000L
         const val RETRY_MAX_MS = 20000L

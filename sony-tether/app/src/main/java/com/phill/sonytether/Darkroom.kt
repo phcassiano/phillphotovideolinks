@@ -11,12 +11,21 @@ import android.net.Uri
  */
 class Developed(val original: Bitmap, val display: Bitmap, val edited: Uri?, val thumb: Bitmap, val width: Int, val height: Int)
 
-/** Como a foto sai do app: preset (com intensidade), ajustes do editor e marca d'água. */
-class Look(val preset: PresetLook?, val stamp: Watermark.Stamp?, val signature: String, val manual: PresetLook? = null) {
+/**
+ * Como a foto sai do app: girada e recortada ([shape]), com preset (e intensidade), ajustes do
+ * editor e marca d'água, nessa ordem; a vinheta fica centrada na foto já recortada.
+ */
+class Look(
+    val preset: PresetLook?,
+    val stamp: Watermark.Stamp?,
+    val signature: String,
+    val manual: PresetLook? = null,
+    val shape: PhotoEdit? = null,
+) {
     /** Sem nada para aplicar, o JPEG da câmera é compartilhado como veio. */
-    fun needsJpeg(name: String) = preset != null || manual != null || stamp != null || PhotoStore.isRaw(name)
+    fun needsJpeg(name: String) = changesPhoto || PhotoStore.isRaw(name)
 
-    val changesPhoto get() = preset != null || manual != null || stamp != null
+    val changesPhoto get() = preset != null || manual != null || stamp != null || shape != null
 
     /** Só a cor e a luz (preset e ajustes), sem a marca d'água. */
     fun tones(bitmap: Bitmap, frame: RectF? = null): Bitmap {
@@ -25,7 +34,7 @@ class Look(val preset: PresetLook?, val stamp: Watermark.Stamp?, val signature: 
     }
 
     fun apply(bitmap: Bitmap): Bitmap {
-        val edited = tones(bitmap)
+        val edited = tones(shape?.shape(bitmap) ?: bitmap)
         return stamp?.draw(edited) ?: edited
     }
 }
@@ -53,6 +62,7 @@ object Darkroom {
             return Developed(original, original, null, PhotoStore.scaled(original, THUMB_PX), width, height)
         }
         val edited = look.apply(full)
+        if (edited !== full) full.recycle()
         replacing?.let { PhotoStore.delete(context, it) }
         val uri = PhotoStore.saveJpeg(context, folder, name.substringBeforeLast('.') + ".jpg", edited)
         val display = PhotoStore.scaled(edited, DISPLAY_PX)
