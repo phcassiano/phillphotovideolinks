@@ -47,6 +47,10 @@ object PhotoStore {
         true
     }
 
+    /** O app ainda consegue abrir este arquivo? (Fotos de antes de reinstalar o app deixam de ser dele.) */
+    fun canRead(context: Context, uri: Uri?): Boolean = uri != null &&
+        runCatching { context.contentResolver.openFileDescriptor(uri, "r")!!.close(); true }.getOrDefault(false)
+
     fun readBytes(context: Context, uri: Uri): ByteArray? =
         runCatching { context.contentResolver.openInputStream(uri)!!.use { it.readBytes() } }.getOrNull()
 

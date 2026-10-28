@@ -571,9 +571,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
      */
     private fun prepare(photo: SessionPhoto, look: Look, s: ShootSession): Uri? {
         if (photo.deleted) return null
-        if (!look.needsJpeg(photo.name)) return photo.original
-        if (photo.edited != null && photo.editedWith == look.signature) return photo.edited
-        val data = photo.original?.let { PhotoStore.readBytes(this, it) } ?: return photo.edited ?: photo.original
+        if (!look.needsJpeg(photo.name)) return photo.original?.takeIf { PhotoStore.canRead(this, it) }
+        if (photo.edited != null && photo.editedWith == look.signature && PhotoStore.canRead(this, photo.edited)) return photo.edited
+        val data = photo.original?.let { PhotoStore.readBytes(this, it) }
+            ?: return listOf(photo.edited, photo.original).firstOrNull { PhotoStore.canRead(this, it) }
         val result = Darkroom.develop(this, s.folder, photo.name, data, look, replacing = photo.edited) ?: return photo.edited
         photo.edited = result.edited
         photo.editedWith = look.signature
@@ -600,11 +601,20 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                     failed++
                     DiagLog.add("compartilhar: ${photo.name} falhou (${e.javaClass.simpleName}: ${e.message})")
                     System.gc()
-                    photo.edited ?: photo.original
+                    listOf(photo.edited, photo.original).firstOrNull { PhotoStore.canRead(this, it) }
                 }
             }
+            val unreadable = list.count { !it.deleted } - uris.size
+            if (unreadable > 0) DiagLog.add("compartilhar: $unreadable foto(s) sem permissão de leitura (salvas antes de reinstalar o app)")
             main.post {
                 send(uris)
+                if (unreadable > 0) {
+                    Toast.makeText(
+                        this,
+                        "$unreadable foto(s) antiga(s) ficaram de fora: foram salvas antes de reinstalar o app e o Android não deixa mais o app abri-las. Elas continuam na Galeria.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
                 if (failed > 0) Toast.makeText(this, "$failed foto(s) foram com a versão anterior. Detalhes no Diagnóstico.", Toast.LENGTH_LONG).show()
             }
         }
@@ -612,7 +622,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private fun send(uris: List<Uri>) {
         if (uris.isEmpty()) {
-            setStatus("Nenhuma foto salva para compartilhar.")
+            setStatus("Nenhuma foto disponível para compartilhar.")
+            Toast.makeText(this, "Nenhuma foto disponível para compartilhar.", Toast.LENGTH_SHORT).show()
             return
         }
         val intent = if (uris.size == 1) {
