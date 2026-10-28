@@ -117,7 +117,7 @@ object SessionNames {
     fun fileName(prefix: String, number: Int, extension: String) =
         "${prefix}_${number.toString().padStart(3, '0')}.${extension.lowercase()}"
 
-    /** Pasta dentro de Imagens/SonyTether: "2026-10-25 Maria". */
+    /** Pasta dentro de Imagens/Revela: "2026-10-25 Maria". */
     fun folder(name: String, created: Long): String {
         val clean = name.replace(Regex("[\\\\/:*?\"<>|]+"), " ").replace(Regex("\\s+"), " ").trim().take(60)
         val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(created))

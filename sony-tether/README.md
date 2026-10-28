@@ -1,4 +1,6 @@
-# Sony Tether (Android)
+# Revela (Android)
+
+_Antes chamado Sony Tether._
 
 App para tablet Android ligado por cabo USB numa câmera Sony, Canon ou Nikon, ou
 recebendo pelo Wi-Fi (FTP) de qualquer câmera com essa função. Você fotografa na
@@ -23,7 +25,7 @@ pronta para compartilhar.
   Os mesmos botões ficam no painel, em **FOTO DA TELA**, e aparecem ao segurar
   uma miniatura.
 - **Sessões por cliente**: cada sessão tem pasta própria
-  (**Imagens/SonyTether/2026-10-25 Maria**) e os arquivos ficam com o nome do
+  (**Imagens/Revela/2026-10-25 Maria**) e os arquivos ficam com o nome do
   cliente (**Maria_001.jpg**, **Maria_002.jpg**…). Dá para reabrir uma sessão
   antiga, com as estrelas e favoritas.
 - **Preset do Lightroom**: importa `.xmp` (Lightroom Classic/CC), `.lrtemplate`
@@ -138,10 +140,10 @@ Em outras Alpha os passos são parecidos:
 
 ## Instalar no tablet
 
-1. Copie o `SonyTether.apk` para o tablet e abra o arquivo.
+1. Copie o `Revela.apk` para o tablet e abra o arquivo.
 2. Na primeira vez, o Android pede para **permitir instalar apps desta fonte**.
 3. Ligue a câmera no tablet pelo cabo. O Android pergunta se quer abrir o
-   Sony Tether: marque "sempre" para ele abrir sozinho nas próximas vezes.
+   Revela: marque "sempre" para ele abrir sozinho nas próximas vezes.
 
 O APK é assinado com a chave em `keystore/`, então uma versão nova instala por
 cima da antiga sem perder nada.
@@ -154,7 +156,7 @@ da tela ficam em `design/`; para gerar de novo (usa Robolectric, sem tablet):
 
 ## Gerar o APK
 
-- Pelo GitHub: aba **Actions → "Sony Tether: gerar APK" → Run workflow**. O APK
+- Pelo GitHub: aba **Actions → "Revela: gerar APK" → Run workflow**. O APK
   fica em *Artifacts* no fim da execução.
 - No computador, com o Android SDK instalado:
   `./gradlew assembleRelease` → `app/build/outputs/apk/release/app-release.apk`

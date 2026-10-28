@@ -22,7 +22,7 @@ object DiagLog {
 
     @Synchronized
     fun text(): String = buildString {
-        appendLine("Sony Tether ${BuildConfig.VERSION_NAME} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL}")
+        appendLine("Revela ${BuildConfig.VERSION_NAME} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL}")
         lines.forEach { appendLine(it) }
     }
 

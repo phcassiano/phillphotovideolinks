@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SonyTether"
+rootProject.name = "Revela"
 include(":app")

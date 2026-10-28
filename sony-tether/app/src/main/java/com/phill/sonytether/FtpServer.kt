@@ -78,7 +78,7 @@ class FtpServer(
                 runCatching {
                     control.soTimeout = 10 * 60_000
                     val input = BufferedReader(InputStreamReader(control.getInputStream(), Charsets.UTF_8))
-                    reply(220, "Sony Tether pronto para receber fotos")
+                    reply(220, "Revela pronto para receber fotos")
                     listener.onLog("FTP: conexão de $from")
                     while (true) {
                         val line = input.readLine() ?: break

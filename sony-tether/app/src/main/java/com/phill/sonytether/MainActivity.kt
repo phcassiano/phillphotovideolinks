@@ -1674,7 +1674,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             addView(LinearLayout(this@MainActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), 0, 0, 0)
-                addView(ui.text("Sony Tether", 19f, Palette.TEXT, bold = true))
+                addView(ui.text("Revela", 19f, Palette.TEXT, bold = true))
                 addView(ui.text("Sony · Canon · Nikon · Wi-Fi", 12f, Palette.TEXT3), ui.wrap(3))
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             addView(ui.pill(BuildConfig.VERSION_NAME.replace("-beta", " BETA"), Palette.GOLD, 0x14E9B45A, 0x55E9B45A))
@@ -1830,7 +1830,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             .setView(ScrollView(this).apply { addView(view) })
             .setPositiveButton("Copiar") { _, _ ->
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Sony Tether", text))
+                clipboard.setPrimaryClip(ClipData.newPlainText("Revela", text))
                 Toast.makeText(this, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
             }
             .setNeutralButton("Compartilhar") { _, _ ->

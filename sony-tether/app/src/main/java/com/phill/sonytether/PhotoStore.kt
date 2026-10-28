@@ -19,12 +19,12 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Galeria: cada sessão tem a pasta Imagens/SonyTether/<sessão>, com o arquivo que veio da câmera
+ * Galeria: cada sessão tem a pasta Imagens/Revela/<sessão>, com o arquivo que veio da câmera
  * em Originais e a versão para compartilhar (preset, marca d'água) na própria pasta.
  * Também gera as prévias para a tela.
  */
 object PhotoStore {
-    const val FOLDER = "SonyTether"
+    const val FOLDER = "Revela"
 
     fun saveOriginal(context: Context, folder: String, name: String, data: ByteArray): Uri? =
         save(context, name, mimeType(name), "$FOLDER/$folder/Originais") { it.write(data) }

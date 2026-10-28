@@ -1,11 +1,11 @@
-name: "Sony Tether: gerar APK"
+name: "Revela: gerar APK"
 
 on:
   workflow_dispatch:
   push:
     paths:
       - "sony-tether/**"
-      - ".github/workflows/sony-tether-apk.yml"
+      - ".github/workflows/revela-apk.yml"
 
 permissions:
   contents: read
@@ -28,10 +28,10 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew testReleaseUnitTest lintRelease assembleRelease --no-daemon
-          cp app/build/outputs/apk/release/app-release.apk SonyTether.apk
+          cp app/build/outputs/apk/release/app-release.apk Revela.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: sony-tether-apk
-          path: sony-tether/SonyTether.apk
+          name: revela-apk
+          path: sony-tether/Revela.apk
           if-no-files-found: error
