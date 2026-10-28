@@ -78,35 +78,6 @@ chegam e as outras se revezam. Por padrão, só entram as **favoritas ♥**: o c
 (o mesmo da marca d'água). Aparecem no topo da galeria do cliente, com botões de
 contato, e no canto do slideshow.
 
-### Google Drive
-
-As fotos vão sozinhas para uma pasta da sessão no **seu** Google Drive
-(`Sony Tether/2026-10-25 Maria`). A pasta é compartilhada por link, e esse link
-também vira QR code na galeria do cliente, funcionando fora do Wi-Fi e depois do
-ensaio. Fotos escondidas ou apagadas vão para a lixeira do Drive. Se o preset
-mudar, as fotos já enviadas são atualizadas. Sem internet, o envio espera e
-continua depois.
-
-Configuração, uma vez só e de preferência num computador. O Google exige um
-projeto seu, que é gratuito:
-
-1. Em [console.cloud.google.com](https://console.cloud.google.com), crie um
-   projeto (ex.: "Sony Tether").
-2. **APIs e serviços → Biblioteca**: ative a **Google Drive API**.
-3. **Google Auth Platform** (tela de permissão OAuth):
-   - Escolha o tipo **Externo** e preencha o nome do app e o e-mail.
-   - Em **Público-alvo**, clique em **Publicar app**. Sem publicar, o acesso
-     vence a cada 7 dias.
-   - A permissão usada (`drive.file`) não exige verificação do Google.
-4. **Clientes → Criar cliente** do tipo **TVs e dispositivos de entrada
-   limitada**, e baixe o JSON.
-5. No app, toque em **Google Drive: conectar → Importar o arquivo JSON**.
-6. O app mostra um código: abra `google.com/device` no celular, digite o código
-   e autorize. O Google pode avisar que o app não foi verificado: toque em
-   **Avançado → Acessar**.
-
-O app só enxerga as pastas que ele mesmo cria no seu Drive.
-
 ### Moldura de recorte
 
 **Foto da tela → Moldura** desenha por cima da foto o recorte de
@@ -175,8 +146,6 @@ da tela ficam em `design/`; para gerar de novo (usa Robolectric, sem tablet):
 - `GalleryServer.kt` e `QrCode.kt`: a página para o cliente (servidor HTTP
   simples no tablet) e o gerador de QR code, sem bibliotecas externas.
 - `Watermark.kt`: a marca d'água; `Brand.kt`: os seus dados na galeria.
-- `DriveClient.kt` e `DriveSync.kt`: a API do Google Drive (login por código,
-  pasta, envio) e a fila que mantém a pasta igual à sessão.
 - `LocalEffects.kt`: claridade, textura e granulado; `Frames.kt`: as molduras;
   `PresetStrip.kt`: a fileira de miniaturas dos presets.
 - `PresetLook.kt`: transforma o preset numa tabela de cor 3D (LUT 33³) e aplica
@@ -193,7 +162,5 @@ da tela ficam em `design/`; para gerar de novo (usa Robolectric, sem tablet):
   navegador); serve para entregar as fotos no próprio ensaio, não pela internet.
 - O zoom em resolução cheia funciona com JPEG. De foto só RAW, o app tem a prévia
   embutida no arquivo, que é menor.
-- O envio ao Google Drive foi testado só contra um servidor que imita o Google,
-  não contra a conta de verdade. A primeira conexão é o teste real.
 - A claridade, a textura e o granulado aumentam o tempo de cada foto com preset
   (a imagem inteira é processada mais uma vez).

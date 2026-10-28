@@ -30,13 +30,6 @@ class SessionPhoto(val number: Int, var name: String) {
     /** Outros arquivos da mesma foto (o RAW, quando chega RAW+JPEG), para apagar junto. */
     val extras = ArrayList<Uri>()
 
-    /** Arquivo desta foto no Google Drive e com que visual ele foi enviado. */
-    @Volatile
-    var driveId: String? = null
-
-    @Volatile
-    var driveWith: String? = null
-
     /** Apagada nesta execução: o que ainda estiver sendo feito com ela é descartado. */
     @Volatile
     var deleted = false
@@ -58,13 +51,6 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
     val photos = ArrayList<SessionPhoto>()
     val prefix = SessionNames.prefix(name)
 
-    /** Pasta da sessão no Google Drive e o link compartilhável dela. */
-    @Volatile
-    var driveFolder: String? = null
-
-    @Volatile
-    var driveLink: String? = null
-
     private var next = 1
 
     /** Nome do arquivo na câmera → número: o RAW e o JPEG da mesma foto ficam com o mesmo número. */
@@ -85,13 +71,12 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
     @Synchronized
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("name", name).put("folder", folder).put("created", created).put("next", next)
-        .put("driveFolder", driveFolder).put("driveLink", driveLink)
         .put("photos", JSONArray().apply {
             for (p in photos) put(JSONObject()
                 .put("n", p.number).put("name", p.name)
                 .put("original", p.original?.toString()).put("edited", p.edited?.toString())
                 .put("editedWith", p.editedWith).put("rating", p.rating).put("fav", p.favorite)
-                .put("hidden", p.hidden).put("driveId", p.driveId).put("driveWith", p.driveWith).put("extras", JSONArray(p.extras.map { it.toString() }))
+                .put("hidden", p.hidden).put("extras", JSONArray(p.extras.map { it.toString() }))
                 .put("w", p.width).put("h", p.height))
         })
 
@@ -99,8 +84,6 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
         fun fromJson(o: JSONObject): ShootSession {
             val s = ShootSession(o.getString("id"), o.getString("name"), o.getString("folder"), o.getLong("created"))
             s.next = o.optInt("next", 1)
-            s.driveFolder = o.optString("driveFolder").takeIf { it.isNotEmpty() && it != "null" }
-            s.driveLink = o.optString("driveLink").takeIf { it.isNotEmpty() && it != "null" }
             val list = o.optJSONArray("photos") ?: JSONArray()
             for (i in 0 until list.length()) {
                 val p = list.getJSONObject(i)
@@ -111,8 +94,6 @@ class ShootSession(val id: String, val name: String, val folder: String, val cre
                     rating = p.optInt("rating")
                     favorite = p.optBoolean("fav")
                     hidden = p.optBoolean("hidden")
-                    driveId = p.optString("driveId").takeIf { it.isNotEmpty() && it != "null" }
-                    driveWith = p.optString("driveWith").takeIf { it.isNotEmpty() && it != "null" }
                     p.optJSONArray("extras")?.let { a -> for (k in 0 until a.length()) extras += Uri.parse(a.getString(k)) }
                     width = p.optInt("w")
                     height = p.optInt("h")

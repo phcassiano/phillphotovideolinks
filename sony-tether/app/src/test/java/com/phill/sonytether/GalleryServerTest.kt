@@ -16,7 +16,6 @@ class GalleryServerTest {
     private val server = GalleryServer(object : GalleryServer.Source {
         override val galleryTitle = "Maria & <Júlia>"
         override val brand = GalleryServer.Brand("Phill Foto", "@phill.foto", "(11) 98765-4321", hasLogo = true)
-        override val driveLink = "https://drive.google.com/drive/folders/abc"
         override fun items() = listOf(2 to "Maria_002.arw", 1 to "Maria_001.jpg")
         override fun slideshowItems() = listOf(1)
         override fun photo(number: Int) = photos[number]
@@ -81,7 +80,6 @@ class GalleryServerTest {
         assertTrue(html.contains("Fotos por <b>Phill Foto</b>"))
         assertTrue(html.contains("https://wa.me/5511987654321"))
         assertTrue(html.contains("https://instagram.com/phill.foto"))
-        assertTrue(html.contains("https://drive.google.com/drive/folders/abc"))
         assertArrayEquals(byteArrayOf(5), get("${server.path}logo.png").second)
     }
 

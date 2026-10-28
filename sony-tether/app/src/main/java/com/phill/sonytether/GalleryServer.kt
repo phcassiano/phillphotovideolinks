@@ -26,9 +26,6 @@ class GalleryServer(private val source: Source) {
         val galleryTitle: String
         val brand: Brand
 
-        /** Link da pasta no Google Drive, se as fotos estiverem indo para lá. */
-        val driveLink: String?
-
         /** Fotos que o cliente vê agora (número e nome do arquivo). */
         fun items(): List<Pair<Int, String>>
 
@@ -167,7 +164,6 @@ class GalleryServer(private val source: Source) {
         val contacts = listOfNotNull(
             whatsappLink(brand.whatsapp)?.let { "<a class=\"chip\" href=\"$it\">WhatsApp</a>" },
             instagramLink(brand.instagram)?.let { "<a class=\"chip\" href=\"$it\">Instagram</a>" },
-            source.driveLink?.let { "<a class=\"chip\" href=\"${escape(it)}\">Google Drive</a>" },
         ).joinToString("")
         val by = if (studio.isNotEmpty()) "<p class=\"by\">Fotos por <b>$studio</b></p>" else ""
         return """<!doctype html>

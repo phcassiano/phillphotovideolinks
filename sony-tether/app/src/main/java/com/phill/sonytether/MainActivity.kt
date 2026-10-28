@@ -54,14 +54,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
-class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener, GalleryServer.Source, DriveSync.Host {
+class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener, GalleryServer.Source {
 
     private lateinit var usb: UsbManager
     private lateinit var library: PresetLibrary
     private lateinit var sessions: SessionStore
     private lateinit var watermark: Watermark
     private lateinit var brandSettings: BrandSettings
-    private lateinit var drive: DriveSync
     private lateinit var presetStrip: PresetStrip
     private var camera: CameraSession? = null
     private val main = Handler(Looper.getMainLooper())
@@ -118,8 +117,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var counter: TextView
     private lateinit var frameButton: Button
     private lateinit var slideshowButton: Button
-    private lateinit var driveButton: Button
-    private lateinit var driveStatusLabel: TextView
     private lateinit var brandButton: Button
 
     private class Tile(val frame: FrameLayout, val image: ImageView, val marks: TextView)
@@ -151,7 +148,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     /** Para onde volta a escolha do logo: marca d'água ou sua marca. */
     private var logoFor = REQUEST_LOGO
     private var frameIndex = 0
-    private var driveStatusText = ""
     private var lastAmount = -1
 
     private var clientMode = false
@@ -186,7 +182,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         sessions = SessionStore(this)
         watermark = Watermark(this)
         brandSettings = BrandSettings(this)
-        drive = DriveSync(this, this)
         filter = prefs().getInt(KEY_FILTER, 0).coerceIn(FILTERS.indices)
         slideMode = prefs().getInt(KEY_SLIDE_MODE, 0)
         frameIndex = prefs().getInt(KEY_FRAME, 0).coerceIn(Frames.ALL.indices)
@@ -197,7 +192,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         viewer.frame = frameIndex
         updateFrameButton()
         updateBrandButton()
-        updateDriveButton()
         presetStrip.rebuild()
         lookChanged(rerender = false)
         openSession(sessions.current() ?: sessions.create(SessionNames.DEFAULT_NAME))
@@ -243,7 +237,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         main.removeCallbacks(reconnect)
         camera?.shutdown()
         server?.stop()
-        drive.shutdown()
         presetStrip.shutdown()
         processor.shutdownNow()
         detailer.shutdownNow()
@@ -420,11 +413,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         }
         applyFilter()
         visiblePhotos().firstOrNull()?.let(::select)
-        driveStatusText = ""
-        if (::drive.isInitialized) {
-            updateDriveButton()
-            drive.sync(s)
-        }
     }
 
     private fun chooseSession() {
@@ -501,7 +489,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 setThumb(photo, result.thumb)
                 show(photo, result.original, result.display, resetZoom = true)
                 setStatus("${photo.name} pronta${if (look.preset != null) ", com preset" else ""}")
-                syncDriveSoon(300)
             }
         }
     }
@@ -696,7 +683,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val s = shoot
         val before = visiblePhotos()
         photo.deleted = true
-        photo.driveId?.let(drive::forget)
         s.photos.remove(photo)
         tiles.remove(photo)?.let { thumbs.removeView(it.frame) }
         saveSession()
@@ -704,7 +690,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateCounter()
         refreshGallery()
         if (current === photo) showNeighbor(photo, before)
-        syncDriveSoon()
         // No processador: espera o que já estava sendo feito com a foto (preset, compartilhar) terminar antes.
         processor.execute {
             val uris = listOfNotNull(photo.original, photo.edited) + photo.extras
@@ -743,7 +728,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         updateRatingBar()
         updateMarks(photo)
         applyFilter()
-        syncDriveSoon()
     }
 
     private fun updateRatingBar() {
@@ -844,7 +828,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun showQr() {
         val server = startServer() ?: return
         val local = server.url() ?: return
-        val driveUrl = driveLink
         val qr = qrImage(local)
         val urlText = label(local, 15f, Color.WHITE).apply {
             gravity = Gravity.CENTER
@@ -854,30 +837,13 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val localHelp = "O cliente aponta a câmera do celular para o código. O celular precisa estar no mesmo Wi-Fi do " +
             "tablet (ou no ponto de acesso dele); não precisa de internet. A página mostra as fotos do " +
             "filtro \"${FILTERS[filter]}\" (${galleryPhotos.size}), com preset, marca d'água e a sua marca."
-        val driveHelp = "Link da pasta da sessão no Google Drive: funciona em qualquer lugar, com internet, e continua " +
-            "valendo depois do ensaio. Mostra as fotos já enviadas."
         val help = label(localHelp, 13f, MUTED)
-        var showingDrive = false
-        val toggle = Button(this).apply {
-            isAllCaps = false
-            text = "Mostrar o link do Google Drive"
-            visibility = if (driveUrl != null) View.VISIBLE else View.GONE
-            setOnClickListener {
-                showingDrive = !showingDrive
-                val target = if (showingDrive) driveUrl!! else local
-                qr.setImageBitmap(QrCode.encode(target).toBitmap(12))
-                urlText.text = target
-                help.text = if (showingDrive) driveHelp else localHelp
-                text = if (showingDrive) "Mostrar a galeria do Wi-Fi" else "Mostrar o link do Google Drive"
-            }
-        }
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(12), dp(20), dp(4))
             addView(qr, LinearLayout.LayoutParams(MATCH_PARENT, dp(300)))
             addView(urlText)
             addView(help)
-            addView(toggle, ui.wrap(8))
         }
         AlertDialog.Builder(this)
             .setTitle("Galeria para o cliente")
@@ -898,12 +864,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         slideshowButton.text = if (on) "Slideshow para TV (no ar)" else "Slideshow para TV"
     }
 
-    // ---- Slideshow, marca, Google Drive e moldura ----
+    // ---- Slideshow, marca e moldura ----
 
     override val brand: GalleryServer.Brand
         get() = GalleryServer.Brand(brandSettings.studio, brandSettings.instagram, brandSettings.whatsapp, brandSettings.useLogo && watermark.hasLogo)
-
-    override val driveLink: String? get() = if (drive.active) shoot.driveLink else null
 
     override fun slideshowItems(): List<Int> = slidePhotos.map { it.number }
 
@@ -1065,202 +1029,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         frameButton.text = "Moldura: ${Frames.ALL[frameIndex].name}"
     }
 
-    // Google Drive
-
-    override val signature: String get() = look.signature
-
-    override fun deliverable(photo: SessionPhoto, session: ShootSession): Pair<ByteArray, String>? {
-        val look = look
-        val uri = runCatching { processor.submit<Uri?> { prepare(photo, look, session) }.get(5, TimeUnit.MINUTES) }.getOrNull() ?: return null
-        val data = PhotoStore.readBytes(this, uri) ?: return null
-        return data to look.signature
-    }
-
-    override fun driveChanged(session: ShootSession) {
-        sessions.save(session)
-        updateDriveButton()
-    }
-
-    override fun driveStatus(text: String) {
-        driveStatusText = text
-        updateDriveButton()
-    }
-
-    private val driveSoon = Runnable { drive.sync(shoot) }
-
-    /** Pede uma sincronização daqui a pouco (junta várias mudanças seguidas numa só). */
-    private fun syncDriveSoon(delayMs: Long = 1500) {
-        main.removeCallbacks(driveSoon)
-        main.postDelayed(driveSoon, delayMs)
-    }
-
-    private fun updateDriveButton() {
-        driveButton.text = when {
-            !drive.hasCredentials || !drive.connected -> "Google Drive: conectar"
-            drive.mode == DriveSync.MODE_OFF -> "Google Drive: pausado"
-            else -> "Google Drive: ${DriveSync.MODES[drive.mode].lowercase()}"
-        }
-        val text = when {
-            !drive.connected -> ""
-            drive.mode == DriveSync.MODE_OFF -> "O envio está pausado."
-            else -> driveStatusText
-        }
-        driveStatusLabel.text = text
-        driveStatusLabel.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
-    }
-
-    private fun driveDialog() {
-        when {
-            !drive.hasCredentials -> driveSetup()
-            !drive.connected -> driveLogin()
-            else -> {
-                val link = shoot.driveLink
-                AlertDialog.Builder(this)
-                    .setTitle("Google Drive: o que enviar")
-                    .setSingleChoiceItems(DriveSync.MODES, drive.mode) { d, which ->
-                        drive.mode = which
-                        updateDriveButton()
-                        drive.sync(shoot)
-                        d.dismiss()
-                    }
-                    .setPositiveButton("Fechar", null)
-                    .setNeutralButton("Desconectar") { _, _ ->
-                        drive.signOut()
-                        updateDriveButton()
-                    }
-                    .apply {
-                        if (link != null) setNegativeButton("Abrir a pasta") { _, _ ->
-                            runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) }
-                        }
-                    }
-                    .show()
-            }
-        }
-    }
-
-    /** Primeira vez: as credenciais do projeto no Google Cloud (só o dono da conta pode criar). */
-    private fun driveSetup() {
-        val id = EditText(this).apply {
-            hint = "ID do cliente (…apps.googleusercontent.com)"
-            setText(drive.clientId)
-            setSingleLine()
-        }
-        val secret = EditText(this).apply {
-            hint = "Chave secreta do cliente"
-            setText(drive.clientSecret)
-            setSingleLine()
-        }
-        lateinit var dialog: AlertDialog
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            addView(label(
-                "As fotos vão para o SEU Google Drive, sem mensalidade. Na primeira vez, o Google exige um " +
-                    "\"projeto\" seu (gratuito, uns 10 minutos, de preferência num computador):\n\n" +
-                    "1. Entre em console.cloud.google.com e crie um projeto (ex.: Sony Tether).\n" +
-                    "2. Em APIs e serviços → Biblioteca, ative a \"Google Drive API\".\n" +
-                    "3. Em Google Auth Platform (tela de permissão OAuth): tipo Externo, preencha nome e e-mail e " +
-                    "depois clique em Publicar o app. Sem publicar, o acesso vence a cada 7 dias.\n" +
-                    "4. Em Clientes (Credenciais) → Criar cliente: tipo \"TVs e dispositivos de entrada limitada\".\n" +
-                    "5. Baixe o arquivo JSON e importe aqui, ou copie o ID e a chave secreta.",
-                13f, MUTED,
-            ))
-            addView(Button(this@MainActivity).apply {
-                isAllCaps = false
-                text = "Importar o arquivo JSON…"
-                setOnClickListener {
-                    dialog.dismiss()
-                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
-                    @Suppress("DEPRECATION")
-                    startActivityForResult(intent, REQUEST_DRIVE_JSON)
-                }
-            }, ui.wrap(12))
-            addView(id)
-            addView(secret)
-        }
-        dialog = AlertDialog.Builder(this)
-            .setTitle("Conectar o Google Drive")
-            .setView(ScrollView(this).apply { addView(column) })
-            .setPositiveButton("Continuar") { _, _ ->
-                if (id.text.isBlank()) return@setPositiveButton
-                drive.setCredentials(id.text.toString(), secret.text.toString())
-                driveLogin()
-            }
-            .setNegativeButton("Cancelar", null)
-            .show()
-    }
-
-    /** Login pelo código: o app mostra um código e a pessoa confirma em google.com/device. */
-    private fun driveLogin() {
-        val client = drive.client ?: return driveSetup()
-        setStatus("Pedindo um código ao Google…")
-        Thread {
-            val code = try {
-                client.startDeviceLogin()
-            } catch (e: Exception) {
-                main.post {
-                    AlertDialog.Builder(this)
-                        .setTitle("Não deu para falar com o Google")
-                        .setMessage("${e.message}\n\nConfira a internet do tablet e o ID do cliente.")
-                        .setPositiveButton("Corrigir dados") { _, _ -> driveSetup() }
-                        .setNegativeButton("Fechar", null)
-                        .show()
-                }
-                return@Thread
-            }
-            main.post { showDeviceCode(client, code) }
-        }.start()
-    }
-
-    private fun showDeviceCode(client: DriveClient, code: DriveClient.DeviceCode) {
-        var waiting = true
-        val column = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            addView(label("1. No celular, abra ${code.verificationUrl.removePrefix("https://")} (ou leia o código QR).", 14f, Palette.TEXT))
-            addView(qrImage(code.verificationUrl), LinearLayout.LayoutParams(dp(180), dp(180)).apply { topMargin = dp(10) })
-            addView(label("2. Entre na conta Google onde as fotos devem ficar e digite:", 14f, Palette.TEXT).apply {
-                setPadding(0, dp(10), 0, 0)
-            })
-            addView(ui.text(code.userCode, 32f, Palette.GOLD, bold = true).apply {
-                letterSpacing = 0.12f
-                setTextIsSelectable(true)
-                setPadding(0, dp(10), 0, dp(10))
-            })
-            addView(label("3. Autorize. O Google pode avisar que o app não foi verificado: toque em Avançado → Acessar. O app só enxerga as pastas que ele mesmo criar.", 12f, MUTED))
-        }
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Conectar o Google Drive")
-            .setView(ScrollView(this).apply { addView(column) })
-            .setNegativeButton("Cancelar") { _, _ -> waiting = false }
-            .setOnDismissListener { waiting = false }
-            .show()
-        Thread {
-            while (waiting) {
-                Thread.sleep(code.intervalMs)
-                if (!waiting) break
-                val result = runCatching { client.pollDeviceLogin(code) }
-                val error = result.exceptionOrNull()
-                if (result.getOrNull() == true || error is DriveClient.LoginFailed) {
-                    main.post {
-                        dialog.dismiss()
-                        if (error != null) {
-                            Toast.makeText(this, error.message, Toast.LENGTH_LONG).show()
-                        } else {
-                            Toast.makeText(this, "Google Drive conectado.", Toast.LENGTH_LONG).show()
-                            if (drive.mode == DriveSync.MODE_OFF) drive.mode = DriveSync.MODE_ALL
-                            driveStatusText = "Drive: preparando a pasta…"
-                            updateDriveButton()
-                            drive.sync(shoot)
-                        }
-                    }
-                    break
-                }
-            }
-        }.start()
-    }
-
     // ---- Modo cliente ----
 
     private val exitClientMode = Runnable { setClientMode(false) }
@@ -1320,11 +1088,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             if (lastAmount >= 0) presetStrip.refresh()
             lastAmount = library.amount
         }
-        if (rerender) {
-            rerenderCurrent()
-            // Fotos já enviadas ao Drive são atualizadas com o visual novo (espera você terminar de ajustar).
-            syncDriveSoon(6000)
-        }
+        if (rerender) rerenderCurrent()
     }
 
     private fun choosePreset() {
@@ -1492,17 +1256,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                     Toast.makeText(this, "Não consegui abrir essa imagem.", Toast.LENGTH_LONG).show()
                 }
                 if (forBrand) editBrand() else editWatermark()
-            }
-            REQUEST_DRIVE_JSON -> {
-                val text = data.data?.let { PhotoStore.readBytes(this, it) }?.toString(Charsets.UTF_8)
-                val credentials = text?.let(DriveClient::credentialsFromJson)
-                if (credentials == null) {
-                    Toast.makeText(this, "Esse arquivo não tem as credenciais do Google (client_id).", Toast.LENGTH_LONG).show()
-                    driveSetup()
-                } else {
-                    drive.setCredentials(credentials.first, credentials.second)
-                    driveLogin()
-                }
             }
         }
     }
@@ -1880,8 +1633,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         shareAllButton.isEnabled = false
         qrButton = ui.row(R.drawable.ic_qr_code_2, "QR code para o cliente") { showQr() }
         slideshowButton = ui.row(R.drawable.ic_tv, "Slideshow para TV") { showSlideshow() }
-        driveButton = ui.row(R.drawable.ic_cloud_upload, "Google Drive: conectar") { driveDialog() }
-        driveStatusLabel = ui.text("", 12f, Palette.TEXT3).apply { setPadding(dp(4), 0, dp(4), 0) }
         brandButton = ui.row(R.drawable.ic_storefront, "Sua marca na galeria") { editBrand() }
         column.addView(ui.card().apply {
             addView(ui.cardTitle(R.drawable.ic_share, "Entregar"))
@@ -1889,8 +1640,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             addView(shareAllButton, ui.matchWidth(48, 8))
             addView(qrButton, ui.matchWidth(48, 8))
             addView(slideshowButton, ui.matchWidth(48, 8))
-            addView(driveButton, ui.matchWidth(48, 8))
-            addView(driveStatusLabel, ui.wrap(6))
             addView(brandButton, ui.matchWidth(48, 8))
             addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
         }, ui.wrap(12))
@@ -1967,7 +1716,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val SONY_VENDOR_ID = 0x054C
         const val REQUEST_IMPORT = 1
         const val REQUEST_LOGO = 2
-        const val REQUEST_DRIVE_JSON = 3
         const val REQUEST_BRAND = 4
         const val KEY_SLIDE_MODE = "slideMode"
         const val KEY_FRAME = "frame"
