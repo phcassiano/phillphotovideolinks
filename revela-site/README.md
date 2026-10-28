@@ -30,3 +30,12 @@ Variáveis no Vercel: `REVELA_CHAVE_PRIVADA`, `REVELA_ADMIN_SENHA`, `REVELA_DB_S
 
 Guarde a chave privada fora do Vercel (lá ela é secreta e não dá para ler de volta). Se ela se
 perder, só uma versão nova do app com outra chave pública resolve.
+
+## Páginas de parceiros
+
+`/rodolfo` é a página do parceiro Rodolfo Santos. Os botões de compra levam `src=<id>` ao
+checkout da Kiwify; o webhook grava a venda com origem `kiwify:<id>`, que aparece no
+`/admin → Vendas`. Para um parceiro novo: copie a pasta `rodolfo/` com o nome dele, troque
+`data-parceiro` no `<body>` e as iniciais do avatar, e acrescente o parceiro em
+`parceiros` no `assets/config.js`. Quando ele tiver link de afiliado da Kiwify, cole em
+`checkoutMensal`/`checkoutAnual` dele.

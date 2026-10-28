@@ -48,6 +48,9 @@ module.exports = async function handler(req, res) {
   const pedido = String(pick(b, "order_id", "order_ref", "id") || "");
   const ref = "kiwify:" + String(pick(b, "subscription_id", "Subscription.id", "subscription.id") || pedido);
   const tipo = tipoDe(b);
+  // Parceiro que trouxe a venda: o "src" (ou utm_source) que veio no link do checkout.
+  const parceiro = String(pick(b, "TrackingParameters.src", "TrackingParameters.utm_source", "tracking_parameters.src", "tracking_parameters.utm_source", "src") || "")
+    .toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 30);
   try {
     await lib.db("revela_event", { p_kind: tipo || String(pick(b, "webhook_event_type", "order_status") || "outro"), p_ref: ref, p_payload: b });
   } catch (e) {
@@ -63,7 +66,7 @@ module.exports = async function handler(req, res) {
         const id = lib.novoId();
         await lib.db("revela_license_save", {
           p: {
-            id, ref, origin: "kiwify", plan: plano, status: "ativa", until: lib.validadeNova(plano), device: null, last_order: pedido,
+            id, ref, origin: parceiro ? "kiwify:" + parceiro : "kiwify", plan: plano, status: "ativa", until: lib.validadeNova(plano), device: null, last_order: pedido,
             name: pick(b, "Customer.full_name", "customer.full_name", "Customer.name", "customer.name") || null,
             email: pick(b, "Customer.email", "customer.email") || null,
             phone: pick(b, "Customer.mobile", "customer.mobile", "Customer.phone", "customer.phone") || null,

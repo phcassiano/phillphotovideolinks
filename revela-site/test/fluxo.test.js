@@ -78,5 +78,9 @@ async function call(name, body, query = {}) {
   // 9. Chave manual com tablet: liga direto, sem precisar de internet.
   const m = await call("licenca", { senha: "senha-admin", nome: "Cortesia", plano: "cortesia", aparelho: "DDDD5555" });
   assert.equal(lib.ler(m.json.chave).d, "DDDD5555"); assert.equal(lib.ler(m.json.chave).o, undefined);
+  // 10. Venda vinda da página de um parceiro: a origem fica registrada.
+  await call("kiwify", { order_id: "ord10", order_status: "paid", Product: { product_name: "Revela Mensal" }, Customer: { full_name: "Ana" },
+    TrackingParameters: { src: "rodolfo", utm_source: "rodolfo" } }, { k: "segredo-k" });
+  assert.equal([...lic.values()].find((x) => x.ref === "kiwify:ord10").origin, "kiwify:rodolfo");
   console.log("TODOS OS CENÁRIOS OK");
 })().catch((e) => { console.error("FALHOU:", e.message); process.exit(1); });
