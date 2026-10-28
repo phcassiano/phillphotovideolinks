@@ -111,5 +111,10 @@ class ScreenshotTest {
         shadowOf(android.os.Looper.getMainLooper()).idle()
         val dialog = ShadowDialog.getLatestDialog() as AlertDialog
         save(dialog.window!!.decorView, "5-dialogo-marca")
+        dialog.dismiss()
+
+        call(activity, "ftpDialog")
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        save((ShadowDialog.getLatestDialog() as AlertDialog).window!!.decorView, "6-dialogo-ftp")
     }
 }

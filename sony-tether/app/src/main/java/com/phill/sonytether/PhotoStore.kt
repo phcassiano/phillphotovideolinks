@@ -214,12 +214,22 @@ object PhotoStore {
         return rotated
     }
 
-    fun isRaw(name: String) = name.substringAfterLast('.', "").lowercase() in setOf("arw", "srf", "sr2")
+    /** RAW de Sony, Canon, Nikon e DNG: a tela usa a prévia JPEG que vem dentro do arquivo. */
+    fun isRaw(name: String) = name.substringAfterLast('.', "").lowercase() in RAW
+
+    private val RAW = setOf("arw", "srf", "sr2", "cr2", "cr3", "crw", "nef", "nrw", "dng")
 
     private fun mimeType(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
         "jpg", "jpeg" -> "image/jpeg"
         "arw", "srf", "sr2" -> "image/x-sony-arw"
+        "cr2" -> "image/x-canon-cr2"
+        "cr3" -> "image/x-canon-cr3"
+        "crw" -> "image/x-canon-crw"
+        "nef" -> "image/x-nikon-nef"
+        "nrw" -> "image/x-nikon-nrw"
+        "dng" -> "image/x-adobe-dng"
         "hif", "heif", "heic" -> "image/heif"
+        "tif", "tiff" -> "image/tiff"
         else -> "application/octet-stream"
     }
 

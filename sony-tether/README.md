@@ -1,6 +1,7 @@
 # Sony Tether (Android)
 
-App para tablet Android ligado por cabo USB numa câmera Sony. Você fotografa na
+App para tablet Android ligado por cabo USB numa câmera Sony, Canon ou Nikon, ou
+recebendo pelo Wi-Fi (FTP) de qualquer câmera com essa função. Você fotografa na
 câmera, e cada foto aparece no tablet na hora, já com o seu preset do Lightroom,
 pronta para compartilhar.
 
@@ -85,6 +86,32 @@ Instagram 4:5, quadrado, Story/Reels 9:16 (com as faixas que o Instagram cobre),
 capa de revista A4 (com o espaço do título) ou lâmina de álbum 2:1 (com a dobra no
 meio). Serve só para enquadrar: a foto salva não é cortada.
 
+## Câmeras compatíveis
+
+| Como | Câmeras | Observações |
+|---|---|---|
+| Cabo USB | **Sony** Alpha com "PC Remoto" (A7 III, A7R III em diante, A9, A1, A7 IV, A6xxx recentes…) | Conexão USB: PC Remoto |
+| Cabo USB | **Canon EOS** de 2015 para cá (5D IV, 6D II, 80D/90D, R, RP, R5, R6, R7, R8, R10, R50, M50…) | Desligue o Wi-Fi/Bluetooth da câmera: com o sem fio ligado, a Canon desativa o USB |
+| Cabo USB | **Nikon** de 2015 para cá (D500, D850, D780, D7500, Z5, Z6/Z7 e II/III, Z8, Z9, Zf, Z50…) | Se houver a opção USB, escolha MTP/PTP |
+| Wi-Fi (FTP) | Qualquer câmera com transferência FTP (Sony A7R III/A9/A1/A7 IV, Canon R3/R5/R6 II/R7/R10, Nikon Z6III/Z8/Z9…) | Veja abaixo |
+
+Pelo cabo, o app baixa cada foto gravada no cartão assim que você dispara (JPEG,
+RAW ou os dois; vídeos ficam no cartão). Os RAW (.ARW, .CR2, .CR3, .NEF, .DNG)
+aparecem na tela pela prévia que vem dentro do arquivo.
+
+**Testado de verdade:** ainda nenhum modelo. A Sony foi feita a partir do
+protocolo conhecido; a Canon e a Nikon seguem os comandos que o libgphoto2 usa.
+Se algo falhar, mande o texto de **Diagnóstico**.
+
+### Receber pelo Wi-Fi (FTP)
+
+O app vira um servidor FTP: **Câmera → Receber pelo Wi-Fi (FTP)**, ligue e
+configure a câmera com o servidor, a porta (2121), o usuário e a senha que
+aparecem na tela. Use **modo passivo**, deixe o **protocolo seguro (FTPS)
+desligado** e a pasta vazia, e ligue a **transferência automática**. A câmera e o
+tablet precisam estar no mesmo Wi-Fi, ou a câmera conectada ao ponto de acesso do
+tablet, que funciona sem internet. O app precisa ficar aberto.
+
 ## Preparar a câmera (exemplo: Sony A7R III)
 
 Na A7R III (os nomes podem variar um pouco conforme o idioma do menu):
@@ -134,9 +161,11 @@ da tela ficam em `design/`; para gerar de novo (usa Robolectric, sem tablet):
 
 ## Como funciona por dentro
 
-- `ptp/PtpUsb.kt` e `SonyCamera.kt`: a Sony não tem SDK oficial para Android,
-  então o app fala direto o protocolo PTP pelo USB com as extensões "SDIO" da
-  Sony (as mesmas que o libgphoto2 usa) e baixa cada foto do objeto `0xFFFFC001`.
+- `ptp/PtpUsb.kt`: o protocolo PTP pelo USB, igual nas três marcas.
+- `SonyCamera.kt`: extensões "SDIO" da Sony (modo PC Remoto); `Cameras.kt`:
+  Canon EOS (modo remoto e GetEvent), Nikon (GetEventEx/CheckEvent) e câmeras
+  PTP genéricas (avisos de "objeto novo" pela porta de eventos do USB).
+- `FtpServer.kt`: o servidor FTP que recebe as fotos pelo Wi-Fi.
 - `CameraSession.kt`: thread única que conecta, destrava a conexão quando
   preciso e recebe as fotos.
 - `Preset.kt` e `PresetLibrary.kt`: leitura e guarda dos presets.

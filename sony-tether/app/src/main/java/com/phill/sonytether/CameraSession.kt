@@ -11,8 +11,8 @@ import com.phill.sonytether.ptp.PtpException
 import com.phill.sonytether.ptp.PtpUsb
 
 /**
- * Thread única que fala com a câmera: conecta no modo PC Remoto e baixa cada foto
- * nova assim que ela é tirada. Todos os avisos para a tela chegam na thread principal.
+ * Thread única que fala com a câmera (Sony, Canon, Nikon ou outra câmera PTP): conecta e
+ * baixa cada foto nova assim que ela é tirada. Todos os avisos para a tela chegam na thread principal.
  */
 class CameraSession(
     private val context: Context,
@@ -45,13 +45,13 @@ class CameraSession(
 
     override fun run() {
         var reason: String? = null
-        var camera: SonyCamera? = null
+        var camera: CameraDriver? = null
         try {
             DiagLog.describe(device)
             DiagLog.add("usando a interface #${iface.id} (classe ${iface.interfaceClass})")
-            camera = SonyCamera(PtpUsb(connection, iface))
+            camera = Cameras.create(device.vendorId, PtpUsb(connection, iface))
             connectWithRetries(camera)
-            ui { listener.onConnected(device.productName ?: "Sony") }
+            ui { listener.onConnected(device.productName ?: camera.brand) }
             loop(camera)
         } catch (e: InterruptedException) {
             // Encerrada pela tela.
@@ -65,15 +65,15 @@ class CameraSession(
     }
 
     /** A câmera pode estar presa numa conexão anterior ou ainda trocando de modo: destrava e tenta de novo. */
-    private fun connectWithRetries(camera: SonyCamera) {
+    private fun connectWithRetries(camera: CameraDriver) {
         for (attempt in 1..CONNECT_ATTEMPTS) {
-            ui { listener.onStatus(if (attempt == 1) "Ativando o modo PC Remoto…" else "Tentando de novo ($attempt de $CONNECT_ATTEMPTS)…") }
+            ui { listener.onStatus(if (attempt == 1) "Conectando à ${camera.brand}…" else "Tentando de novo ($attempt de $CONNECT_ATTEMPTS)…") }
             DiagLog.add("conectar: tentativa $attempt")
             if (attempt > 1) Thread.sleep(1500)
             camera.recover()
             try {
                 camera.connect()
-                DiagLog.add("conectado, protocolo ${camera.protocolVersion}, ${camera.props.size} ajustes")
+                DiagLog.add("conectado: ${camera.describe()}")
                 return
             } catch (e: PtpException) {
                 if (attempt == CONNECT_ATTEMPTS || !running) throw e
@@ -81,19 +81,15 @@ class CameraSession(
         }
     }
 
-    private fun loop(camera: SonyCamera) {
+    private fun loop(camera: CameraDriver) {
         while (running) {
             Thread.sleep(POLL_MS)
-            camera.refreshProps()
-            var downloads = 0
-            while (running && camera.hasPendingShot() && downloads++ < 10) {
-                ui { listener.onStatus("Recebendo foto…") }
-                val shot = camera.downloadShot()
+            for (shot in camera.poll()) {
+                if (!running) break
                 val to = target(shot.name)
                 DiagLog.add("foto ${shot.name} → ${to.name}, ${shot.data.size} bytes")
                 val uri = PhotoStore.saveOriginal(context, to.session.folder, to.name, shot.data)
                 ui { listener.onShot(to, shot.data, uri) }
-                if (!camera.refreshProps()) break
             }
         }
     }

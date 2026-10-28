@@ -22,7 +22,9 @@ class Shot(val name: String, val data: ByteArray)
  * (as mesmas que o Imaging Edge e o libgphoto2 usam). O app só recebe as fotos:
  * a cada disparo na câmera, a foto fica esperando no objeto 0xFFFFC001.
  */
-class SonyCamera(private val ptp: PtpUsb) {
+class SonyCamera(private val ptp: PtpUsb) : CameraDriver {
+
+    override val brand get() = "Sony"
 
     var protocolVersion = 0
         private set
@@ -32,16 +34,8 @@ class SonyCamera(private val ptp: PtpUsb) {
     // Depois de baixar uma foto, o contador de fotos pendentes só vale de novo após uma leitura nova.
     private var propsFresh = false
 
-    fun connect() {
-        ptp.restartTransactionIds()
-        val open = ptp.transaction(Ptp.OC_OPEN_SESSION, intArrayOf(1))
-        if (open.code == Ptp.RC_SESSION_ALREADY_OPEN) {
-            ptp.transaction(Ptp.OC_CLOSE_SESSION)
-            ptp.restartTransactionIds()
-            Ptp.expectOk("Abrir sessão", ptp.transaction(Ptp.OC_OPEN_SESSION, intArrayOf(1)))
-        } else {
-            Ptp.expectOk("Abrir sessão", open)
-        }
+    override fun connect() {
+        Ptp.openSession(ptp)
 
         sdioConnect(1)
         sdioConnect(2)
@@ -67,6 +61,19 @@ class SonyCamera(private val ptp: PtpUsb) {
         return true
     }
 
+    /** Baixa as fotos que estiverem esperando (até 10 por vez). */
+    override fun poll(): List<Shot> {
+        refreshProps()
+        val shots = ArrayList<Shot>()
+        while (hasPendingShot() && shots.size < 10) {
+            shots += downloadShot()
+            if (!refreshProps()) break
+        }
+        return shots
+    }
+
+    override fun describe() = "Sony, protocolo $protocolVersion, ${props.size} ajustes"
+
     fun hasPendingShot(): Boolean = propsFresh && (props[PROP_OBJECT_IN_MEMORY]?.current ?: 0L) > 0x8000
 
     fun downloadShot(): Shot {
@@ -80,10 +87,9 @@ class SonyCamera(private val ptp: PtpUsb) {
         return Shot(name, obj.data)
     }
 
-    /** Destrava a conexão USB antes de uma nova tentativa. */
-    fun recover() = ptp.recover()
+    override fun recover() = ptp.recover()
 
-    fun close() {
+    override fun close() {
         runCatching { ptp.transaction(Ptp.OC_CLOSE_SESSION, timeoutMs = 1000) }
         ptp.close()
     }

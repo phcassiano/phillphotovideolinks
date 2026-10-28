@@ -17,6 +17,9 @@ class PtpResponse(val code: Int, val params: IntArray, val data: ByteArray) {
     val ok get() = code == Ptp.RC_OK
 }
 
+/** Evento que a câmera manda sozinha (pela porta de interrupção do USB). */
+class PtpEvent(val code: Int, val params: IntArray)
+
 object Ptp {
     const val OC_GET_DEVICE_INFO = 0x1001
     const val OC_OPEN_SESSION = 0x1002
@@ -28,9 +31,81 @@ object Ptp {
     const val RC_DEVICE_BUSY = 0x2019
     const val RC_SESSION_ALREADY_OPEN = 0x201E
 
+    const val EC_OBJECT_ADDED = 0x4002
+
+    /** Formato "pasta" no ObjectInfo: não é foto. */
+    const val FORMAT_ASSOCIATION = 0x3001
+
+    const val VENDOR_NIKON = 0x0000000A
+    const val VENDOR_CANON = 0x0000000B
+    const val VENDOR_SONY = 0x00000011
+
     fun expectOk(what: String, response: PtpResponse): PtpResponse {
         if (!response.ok) throw PtpException("$what falhou (0x%04X)".format(response.code), response.code)
         return response
+    }
+
+    /** Abre a sessão PTP; se a câmera disser que já havia uma aberta, fecha e abre de novo. */
+    fun openSession(ptp: PtpUsb) {
+        ptp.restartTransactionIds()
+        val open = ptp.transaction(OC_OPEN_SESSION, intArrayOf(1))
+        if (open.code == RC_SESSION_ALREADY_OPEN) {
+            ptp.transaction(OC_CLOSE_SESSION)
+            ptp.restartTransactionIds()
+            expectOk("Abrir sessão", ptp.transaction(OC_OPEN_SESSION, intArrayOf(1)))
+        } else {
+            expectOk("Abrir sessão", open)
+        }
+    }
+}
+
+/** O que a câmera diz de si mesma (GetDeviceInfo): fabricante, modelo e comandos que entende. */
+class PtpDeviceInfo(
+    val vendorExtension: Int,
+    val manufacturer: String,
+    val model: String,
+    val version: String,
+    val operations: Set<Int>,
+    val events: Set<Int>,
+) {
+    fun supports(op: Int) = op in operations
+
+    companion object {
+        fun parse(data: ByteArray): PtpDeviceInfo {
+            val r = PtpReader(data)
+            r.u16() // versão do padrão
+            val vendor = r.u32().toInt()
+            r.u16() // versão da extensão
+            r.string() // descrição da extensão
+            r.u16() // modo funcional
+            val ops = r.u16Array().toSet()
+            val events = r.u16Array().toSet()
+            r.u16Array() // propriedades
+            r.u16Array() // formatos de captura
+            r.u16Array() // formatos de imagem
+            val manufacturer = r.string()
+            val model = r.string()
+            val version = runCatching { r.string() }.getOrDefault("")
+            return PtpDeviceInfo(vendor, manufacturer, model, version, ops, events)
+        }
+    }
+}
+
+/** Partes do ObjectInfo que importam aqui: formato, tamanho e nome do arquivo. */
+class PtpObjectInfo(val format: Int, val size: Long, val name: String) {
+    val isFolder get() = format == Ptp.FORMAT_ASSOCIATION
+
+    companion object {
+        fun parse(data: ByteArray): PtpObjectInfo {
+            val r = PtpReader(data)
+            r.u32() // storage
+            val format = r.u16()
+            r.u16() // proteção
+            val size = r.u32()
+            // O nome do arquivo começa no byte 52.
+            val name = runCatching { PtpReader(data, 52).string() }.getOrDefault("")
+            return PtpObjectInfo(format, size, name)
+        }
     }
 }
 
@@ -42,17 +117,24 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
 
     private val bulkIn: UsbEndpoint
     private val bulkOut: UsbEndpoint
+
+    /** Porta de eventos (interrupção); nem toda câmera tem. */
+    private val interruptIn: UsbEndpoint?
+    private val eventBuffer = ByteArray(64)
     private val chunk = ByteArray(CHUNK)
     private var transactionId = 0
 
     init {
         var inEp: UsbEndpoint? = null
         var outEp: UsbEndpoint? = null
+        var intEp: UsbEndpoint? = null
         for (i in 0 until iface.endpointCount) {
             val ep = iface.getEndpoint(i)
+            if (ep.type == UsbConstants.USB_ENDPOINT_XFER_INT && ep.direction == UsbConstants.USB_DIR_IN) intEp = ep
             if (ep.type != UsbConstants.USB_ENDPOINT_XFER_BULK) continue
             if (ep.direction == UsbConstants.USB_DIR_IN) inEp = ep else outEp = ep
         }
+        interruptIn = intEp
         bulkIn = inEp ?: throw PtpException("A câmera não tem endpoint USB de entrada")
         bulkOut = outEp ?: throw PtpException("A câmera não tem endpoint USB de saída")
         if (!connection.claimInterface(iface, true)) throw PtpException("Não foi possível assumir a interface USB")
@@ -102,7 +184,7 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         try {
             val response = exchange(op, tid, params, dataOut, timeoutMs)
             // A leitura periódica dos ajustes, quando dá certo, fica fora do registro.
-            if (!(response.ok && op == OC_SONY_GET_ALL_PROP_DATA)) DiagLog.add("$name tid=$tid → 0x%04X, %d bytes".format(response.code, response.data.size))
+            if (!(response.ok && op in QUIET)) DiagLog.add("$name tid=$tid → 0x%04X, %d bytes".format(response.code, response.data.size))
             return response
         } catch (e: PtpException) {
             DiagLog.add("$name tid=$tid → ERRO: ${e.message}")
@@ -133,6 +215,25 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
                 }
             }
         }
+    }
+
+    val hasEvents get() = interruptIn != null
+
+    /** Próximo evento da câmera, ou null se nada chegou em [timeoutMs]. */
+    fun readEvent(timeoutMs: Int): PtpEvent? {
+        val ep = interruptIn ?: return null
+        val n = connection.bulkTransfer(ep, eventBuffer, eventBuffer.size, timeoutMs)
+        if (n < HEADER) return null
+        val b = ByteBuffer.wrap(eventBuffer, 0, n).order(ByteOrder.LITTLE_ENDIAN)
+        val length = b.int
+        val type = b.short.toInt() and 0xFFFF
+        val code = b.short.toInt() and 0xFFFF
+        b.int // transação
+        if (type != TYPE_EVENT) return null
+        val count = ((minOf(length, n) - HEADER) / 4).coerceIn(0, 3)
+        val event = PtpEvent(code, IntArray(count) { b.int })
+        DiagLog.add("evento 0x%04X(%s)".format(code, event.params.joinToString(",") { "0x%X".format(it) }))
+        return event
     }
 
     fun close() {
@@ -201,7 +302,9 @@ class PtpUsb(private val connection: UsbDeviceConnection, private val iface: Usb
         const val TYPE_COMMAND = 1
         const val TYPE_DATA = 2
         const val TYPE_RESPONSE = 3
-        const val OC_SONY_GET_ALL_PROP_DATA = 0x9209
+        const val TYPE_EVENT = 4
+        /** Leituras periódicas (Sony, Canon, Nikon): quando dão certo, ficam fora do registro. */
+        val QUIET = setOf(0x9209, 0x9116, 0x90C7, 0x941C)
         const val REQ_CLEAR_FEATURE = 0x01
         const val FEATURE_ENDPOINT_HALT = 0
         const val REQ_DEVICE_RESET = 0x66
@@ -234,6 +337,13 @@ class PtpReader(private val data: ByteArray, var pos: Int = 0) {
     fun u64(): Long {
         val low = u32()
         return low or (u32() shl 32)
+    }
+
+    /** Lista PTP de números de 16 bits: quantidade (32 bits) e os valores. */
+    fun u16Array(): IntArray {
+        val n = u32()
+        if (n * 2 > remaining) throw IllegalStateException("Lista PTP grande demais")
+        return IntArray(n.toInt()) { u16() }
     }
 
     fun skip(n: Int) {

@@ -104,6 +104,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var lock: ImageView
     private lateinit var status: TextView
     private lateinit var connectButton: Button
+    private lateinit var ftpButton: Button
     private lateinit var sessionButton: Button
     private lateinit var filterButton: Button
     private lateinit var presetButton: Button
@@ -135,6 +136,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     @Volatile
     private var galleryPhotos: List<SessionPhoto> = emptyList()
     private var server: GalleryServer? = null
+    private var ftp: FtpServer? = null
     private val thumbCache = ConcurrentHashMap<String, ByteArray>()
 
     /** O que o slideshow mostra: favoritas (ou todas), da mais antiga para a mais nova. */
@@ -204,6 +206,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         // Antes do Android 13 a flag é ignorada; a partir dele, impede outros apps de mandar esses avisos.
         registerReceiver(usbReceiver, usbEvents, Context.RECEIVER_NOT_EXPORTED)
 
+        if (ftpEnabled) startFtp()
         if (!handleUsbIntent(intent)) tryReconnect()
     }
 
@@ -237,6 +240,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         main.removeCallbacks(reconnect)
         camera?.shutdown()
         server?.stop()
+        ftp?.stop()
         presetStrip.shutdown()
         processor.shutdownNow()
         detailer.shutdownNow()
@@ -255,7 +259,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private fun connect() {
         val device = findCamera()
         if (device == null) {
-            setStatus("Nenhuma câmera Sony encontrada. Ligue o cabo USB e coloque a câmera em PC Remoto.")
+            setStatus("Nenhuma câmera encontrada no cabo. Ligue a Sony, Canon ou Nikon pelo USB (Sony: Conexão USB em PC Remoto).")
             return
         }
         if (usb.hasPermission(device)) open(device) else requestPermission(device)
@@ -307,7 +311,10 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         if (iface == null) {
             DiagLog.describe(device)
             DiagLog.add("nenhuma interface PTP")
-            setStatus("A câmera não está no modo PC Remoto. Mude a Conexão USB para \"PC Remoto\"; o app conecta sozinho.")
+            setStatus(
+                if (device.vendorId == Cameras.VENDOR_SONY) "A câmera não está no modo PC Remoto. Mude a Conexão USB para \"PC Remoto\"; o app conecta sozinho."
+                else "A câmera não aparece como câmera no USB. Na Nikon, escolha USB: MTP/PTP; na Canon, desligue o Wi-Fi da câmera. O app conecta sozinho.",
+            )
             retryLater()
             return
         }
@@ -323,8 +330,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     }
 
     private fun findCamera(): UsbDevice? =
-        usb.deviceList.values.firstOrNull { it.vendorId == SONY_VENDOR_ID && ptpInterface(it) != null }
-            ?: usb.deviceList.values.firstOrNull { it.vendorId == SONY_VENDOR_ID }
+        usb.deviceList.values.firstOrNull { it.vendorId in Cameras.VENDORS && ptpInterface(it) != null }
+            ?: usb.deviceList.values.firstOrNull { it.vendorId in Cameras.VENDORS }
 
     private fun ptpInterface(device: UsbDevice): UsbInterface? {
         val interfaces = (0 until device.interfaceCount).map { device.getInterface(it) }
@@ -397,7 +404,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         currentShown = null
         viewer.setImage(null, 0, resetZoom = true)
         emptyState.visibility = View.VISIBLE
-        hint.text = if (camera != null) "Pronto. Dispare na câmera para ver a primeira foto." else "Conecte a câmera Sony pelo cabo USB"
+        hint.text = if (camera != null) "Pronto. Dispare na câmera para ver a primeira foto." else if (ftp?.running == true) "Pronto. Fotografe: as fotos chegam pelo Wi-Fi." else "Conecte a câmera pelo cabo USB ou pelo Wi-Fi"
         updateRatingBar()
         shareButton.isEnabled = false
         sessionButton.text = "${s.label}"
@@ -1029,6 +1036,152 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         frameButton.text = "Moldura: ${Frames.ALL[frameIndex].name}"
     }
 
+    // ---- Wi-Fi (FTP) ----
+
+    private fun ftpPrefs() = prefs()
+
+    private var ftpUser: String
+        get() = ftpPrefs().getString("ftp.user", "camera") ?: "camera"
+        set(value) = ftpPrefs().edit().putString("ftp.user", value).apply()
+
+    /** Senha de 6 números, criada na primeira vez (a câmera digita com os botões, então curta). */
+    private var ftpPassword: String
+        get() = ftpPrefs().getString("ftp.password", null) ?: newFtpPassword().also { ftpPassword = it }
+        set(value) = ftpPrefs().edit().putString("ftp.password", value).apply()
+
+    private var ftpEnabled: Boolean
+        get() = ftpPrefs().getBoolean("ftp.on", false)
+        set(value) = ftpPrefs().edit().putBoolean("ftp.on", value).apply()
+
+    private fun newFtpPassword() = (100000 + java.security.SecureRandom().nextInt(900000)).toString()
+
+    private fun startFtp() {
+        if (ftp?.running == true) return
+        val server = FtpServer(ftpUser, ftpPassword, object : FtpServer.Listener {
+            override fun onFile(name: String, data: ByteArray, from: String) = receiveFromWifi(name, data)
+
+            override fun onLog(text: String) {
+                DiagLog.add(text)
+                if (text.contains("entrou") || text.contains("errados")) main.post { setStatus(text.removePrefix("FTP: ").replaceFirstChar { it.uppercase() }) }
+            }
+        })
+        try {
+            server.start()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Não foi possível ligar o FTP: ${e.message}", Toast.LENGTH_LONG).show()
+            return
+        }
+        ftp = server
+        DiagLog.add("FTP ligado na porta ${server.port}")
+        updateFtpButton()
+    }
+
+    private fun stopFtp() {
+        ftp?.stop()
+        ftp = null
+        updateFtpButton()
+    }
+
+    /** Foto que chegou pelo Wi-Fi: mesmo caminho de uma foto do cabo. Roda na thread da conexão FTP. */
+    private fun receiveFromWifi(name: String, data: ByteArray) {
+        val to = shoot.target(name)
+        DiagLog.add("foto por Wi-Fi $name → ${to.name}, ${data.size} bytes")
+        val uri = PhotoStore.saveOriginal(applicationContext, to.session.folder, to.name, data)
+        main.post {
+            if (isDestroyed) return@post
+            setStatus("Foto recebida pelo Wi-Fi: ${to.name}")
+            onShot(to, data, uri)
+        }
+    }
+
+    private fun updateFtpButton() {
+        val server = ftp
+        ftpButton.text = if (server?.running == true) {
+            "Wi-Fi (FTP): ${GalleryServer.localAddress() ?: "sem rede"}:${server.port}"
+        } else {
+            "Receber pelo Wi-Fi (FTP)"
+        }
+        if (camera == null) setLink(LINK_OFF)
+        if (server?.running == true && camera == null && shoot.photos.isEmpty()) hint.text = "Pronto. Fotografe: as fotos chegam pelo Wi-Fi."
+    }
+
+    private fun ftpDialog() {
+        val enabled = Switch(this).apply {
+            text = "Receber fotos pelo Wi-Fi"
+            isChecked = ftp?.running == true
+            setTextColor(Palette.TEXT)
+            textSize = 16f
+        }
+        val ip = GalleryServer.localAddress()
+        fun field(label: String, value: String) = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(6), 0, dp(6))
+            addView(ui.text(label, 14f, Palette.TEXT2), LinearLayout.LayoutParams(dp(150), WRAP_CONTENT))
+            addView(ui.text(value, 16f, Palette.GOLD, bold = true).apply { setTextIsSelectable(true) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        lateinit var dialog: AlertDialog
+        val port = ftp?.port?.takeIf { it > 0 } ?: FtpServer.DEFAULT_PORT
+        val details = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = ui.rounded(Palette.ROW, 12)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            addView(field("Servidor (host)", ip ?: "ligue o Wi-Fi do tablet"))
+            addView(field("Porta", port.toString()))
+            addView(field("Usuário", ftpUser))
+            addView(field("Senha", ftpPassword))
+            addView(field("Modo passivo", "Ligado"))
+            addView(field("Protocolo seguro", "Desligado"))
+            addView(field("Pasta", "deixe vazia"))
+        }
+        val steps = label(
+            "A câmera e o tablet precisam estar no mesmo Wi-Fi, ou a câmera conectada ao ponto de acesso " +
+                "do tablet (funciona sem internet). Deixe o app aberto.\n\n" +
+                "SONY (A7R III, A7 III, A9, A7 IV, A1…): MENU → Rede → Função de transferência FTP → " +
+                "Configurações do servidor: Destino/Host = servidor acima, Porta, Protocolo seguro desligado, " +
+                "Usuário e senha. Depois ligue a Função FTP e a Transferência automática (nomes variam por modelo).\n\n" +
+                "CANON (R3, R5, R6 Mark II, R7, R10, R8, 1D X Mark III…): Menu Rede → Configurações de transferência " +
+                "FTP → assistente de conexão: Modo FTP, endereço do servidor, porta, Modo passivo ativado, sem proxy, " +
+                "login com usuário e senha, pasta raiz. Depois ative a Transferência automática.\n\n" +
+                "NIKON (Z6III, Z8, Z9, Zf, ou Z6/Z7 II e D850/D780 com WT-7): Menu Rede → Conectar ao servidor FTP → " +
+                "Configurações de rede → Criar perfil: tipo FTP, endereço, porta, PASV ligado, usuário e senha. " +
+                "Depois, em Opções, ligue o Upload automático.",
+            13f, MUTED,
+        )
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(enabled)
+            addView(label("Para câmeras com transferência FTP pelo Wi-Fi: cada foto chega aqui sozinha, sem cabo. Configure a câmera com estes dados:", 13f, MUTED).apply {
+                setPadding(0, dp(10), 0, dp(10))
+            })
+            addView(details)
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                text = "Gerar outra senha"
+                setOnClickListener {
+                    ftpPassword = newFtpPassword()
+                    if (ftp?.running == true) {
+                        stopFtp()
+                        startFtp()
+                    }
+                    Toast.makeText(this@MainActivity, "Senha nova: $ftpPassword (troque também na câmera)", Toast.LENGTH_LONG).show()
+                    dialog.dismiss()
+                    ftpDialog()
+                }
+            }, ui.wrap(8))
+            addView(steps, ui.wrap(12))
+        }
+        enabled.setOnCheckedChangeListener { _, on ->
+            ftpEnabled = on
+            if (on) startFtp() else stopFtp()
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Receber pelo Wi-Fi (FTP)")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .show()
+    }
+
     // ---- Modo cliente ----
 
     private val exitClientMode = Runnable { setClientMode(false) }
@@ -1304,13 +1457,13 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             LINK_ON -> Palette.GREEN
             LINK_CONNECTING -> Palette.GOLD
             LINK_ERROR -> Palette.RED
-            else -> Palette.TEXT3
+            else -> if (ftp?.running == true) Palette.GREEN else Palette.TEXT3
         })
         statusTitle.text = when (state) {
             LINK_ON -> model ?: "Câmera conectada"
             LINK_CONNECTING -> "Conectando…"
             LINK_ERROR -> "Conexão interrompida"
-            else -> "Câmera desconectada"
+            else -> if (ftp?.running == true) "Esperando fotos pelo Wi-Fi" else "Câmera desconectada"
         }
     }
 
@@ -1403,7 +1556,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         viewer = ZoomImageView(this).apply { listener = this@MainActivity }
 
         // Sem foto: ícone, título e o que fazer.
-        hint = ui.text("Conecte a câmera Sony pelo cabo USB", 20f, Palette.TEXT, bold = true).apply { gravity = Gravity.CENTER }
+        hint = ui.text("Conecte a câmera pelo cabo USB ou pelo Wi-Fi", 20f, Palette.TEXT, bold = true).apply { gravity = Gravity.CENTER }
         emptyState = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -1414,7 +1567,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             }, LinearLayout.LayoutParams(dp(96), dp(96)))
             addView(hint, ui.wrap(24))
             addView(ui.text(
-                "Cabo USB-C na câmera · Conexão USB: PC Remoto\nCada foto aparece aqui assim que você dispara.",
+                "Sony, Canon ou Nikon pelo cabo USB, ou qualquer câmera com FTP pelo Wi-Fi.\nCada foto aparece aqui assim que você dispara.",
                 14f, Palette.TEXT2,
             ).apply { gravity = Gravity.CENTER }, ui.wrap(10))
         }
@@ -1522,7 +1675,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 orientation = LinearLayout.VERTICAL
                 setPadding(dp(12), 0, 0, 0)
                 addView(ui.text("Sony Tether", 19f, Palette.TEXT, bold = true))
-                addView(ui.text("Tethering para Sony Alpha", 12f, Palette.TEXT3), ui.wrap(3))
+                addView(ui.text("Sony · Canon · Nikon · Wi-Fi", 12f, Palette.TEXT3), ui.wrap(3))
             }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
             addView(ui.pill(BuildConfig.VERSION_NAME.replace("-beta", " BETA"), Palette.GOLD, 0x14E9B45A, 0x55E9B45A))
         })
@@ -1530,7 +1683,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         // Câmera: estado da conexão.
         statusDot = ui.dot(Palette.TEXT3)
         statusTitle = ui.text("Câmera desconectada", 16f, Palette.TEXT, bold = true)
-        status = ui.text("Ligue o cabo USB-C e coloque a câmera em PC Remoto.", 13f, Palette.TEXT2)
+        status = ui.text("Ligue a câmera pelo cabo USB ou ative o Wi-Fi (FTP).", 13f, Palette.TEXT2)
+        ftpButton = ui.row(R.drawable.ic_wifi, "Receber pelo Wi-Fi (FTP)") { ftpDialog() }
         connectButton = ui.primary(R.drawable.ic_usb, "Conectar câmera") {
             askedPermissionFor = null
             connect()
@@ -1552,6 +1706,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             })
             addView(status, ui.wrap(8))
             addView(connectButton, ui.matchWidth(48, 14))
+            addView(ftpButton, ui.matchWidth(48, 8))
         }, ui.wrap())
 
         // Sessão
@@ -1713,7 +1868,6 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
 
     private companion object {
         const val ACTION_USB_PERMISSION = "com.phill.sonytether.USB_PERMISSION"
-        const val SONY_VENDOR_ID = 0x054C
         const val REQUEST_IMPORT = 1
         const val REQUEST_LOGO = 2
         const val REQUEST_BRAND = 4

@@ -11,8 +11,8 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.7.1-beta"
+        versionCode = 11
+        versionName = "0.8-beta"
     }
 
     // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,
@@ -67,6 +67,8 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // Cliente FTP de verdade para testar o servidor do app.
+    testImplementation("commons-net:commons-net:3.11.1")
     // Só para as capturas de tela do design (ScreenshotTest, roda com -Pscreenshots).
     testImplementation("org.robolectric:robolectric:4.14.1")
 }
