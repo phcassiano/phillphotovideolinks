@@ -1,0 +1,37 @@
+name: "Revela: gerar APK"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "sony-tether/**"
+      - ".github/workflows/revela-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sony-tether
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Testes e APK
+        run: |
+          chmod +x gradlew
+          ./gradlew testReleaseUnitTest lintRelease assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk Revela.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: revela-apk
+          path: sony-tether/Revela.apk
+          if-no-files-found: error
