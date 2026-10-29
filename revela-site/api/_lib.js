@@ -78,6 +78,45 @@ async function db(funcao, args) {
   return texto ? JSON.parse(texto) : null;
 }
 
+/** IP de quem chamou (o Vercel põe o verdadeiro em x-forwarded-for). */
+function ip(req) {
+  const h = (req.headers && (req.headers["x-forwarded-for"] || req.headers["x-real-ip"])) || "";
+  return String(h).split(",")[0].trim().slice(0, 64) || "?";
+}
+
+/**
+ * Limite de tentativas por chave (ex.: "admin:<ip>"): true enquanto estiver dentro de [max] na
+ * janela de [segundos]. [contar] = false só consulta. Se o banco falhar, deixa passar (sem banco
+ * nada funciona mesmo, e não dá para travar o dono por causa disso).
+ */
+async function limite(chave, max, segundos, contar = true) {
+  try {
+    return (await module.exports.db("revela_rate_hit", { p_key: chave, p_max: max, p_seconds: segundos, p_add: contar })) !== false;
+  } catch (e) {
+    console.error(e);
+    return true;
+  }
+}
+
+/** Senha do /admin com trava: 10 erros por IP (ou 40 no total) numa hora bloqueiam por uma hora. */
+async function admin(req, senha) {
+  const quem = "admin-erro:" + ip(req);
+  if (!(await limite(quem, 10, 3600, false)) || !(await limite("admin-erro:*", 40, 3600, false))) return "bloqueado";
+  if (iguais(senha, process.env.REVELA_ADMIN_SENHA)) return "ok";
+  await limite(quem, 10, 3600);
+  await limite("admin-erro:*", 40, 3600);
+  await new Promise((r) => setTimeout(r, 800));
+  return "errada";
+}
+
+/** Responde a [admin] quando não é "ok"; devolve true se respondeu. */
+function recusarAdmin(res, situacao) {
+  if (situacao === "ok") return false;
+  if (situacao === "bloqueado") res.status(429).json({ erro: "Muitas tentativas erradas. Espere uma hora e tente de novo." });
+  else res.status(401).json({ erro: "Senha incorreta" });
+  return true;
+}
+
 /** Celular brasileiro para o wa.me: só números, com 55. */
 function whatsappDe(telefone) {
   let n = String(telefone || "").replace(/\D/g, "");
@@ -109,4 +148,4 @@ function corpo(req) {
   return req.body;
 }
 
-module.exports = { APK_URL, TRIAL_DIAS, FOLGA_DIAS, DIAS, novoId, assinar, ler, hoje, somarDias, validadeNova, validadeRenovada, iguais, db, whatsappDe, mensagemCliente, corpo };
+module.exports = { APK_URL, TRIAL_DIAS, FOLGA_DIAS, DIAS, novoId, assinar, ler, hoje, somarDias, validadeNova, validadeRenovada, iguais, db, ip, limite, admin, recusarAdmin, whatsappDe, mensagemCliente, corpo };

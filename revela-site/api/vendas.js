@@ -5,10 +5,7 @@ module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ erro: "Use POST" });
   const body = lib.corpo(req);
-  if (!lib.iguais(body.senha, process.env.REVELA_ADMIN_SENHA)) {
-    await new Promise((r) => setTimeout(r, 800));
-    return res.status(401).json({ erro: "Senha incorreta" });
-  }
+  if (lib.recusarAdmin(res, await lib.admin(req, body.senha))) return;
   try {
     if (body.acao === "enviada" || body.acao === "revogar" || body.acao === "liberar") {
       const l = await lib.db("revela_license_get", { p_id: String(body.id || ""), p_ref: null });

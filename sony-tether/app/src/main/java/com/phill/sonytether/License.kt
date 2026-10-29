@@ -3,6 +3,7 @@ package com.phill.sonytether
 import android.annotation.SuppressLint
 import android.content.Context
 import android.provider.Settings
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyFactory
@@ -127,14 +128,16 @@ class LicenseManager(private val context: Context, private val verifier: License
 
     fun state(): State {
         val today = today()
-        val stored = prefs.getString(KEY_LICENSE, null)?.let { verifier.read(it) as? LicenseVerifier.Result.Ok }?.license
+        val saved = prefs.getString(KEY_LICENSE, null)?.let { verifier.read(it) as? LicenseVerifier.Result.Ok }?.license
+        // Chave presa a outro tablet (dados copiados de outro aparelho) não vale aqui.
+        val stored = saved?.takeIf { it.device == "*" || it.device.equals(deviceCode, ignoreCase = true) }
         if (stored != null) {
             if (stored.id in revoked()) return State.Revoked(stored)
             val left = stored.until.toEpochDay() - today.toEpochDay()
             if (left >= 0) return State.Licensed(stored, left)
         }
         val trialLeft = trialStart + TRIAL_DAYS - 1 - today.toEpochDay()
-        if (stored == null && trialLeft >= 0) return State.Trial(trialLeft)
+        if (saved == null && trialLeft >= 0) return State.Trial(trialLeft)
         return State.Expired(stored)
     }
 
@@ -150,7 +153,7 @@ class LicenseManager(private val context: Context, private val verifier: License
         }
         if (license.online) {
             val reply = try {
-                post(ACTIVATE_URL, "{\"chave\":\"${text}\",\"aparelho\":\"$deviceCode\"}")
+                post(ACTIVATE_URL, activation(text))
             } catch (e: Exception) {
                 return "Sem internet. Na primeira vez a chave precisa de internet para ser ativada neste tablet."
             }
@@ -182,7 +185,7 @@ class LicenseManager(private val context: Context, private val verifier: License
      */
     fun sync() {
         runCatching {
-            val (code, body) = post(TRIAL_URL, "{\"aparelho\":\"$deviceCode\"}")
+            val (code, body) = post(TRIAL_URL, JSONObject().put("aparelho", deviceCode).toString())
             if (code == 200) {
                 val start = LocalDate.parse(LicenseVerifier.field(body, "inicio")).toEpochDay()
                 prefs.edit().putLong(KEY_TRIAL_SERVER, start).apply()
@@ -191,7 +194,7 @@ class LicenseManager(private val context: Context, private val verifier: License
         val stored = prefs.getString(KEY_LICENSE, null)
         val current = stored?.let { verifier.read(it) as? LicenseVerifier.Result.Ok }?.license
         if (stored != null && current != null) runCatching {
-            val (code, body) = post(ACTIVATE_URL, "{\"chave\":\"$stored\",\"aparelho\":\"$deviceCode\"}")
+            val (code, body) = post(ACTIVATE_URL, activation(stored))
             if (code == 200) {
                 val fresh = LicenseVerifier.field(body, "chave")
                 val renewed = (verifier.read(fresh) as? LicenseVerifier.Result.Ok)?.license
@@ -205,6 +208,8 @@ class LicenseManager(private val context: Context, private val verifier: License
         refreshRevoked()
     }
 
+    private fun activation(key: String) = JSONObject().put("chave", key).put("aparelho", deviceCode).toString()
+
     /** POST com JSON; devolve o código HTTP e o corpo. */
     private fun post(url: String, json: String): Pair<Int, String> {
         val c = URL(url).openConnection() as HttpURLConnection
@@ -214,7 +219,7 @@ class LicenseManager(private val context: Context, private val verifier: License
             c.requestMethod = "POST"
             c.doOutput = true
             c.setRequestProperty("Content-Type", "application/json")
-            c.outputStream.use { it.write(json.toByteArray()) }
+            c.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
             val code = c.responseCode
             val body = (if (code < 400) c.inputStream else c.errorStream)?.use { String(it.readBytes()) } ?: ""
             return code to body

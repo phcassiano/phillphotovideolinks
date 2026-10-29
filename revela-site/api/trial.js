@@ -6,6 +6,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ erro: "Use POST" });
   const aparelho = String(lib.corpo(req).aparelho || "").toUpperCase();
   if (!/^[A-Z0-9]{8}$/.test(aparelho)) return res.status(400).json({ erro: "Código do aparelho inválido" });
+  if (!(await lib.limite("trial:" + lib.ip(req), 30, 3600))) return res.status(429).json({ erro: "Muitas tentativas" });
   try {
     const inicio = await lib.db("revela_trial", { p_device: aparelho });
     return res.status(200).json({ inicio: String(inicio).slice(0, 10), dias: lib.TRIAL_DIAS });

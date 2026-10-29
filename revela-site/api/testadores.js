@@ -12,7 +12,10 @@ function digitos(v) {
   return String(v || "").replace(/\D/g, "");
 }
 
-async function cadastrar(body, res) {
+async function cadastrar(req, body, res) {
+  // Campo escondido na página: só robô preenche.
+  if (texto(body.site)) return res.status(400).json({ erro: "Não foi possível cadastrar." });
+  if (!(await lib.limite("testador:" + lib.ip(req), 5, 3600))) return res.status(429).json({ erro: "Muitas tentativas deste endereço. Tente de novo mais tarde ou fale comigo no WhatsApp." });
   const nome = texto(body.nome, 80);
   const email = texto(body.email, 120).toLowerCase();
   const telefone = digitos(body.whatsapp).slice(0, 15);
@@ -49,7 +52,8 @@ async function cadastrar(body, res) {
   return res.status(200).json({ chave, ate, apk: lib.APK_URL });
 }
 
-async function feedback(body, res) {
+async function feedback(req, body, res) {
+  if (!(await lib.limite("feedback:" + lib.ip(req), 30, 3600))) return res.status(429).json({ erro: "Muitos envios seguidos. Tente de novo mais tarde." });
   const email = texto(body.email, 120).toLowerCase();
   const nota = parseInt(body.nota, 10);
   const dia = parseInt(body.dia, 10);
@@ -77,8 +81,8 @@ module.exports = async function handler(req, res) {
     }
     if (req.method !== "POST") return res.status(405).json({ erro: "Use GET ou POST" });
     const body = lib.corpo(req);
-    if (body.acao === "feedback") return await feedback(body, res);
-    return await cadastrar(body, res);
+    if (body.acao === "feedback") return await feedback(req, body, res);
+    return await cadastrar(req, body, res);
   } catch (e) {
     console.error(e);
     return res.status(503).json({ erro: "Servidor indisponível. Tente de novo em instantes." });

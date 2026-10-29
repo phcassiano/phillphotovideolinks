@@ -45,7 +45,7 @@ class GalleryServer(private val source: Source) {
         fun logo(): ByteArray?
     }
 
-    private val token = (1..8).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
+    private val token = (1..12).map { ALPHABET[random.nextInt(ALPHABET.length)] }.joinToString("")
     private var socket: ServerSocket? = null
     private val workers = Executors.newFixedThreadPool(4)
 
@@ -90,7 +90,9 @@ class GalleryServer(private val source: Source) {
         s.soTimeout = 30_000
         val input = BufferedInputStream(s.getInputStream())
         val requestLine = readLine(input) ?: return
-        while (readLine(input)?.isNotEmpty() == true) Unit // cabeçalhos: não precisa de nenhum
+        // Cabeçalhos: não precisa de nenhum, mas não deixa um cliente mandar infinitos.
+        var headers = 0
+        while (readLine(input)?.isNotEmpty() == true) if (++headers > MAX_HEADERS) return
         val parts = requestLine.split(' ')
         val head = parts.getOrNull(0) == "HEAD"
         val path = parts.getOrNull(1)?.substringBefore('?') ?: "/"
@@ -134,7 +136,7 @@ class GalleryServer(private val source: Source) {
 
     private fun zip(out: OutputStream) {
         out.write(
-            ("HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\n" +
+            ("HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\n$SECURITY_HEADERS" +
                 "Content-Disposition: attachment; filename=\"${SessionNames.prefix(source.galleryTitle)}.zip\"\r\n" +
                 "Connection: close\r\n\r\n").toByteArray(),
         )
@@ -267,7 +269,7 @@ poll();setInterval(poll,4000);restart();
         }
         out.write(
             ("HTTP/1.1 $code $status\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\n" +
-                "Cache-Control: no-store\r\n$extra" + "Connection: close\r\n\r\n").toByteArray(),
+                "Cache-Control: no-store\r\n$SECURITY_HEADERS$extra" + "Connection: close\r\n\r\n").toByteArray(),
         )
         if (!head) out.write(body)
         out.flush()
@@ -302,6 +304,14 @@ poll();setInterval(poll,4000);restart();
 
     companion object {
         private val PORTS = 8080..8089
+        private const val MAX_HEADERS = 100
+
+        /**
+         * O endereço leva o código da galeria: sem Referer ele não vaza para o Instagram ou o
+         * WhatsApp quando o cliente toca nos links; e as páginas não abrem dentro de outro site.
+         */
+        private const val SECURITY_HEADERS = "Referrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\n" +
+            "X-Frame-Options: DENY\r\nContent-Security-Policy: frame-ancestors 'none'\r\n"
         private const val ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
         private val random = SecureRandom()
 

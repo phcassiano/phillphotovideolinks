@@ -11,6 +11,7 @@ import java.net.Socket
 import java.net.SocketException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Servidor FTP mínimo para receber fotos pelo Wi-Fi: a câmera (Sony, Canon, Nikon e outras
@@ -41,6 +42,12 @@ class FtpServer(
     /** Arquivos com nome que não é de foto, à espera de serem renomeados (caminho → bytes). */
     private val pending = ConcurrentHashMap<String, ByteArray>()
 
+    /** Senhas erradas por endereço: depois de [MAX_FAILURES], o endereço espera [LOCK_MS]. */
+    private class Failures(var count: Int, var lockedUntil: Long)
+
+    private val failures = ConcurrentHashMap<String, Failures>()
+    private val sessions = AtomicInteger()
+
     val port get() = server?.localPort ?: 0
 
     /** Endereço do tablet que a última câmera usou para entrar (o certo, quando o tablet tem mais de uma rede). */
@@ -60,7 +67,18 @@ class FtpServer(
                 } catch (e: SocketException) {
                     break
                 }
-                workers.execute { Session(client).run() }
+                if (sessions.incrementAndGet() > MAX_SESSIONS) {
+                    sessions.decrementAndGet()
+                    runCatching { client.use { it.getOutputStream().write("421 Muitas conexões\r\n".toByteArray()) } }
+                    continue
+                }
+                workers.execute {
+                    try {
+                        Session(client).run()
+                    } finally {
+                        sessions.decrementAndGet()
+                    }
+                }
             }
         }, "ftp").start()
     }
@@ -69,6 +87,20 @@ class FtpServer(
         runCatching { server?.close() }
         server = null
         pending.clear()
+        failures.clear()
+    }
+
+    private fun locked(address: String) = (failures[address]?.lockedUntil ?: 0) > System.currentTimeMillis()
+
+    private fun failed(address: String) {
+        val f = failures.getOrPut(address) { Failures(0, 0) }
+        synchronized(f) {
+            f.count++
+            if (f.count >= MAX_FAILURES) {
+                f.count = 0
+                f.lockedUntil = System.currentTimeMillis() + LOCK_MS
+            }
+        }
     }
 
     private inner class Session(private val control: Socket) {
@@ -86,6 +118,10 @@ class FtpServer(
                 runCatching {
                     control.soTimeout = 10 * 60_000
                     val input = BufferedReader(InputStreamReader(control.getInputStream(), Charsets.UTF_8))
+                    if (locked(from)) {
+                        reply(421, "Muitas senhas erradas: espere um minuto")
+                        return@runCatching
+                    }
                     reply(220, "Revela pronto para receber fotos")
                     listener.onLog("FTP: conexão de $from")
                     while (true) {
@@ -110,13 +146,19 @@ class FtpServer(
                     userOk = arg == user
                     reply(331, "Senha, por favor")
                 }
-                "PASS" -> if (userOk && arg == password) {
+                "PASS" -> if (locked(from)) {
+                    reply(421, "Muitas senhas erradas: espere um minuto")
+                    return false
+                } else if (userOk && sameSecret(arg, password)) {
+                    failures.remove(from)
                     loggedIn = true
                     cameraAddress = control.localAddress.hostAddress
                     listener.onLog("FTP: câmera $from entrou")
                     reply(230, "Bem-vinda")
                 } else {
                     listener.onLog("FTP: usuário ou senha errados vindos de $from")
+                    failed(from)
+                    Thread.sleep(WRONG_PASSWORD_DELAY_MS)
                     reply(530, "Usuário ou senha incorretos")
                 }
                 "AUTH" -> reply(502, "Sem TLS: desligue o protocolo seguro (FTPS) na câmera")
@@ -182,9 +224,12 @@ class FtpServer(
 
         private fun port(arg: String) {
             val n = arg.split(',').mapNotNull { it.trim().toIntOrNull() }
-            if (n.size != 6) return reply(501, "Endereço inválido")
+            if (n.size != 6 || n.any { it !in 0..255 }) return reply(501, "Endereço inválido")
             closeData()
-            active = InetSocketAddress(InetAddress.getByName(n.take(4).joinToString(".")), n[4] * 256 + n[5])
+            val address = InetAddress.getByName(n.take(4).joinToString("."))
+            // Só para a própria câmera: não deixa usar o tablet para conectar em outro aparelho da rede.
+            if (address != control.inetAddress) return reply(501, "Endereço diferente da conexão")
+            active = InetSocketAddress(address, n[4] * 256 + n[5])
             reply(200, "OK")
         }
 
@@ -192,7 +237,13 @@ class FtpServer(
             val parts = arg.split(arg.firstOrNull() ?: '|')
             if (parts.size < 4) return reply(501, "Endereço inválido")
             closeData()
-            active = InetSocketAddress(InetAddress.getByName(parts[2]), parts[3].toInt())
+            val host = parts[2]
+            val numeric = host.isNotEmpty() && host.all { it.isDigit() || it == '.' || it == ':' || it in 'a'..'f' || it in 'A'..'F' } &&
+                (host.contains(':') || host.count { it == '.' } == 3)
+            val address = if (numeric) runCatching { InetAddress.getByName(host) }.getOrNull() else null
+            val port = parts[3].toIntOrNull()
+            if (address != control.inetAddress || port == null || port !in 1..65535) return reply(501, "Endereço inválido")
+            active = InetSocketAddress(address, port)
             reply(200, "OK")
         }
 
@@ -307,10 +358,19 @@ class FtpServer(
     }
 
     companion object {
+        /** Compara em tempo constante, para o tempo da resposta não dar pistas da senha. */
+        fun sameSecret(a: String, b: String) = java.security.MessageDigest.isEqual(a.toByteArray(), b.toByteArray())
+
+        const val MAX_FAILURES = 5
+        const val LOCK_MS = 60_000L
+        private const val WRONG_PASSWORD_DELAY_MS = 1_000L
+        private const val MAX_SESSIONS = 8
+
         fun isJpeg(bytes: ByteArray) = bytes.size > 3 && bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte()
 
         /** Portas abaixo de 1024 são proibidas para apps no Android. */
         const val DEFAULT_PORT = 2121
-        private const val MAX_FILE = 400L * 1024 * 1024
+        /** Maior RAW sem compressão das câmeras atuais (~120 MB) com folga, sem estourar a memória. */
+        private const val MAX_FILE = 256L * 1024 * 1024
     }
 }

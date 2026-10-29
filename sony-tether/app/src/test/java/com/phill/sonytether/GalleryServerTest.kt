@@ -92,4 +92,14 @@ class GalleryServerTest {
         assertArrayEquals(byteArrayOf(7, 1), get("${server.path}screen/1.jpg").second)
         assertEquals(404, get("${server.path}screen/2.jpg").first)
     }
+
+    @Test
+    fun pagesKeepTheGalleryCodePrivate() {
+        val c = URL("http://127.0.0.1:${server.port}${server.path}").openConnection() as HttpURLConnection
+        assertEquals("no-referrer", c.getHeaderField("Referrer-Policy"))
+        assertEquals("DENY", c.getHeaderField("X-Frame-Options"))
+        c.disconnect()
+        assertEquals(14, server.path.length) // "/" + 12 letras + "/"
+        assertEquals(404, get("/tv").first)
+    }
 }

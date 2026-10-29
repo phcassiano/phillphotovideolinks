@@ -107,4 +107,30 @@ class FtpServerTest {
         Thread.sleep(200)
         assertTrue(received.isEmpty())
     }
+
+    @Test
+    fun wrongPasswordsLockTheAddressForAWhile() {
+        repeat(FtpServer.MAX_FAILURES) {
+            val ftp = FTPClient().apply { connect("127.0.0.1", server.port) }
+            assertFalse(ftp.login("camera", "000000"))
+            runCatching { ftp.disconnect() }
+        }
+        // Até a senha certa é recusada enquanto o endereço está bloqueado.
+        val ftp = FTPClient()
+        val ok = runCatching {
+            ftp.connect("127.0.0.1", server.port)
+            ftp.login("camera", "123456")
+        }.getOrDefault(false)
+        assertFalse(ok)
+    }
+
+    @Test
+    fun activeModeOnlyConnectsBackToTheCamera() {
+        val ftp = client()
+        // PORT apontando para outro aparelho da rede (ataque "FTP bounce"): recusado.
+        assertEquals(501, ftp.sendCommand("PORT", "10,0,0,99,0,80"))
+        assertEquals(501, ftp.sendCommand("EPRT", "|1|10.0.0.99|80|"))
+        assertEquals(501, ftp.sendCommand("EPRT", "|1|exemplo.com|80|"))
+        assertEquals(501, ftp.sendCommand("PORT", "300,0,0,1,0,80"))
+    }
 }

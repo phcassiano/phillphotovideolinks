@@ -128,6 +128,7 @@
           <div class="row">
             <div><label for="nome">Nome</label><input id="nome" required autocomplete="name" placeholder="Maria Souza"></div>
             <div><label for="instagram">Instagram</label><input id="instagram" autocomplete="off" placeholder="@seuperfil"></div>
+            <div style="position:absolute;left:-9999px" aria-hidden="true"><label for="site">Não preencha</label><input id="site" tabindex="-1" autocomplete="off"></div>
           </div>
           <div class="row">
             <div><label for="email">E-mail</label><input id="email" type="email" required autocomplete="email" placeholder="voce@email.com"></div>
@@ -237,7 +238,7 @@
     $("enviar").textContent = "Gerando a sua chave…";
     post({
       acao: "cadastrar", nome: $("nome").value, instagram: $("instagram").value, email: $("email").value,
-      whatsapp: $("whatsapp").value, camera: $("camera").value, tablet: $("tablet").value, compromisso: true
+      whatsapp: $("whatsapp").value, camera: $("camera").value, tablet: $("tablet").value, compromisso: true, site: $("site").value
     }).then(function (d) {
       if (!d._ok) {
         $("err").textContent = d.erro || "Não deu certo. Tente de novo.";
