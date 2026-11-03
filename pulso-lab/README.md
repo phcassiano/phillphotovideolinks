@@ -14,6 +14,18 @@ incluir de graça estão em [`docs/FUNCOES-PAGAS.md`](docs/FUNCOES-PAGAS.md).
 - "Resolver" leva à tela certa; "Ignorar" tira o item da nota.
 - As outras telas mostram o que vão fazer e em qual versão chegam.
 
+## Próximas versões
+
+| Versão | O que chega |
+|---|---|
+| 0.2 | Limpeza com pastas personalizadas, Otimizações, Histórico com Desfazer, verificação do Defender |
+| 0.3 | Desinstalador (com desinstalação forçada), Manutenção automática, limpar privacidade ao desligar |
+| 0.4 | Pós-formatação, atualizar todos os programas, drivers com erro, backup de drivers |
+| 0.5 | Saúde dos discos, teste de pendrive falsificado, alertas perto do relógio |
+| 0.6+ | Meu PC com relatório, Mapa do disco com apagar com segurança, Modo Jogo, Modo de eficiência e o resto |
+
+Detalhes em [`docs/ESPECIFICACAO.md`](docs/ESPECIFICACAO.md#6-plano-de-versões).
+
 ## Como baixar o instalador
 
 A cada push que altera a pasta `pulso-lab/`, o GitHub gera o instalador sozinho:

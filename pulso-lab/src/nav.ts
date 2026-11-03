@@ -1,8 +1,12 @@
 import {
   AppWindow,
   BatteryMedium,
+  BellRing,
+  CalendarClock,
   ChartPie,
   CircuitBoard,
+  Gamepad2,
+  History,
   Copy,
   Gauge,
   HardDrive,
@@ -34,7 +38,11 @@ export type PageId =
   | "mapa-disco"
   | "duplicados"
   | "otimizacoes"
-  | "desinstalador";
+  | "desinstalador"
+  | "historico"
+  | "manutencao"
+  | "alertas"
+  | "modo-jogo";
 
 export interface PageInfo {
   id: PageId;
@@ -74,6 +82,7 @@ export const sections: NavSection[] = [
           "Remove os apps que vêm de fábrica e você não usa",
           "Instala seus programas em português, sem clicar em nada",
           "Aplica ajustes rápidos, como acertar o relógio e mostrar \"Este Computador\" na Área de Trabalho",
+          "Antes de formatar: salva uma cópia dos drivers. Depois: devolve todos de uma vez",
         ],
       },
       {
@@ -86,6 +95,20 @@ export const sections: NavSection[] = [
           "Catálogo por categoria: navegadores, compactadores, comunicação, utilitários",
           "Instala em português e em silêncio",
           "Mostra os programas que têm versão nova e atualiza todos de uma vez",
+          "Você escolhe quais programas nunca atualizar",
+          "Confere sozinho, toda semana, se há versões novas e avisa",
+        ],
+      },
+      {
+        id: "historico",
+        label: "Histórico",
+        icon: History,
+        version: "0.2",
+        summary: "Tudo o que o Pulso Lab mudou no seu PC, com o botão Desfazer em cada item.",
+        plan: [
+          "Cada ajuste guarda como estava antes de mudar",
+          "Desfazer um item só ou tudo de um dia",
+          "Mostra os pontos de restauração criados pelo Pulso Lab",
         ],
       },
     ],
@@ -99,7 +122,25 @@ export const sections: NavSection[] = [
         icon: Monitor,
         version: "0.6",
         summary: "Tudo sobre o seu computador: processador, memória, placa-mãe, placa de vídeo e discos.",
-        plan: ["Ficha completa do hardware", "Temperaturas e uso em tempo real", "Copiar a ficha para enviar ao técnico"],
+        plan: [
+          "Ficha completa do hardware",
+          "Temperaturas e uso em tempo real",
+          "Botão \"Copiar relatório do PC\": hardware, Windows, nota e problemas em texto, para mandar ao técnico por WhatsApp ou e-mail",
+        ],
+      },
+      {
+        id: "alertas",
+        label: "Alertas",
+        icon: BellRing,
+        version: "0.5",
+        summary: "Um ícone perto do relógio que avisa quando algo precisa de atenção, sem você abrir o app.",
+        plan: [
+          "Disco do Windows quase cheio",
+          "Disco com sinais de defeito",
+          "Programa usando memória demais",
+          "PC ligado há muitos dias sem reiniciar",
+          "Você liga ou desliga cada aviso",
+        ],
       },
       {
         id: "discos",
@@ -133,9 +174,13 @@ export const sections: NavSection[] = [
         id: "drivers",
         label: "Drivers",
         icon: CircuitBoard,
-        version: "0.6",
-        summary: "Encontra os aparelhos com problema ou sem driver.",
-        plan: ["Lista os aparelhos com erro", "Mostra onde baixar o driver certo"],
+        version: "0.4",
+        summary: "Encontra os aparelhos com problema, guarda uma cópia dos drivers e atualiza pelo caminho seguro.",
+        plan: [
+          "Lista os aparelhos com erro ou sem driver",
+          "Cópia de segurança de todos os drivers e restauração com um clique",
+          "Atualiza drivers só pelo Windows Update ou pelo site do fabricante, nunca de sites de terceiros (v0.6)",
+        ],
       },
       {
         id: "rede",
@@ -182,6 +227,7 @@ export const sections: NavSection[] = [
           "Cache dos navegadores (Chrome, Edge, Firefox)",
           "Cada item com selo Seguro, Moderado ou Avançado; os recomendados já vêm marcados",
           "A Lixeira só é esvaziada se você marcar",
+          "Suas próprias pastas para limpar e pastas protegidas, que nunca são tocadas",
         ],
       },
       {
@@ -190,7 +236,12 @@ export const sections: NavSection[] = [
         icon: ChartPie,
         version: "0.6",
         summary: "Mostra em um mapa o que está ocupando o espaço do disco.",
-        plan: ["Pastas e arquivos maiores", "Abrir a pasta direto no Explorador"],
+        plan: [
+          "Pastas e arquivos maiores",
+          "Abrir a pasta direto no Explorador",
+          "Apagar com segurança: o arquivo é sobrescrito antes de sair (em SSD, o Windows já cuida disso)",
+          "Atalhos no botão direito do Explorador: \"Apagar com segurança\" e \"Ver o que ocupa espaço aqui\"",
+        ],
       },
       {
         id: "duplicados",
@@ -209,6 +260,7 @@ export const sections: NavSection[] = [
         plan: [
           "Desativar programas que abrem junto com o Windows (sem desinstalar)",
           "Ajustes recomendados de desempenho",
+          "Modo de eficiência: deixa apps em segundo plano mais leves sem fechar nada, como o Gerenciador de Tarefas do Windows 11 faz (v0.6)",
           "Tudo dá para desfazer",
         ],
       },
@@ -223,6 +275,34 @@ export const sections: NavSection[] = [
           "Remove os apps que vêm de fábrica (bloatware)",
           "Procura sobras em três níveis: Seguro, Moderado e Avançado",
           "Cria um ponto de restauração antes",
+          "Desinstalação forçada para programa quebrado que não sai: mostra tudo o que sobrou e você escolhe o que apagar",
+          "Instalar com o Pulso Lab: anota tudo o que o instalador mudou, para remover 100% depois (v0.6)",
+        ],
+      },
+      {
+        id: "manutencao",
+        label: "Manutenção automática",
+        icon: CalendarClock,
+        version: "0.3",
+        summary: "O Pulso Lab cuida do PC sozinho, no dia e na hora que você escolher, sem precisar abrir o app.",
+        plan: [
+          "Limpeza semanal só com os itens Seguros",
+          "Aviso no fim: quanto espaço foi liberado",
+          "Opção de limpar o histórico e o cache dos navegadores ao desligar o PC",
+          "Pausa sozinha se o notebook estiver na bateria",
+        ],
+      },
+      {
+        id: "modo-jogo",
+        label: "Modo Jogo",
+        icon: Gamepad2,
+        version: "0.6",
+        summary: "Quando você abre um jogo, o PC foca nele. Quando fecha, tudo volta ao normal.",
+        plan: [
+          "Encontra os jogos do Steam, Epic e Xbox",
+          "Plano de energia de alto desempenho durante o jogo",
+          "Deixa os apps em segundo plano mais leves e pausa as notificações",
+          "Sem promessa de milagre: o ganho costuma ser pequeno (de 1 a 10 FPS) e o app mostra a diferença medida",
         ],
       },
     ],

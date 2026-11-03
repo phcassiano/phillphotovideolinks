@@ -132,7 +132,7 @@ export function Painel({ onNavigate }: { onNavigate: (id: PageId) => void }) {
             {lastRun ? `Última análise: hoje às ${formatTime(lastRun)} · nota ${value}` : "Primeira análise"}
             <span className="dot">·</span>
             <span title="As outras verificações chegam nas próximas versões">
-              nota parcial: {liveChecks.length} de {checks.length || 9} verificações
+              nota parcial: {liveChecks.length} de {checks.length || 10} verificações
             </span>
           </p>
 

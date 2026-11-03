@@ -56,7 +56,8 @@ export function buildChecks(o: Overview): Check[] {
     ["junk", "Arquivos inúteis", "0.2"],
     ["startup", "Programas que abrem com o Windows", "0.2"],
     ["tweaks", "Ajustes recomendados do Windows", "0.2"],
-    ["drivers", "Drivers", "0.6"],
+    ["defender", "Proteção do Windows (Microsoft Defender)", "0.2"],
+    ["drivers", "Drivers", "0.4"],
     ["disk-health", "Saúde dos discos", "0.5"],
     ["outdated", "Programas desatualizados", "0.4"],
   ];

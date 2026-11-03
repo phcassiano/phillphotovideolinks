@@ -217,12 +217,34 @@ Alternativa 100% nativa: C# .NET 8 + WinUI 3 (visual mais "Windows", mas só com
 
 ## 6. Plano de versões
 
-1. **v0.1:** esqueleto Tauri, layout com menu lateral, tema escuro, Painel com dados reais de
-   RAM/CPU/disco/uptime.
-2. **v0.2:** Limpeza (análise + limpeza com níveis de risco) e nota de saúde com "Corrigir tudo".
-3. **v0.3:** Desinstalador (programas + Store + bloatware, em lote, silencioso, sobras, ponto de
-   restauração).
-4. **v0.4:** Pós-formatação (stepper + winget + configurações + retomar depois de reiniciar).
-5. **v0.5:** Saúde dos discos + teste de capacidade falsa.
-6. **v0.6+:** Inicialização, ajustes do Windows, drivers, programas desatualizados, mapa do disco,
-   duplicados, benchmark, bateria (`powercfg /batteryreport`), rede e periféricos.
+As funções que outros apps cobram (veja [`FUNCOES-PAGAS.md`](FUNCOES-PAGAS.md)) estão marcadas com 💎.
+
+1. **v0.1 (pronta):** esqueleto Tauri, layout com menu lateral, tema escuro e claro, Painel com dados
+   reais de RAM, CPU, disco e tempo ligado.
+2. **v0.2:**
+   - Limpeza (análise + limpeza com níveis de risco) e nota de saúde com "Corrigir tudo".
+   - 💎 Pastas próprias para limpar e pastas protegidas.
+   - Otimizações: programas que abrem com o Windows e ajustes recomendados.
+   - 💎 Histórico de alterações com Desfazer em cada item.
+   - Verificação do Microsoft Defender (ligado e atualizado) no Painel.
+3. **v0.3:**
+   - Desinstalador (programas + Store + bloatware, em lote, silencioso, sobras, ponto de restauração).
+   - 💎 Desinstalação forçada para programa quebrado.
+   - 💎 Manutenção automática agendada (só itens Seguros, com aviso no fim).
+   - 💎 Limpar a privacidade dos navegadores ao desligar.
+4. **v0.4:**
+   - Pós-formatação (etapas + winget + configurações + retomar depois de reiniciar).
+   - 💎 Programas: atualizar todos de uma vez, ignorar alguns e verificação semanal.
+   - Drivers: aparelhos com erro.
+   - 💎 Backup e restauração de drivers.
+5. **v0.5:**
+   - Saúde dos discos + teste de capacidade falsa.
+   - 💎 Ícone perto do relógio com alertas (disco cheio, defeito, memória, dias sem reiniciar).
+6. **v0.6+:**
+   - Meu PC, com o 💎 relatório para o técnico.
+   - Bateria (`powercfg /batteryreport`), Rede, Periféricos, Benchmark e Arquivos duplicados.
+   - Mapa do disco, com o 💎 apagar com segurança e os 💎 atalhos no botão direito do Explorador.
+   - 💎 Atualizar drivers pelo Windows Update.
+   - 💎 Modo de eficiência para apps em segundo plano.
+   - 💎 Monitor de instalação (remover 100% depois).
+   - 💎 Modo Jogo.

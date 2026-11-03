@@ -8,7 +8,10 @@ As listas de recursos e os preços mudam entre versões e regiões, e boa parte 
 e lojas. Por isso, a tabela diz **qual tipo de função** os pagos cobram, e não o recurso exato de cada
 versão.
 
-## Vale incluir
+## Vale incluir (todas entraram no plano)
+
+Cada função já aparece na tela correspondente do app ("O que esta tela vai fazer") e no plano de
+versões da [`ESPECIFICACAO.md`](ESPECIFICACAO.md#6-plano-de-versões).
 
 | # | Função | Quem cobra por ela | Como fazer no Pulso Lab | Versão |
 |---|---|---|---|---|
