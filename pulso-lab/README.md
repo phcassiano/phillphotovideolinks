@@ -3,7 +3,8 @@
 Limpa, otimiza e cuida da saúde do PC. Grátis e sem anúncios.
 
 Feito com [Tauri 2](https://tauri.app) (Rust) + React/TypeScript. A especificação completa está em
-[`docs/ESPECIFICACAO.md`](docs/ESPECIFICACAO.md).
+[`docs/ESPECIFICACAO.md`](docs/ESPECIFICACAO.md), e as funções de apps pagos que vamos
+incluir de graça estão em [`docs/FUNCOES-PAGAS.md`](docs/FUNCOES-PAGAS.md).
 
 ## Versão 0.1 (atual)
 
