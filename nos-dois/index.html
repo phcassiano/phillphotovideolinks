@@ -673,7 +673,7 @@ function burst(kind = "confetti", n = 70){
   for(let i = 0; i < n; i++){
     const p = document.createElement("i");
     if(kind === "hearts"){
-      p.className = "fx-heart"; p.textContent = ["❤","💚","🧡","💕"][i % 4];
+      p.className = "fx-heart"; p.textContent = ["❤️","💚","🧡","💕"][i % 4];
       p.style.left = (Math.random() * 96) + "vw"; p.style.fontSize = (18 + Math.random() * 24) + "px";
       p.style.animationDelay = (Math.random() * 1.1) + "s"; p.style.animationDuration = (2.2 + Math.random() * 1.6) + "s";
     } else {
