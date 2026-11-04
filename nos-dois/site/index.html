@@ -547,7 +547,7 @@ const appUrl = () => {
   return ARTIFACT_URL;
 };
 // Páginas legais: no site ficam em /privacidade e /termos; fora dele (versão no Claude) apontam para o site publicado.
-const SITE_URL = "https://phillphotovideolinks-nos-dois.vercel.app";
+const SITE_URL = "https://nos-dois.phillcassiano.com";
 const legalUrl = page => (/^https?:/.test(location.protocol) && mode !== "db" ? "" : SITE_URL) + "/" + page;
 const wa = text => "https://wa.me/?text=" + encodeURIComponent(text);
 const waBtn = (text, label, cls="btn sm soft") => `<a class="${cls}" href="${wa(text)}" target="_blank" rel="noopener">${ic("chat")} ${label}</a>`;
@@ -906,7 +906,7 @@ function drawRetro(ctx, d, sl, idx, total, lt, exporting){
   } else {
     rings(W / 2, 520, 90, 26, e(lt / .6));
     text("Um mês de nós dois.", 860, 92, 700, fg, .2, 900); text("E o próximo começa agora.", 1120, 50, 500, sub, .7);
-    text("Feito com Nós Dois", 1560, 44, 600, acc, 1.1); text("phillphotovideolinks-nos-dois.vercel.app", 1630, 32, 500, sub, 1.3);
+    text("Feito com Nós Dois", 1560, 44, 600, acc, 1.1); text("nos-dois.phillcassiano.com", 1640, 42, 600, sub, 1.3);
   }
 }
 function openRetro(m){
@@ -1456,7 +1456,9 @@ function render(){
   app.querySelectorAll("input[id],textarea[id],select[id]").forEach(el => { if(el.type!=="checkbox" && el.type!=="radio") keep[el.id] = el.value; });
   const focusId = ae && app.contains(ae) && ae.id ? ae.id : null;
   let sel = null; try{ if(focusId && ae.selectionStart!=null) sel = [ae.selectionStart, ae.selectionEnd]; }catch(e){}
+  const openDet = [...app.querySelectorAll("details[open][id]")].map(d => d.id); // caixas abertas continuam abertas
   app.innerHTML = screen();
+  openDet.forEach(id => { const d = document.getElementById(id); if(d) d.open = true; });
   runFx();
   for(const id in keep){ if(clearIds.has(id)) continue; const el = document.getElementById(id); if(el && app.contains(el) && el.type!=="checkbox" && el.type!=="radio") el.value = keep[id]; }
   clearIds.clear();
@@ -1953,7 +1955,7 @@ function recado(){
     <form class="stack" data-form="recado" style="gap:10px">
       <label class="field"><span>Seu recado</span><textarea id="recText" name="text" maxlength="140" rows="2" placeholder="Curto, pra ler de relance." style="min-height:64px"></textarea></label>
       ${draftImg ? `<img class="photo" src="${esc(draftImg)}" alt="Foto escolhida"><button type="button" class="btn sm ghost" data-act="recPhotoClear">Tirar a foto</button>` : `<button type="button" class="btn ghost block" data-act="recPhoto">${ic("image")} Foto</button>`}
-      <details><summary>⏰ Agendar para depois</summary><div class="stack" style="gap:8px;margin-top:10px">
+      <details id="recSched"><summary>⏰ Agendar para depois</summary><div class="stack" style="gap:8px;margin-top:10px">
         <input type="datetime-local" id="recWhen" name="when" min="${localDT(new Date())}" aria-label="Quando o recado aparece">
         <div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="chip" data-act="recWhenPreset" data-v="amanha7">Amanhã às 7h</button><button type="button" class="chip" data-act="recWhenPreset" data-v="noite">Hoje às 22h</button></div>
         <span class="small muted">O recado fica guardado e só aparece para ${esc(pn)} na hora marcada, com um aviso na tela.</span></div></details>
