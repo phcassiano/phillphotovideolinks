@@ -264,6 +264,46 @@ details summary::-webkit-details-marker{display:none}
 .weekbars span{font-size:11px;color:var(--faint);font-weight:600}
 .weekbars .now span{color:var(--fg)}
 .weekbars .now i.h0{outline:2px dashed var(--accent);outline-offset:-2px;background:transparent}
+/* Encantamento: confete, corações, datas especiais, desafios, retrospectiva e segredo */
+.fx-layer{position:fixed;inset:0;pointer-events:none;z-index:80;overflow:hidden}
+.fx-conf{position:absolute;top:-24px;width:10px;height:16px;border-radius:3px;animation:conf linear forwards}
+@keyframes conf{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(var(--dx),112vh) rotate(var(--rot))}}
+.fx-heart{position:absolute;bottom:-50px;font-style:normal;animation:heartup ease-out forwards}
+@keyframes heartup{0%{transform:translateY(0) scale(.6);opacity:0}15%{opacity:1}100%{transform:translateY(-112vh) scale(1.25);opacity:0}}
+.card.special{display:flex;gap:14px;align-items:center;background:linear-gradient(135deg,var(--accent-soft),var(--coral-soft)),var(--surface)}
+.sp-emoji{font-size:38px;line-height:1;flex:none}
+.card .grow > .eyebrow{display:block;margin-bottom:2px}
+.memory .answer{font-style:italic}
+.memory .hbtn svg{transform:rotate(45deg)}
+.sintonia{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,var(--accent-soft),var(--coral-soft));font-weight:600}
+.sintonia span{font-size:26px}
+.chdots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.chdots span{aspect-ratio:1;border-radius:50%;display:grid;place-items:center;background:var(--line-2);font-weight:700;font-size:13px;color:var(--muted)}
+.chdots span.on{background:var(--accent);color:#fff}
+.chdots span.now{outline:2px solid var(--coral);outline-offset:2px}
+.chdots svg{width:16px;height:16px}
+.medals{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.medal{display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:20px;background:var(--surface);border:1px solid var(--line);text-align:center}
+.medal span{font-size:40px;line-height:1}
+.medal small{color:var(--muted);font-size:12px}
+.egg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.egg div{background:var(--accent-soft);border-radius:18px;padding:14px;text-align:center}
+.egg b{display:block;font-family:var(--display);font-size:22px;font-weight:700;color:var(--accent);overflow-wrap:anywhere}
+.egg span{font-size:12.5px;color:var(--muted)}
+.retro{position:fixed;inset:0;z-index:70;background:#0B1513;display:flex;align-items:center;justify-content:center}
+.retro canvas{height:100%;width:auto;max-width:100vw;max-height:100vh;aspect-ratio:9/16;object-fit:contain}
+.retro .rnav{position:absolute;top:0;bottom:0;background:none;border:0;padding:0}
+.retro .rprev{left:0;width:32%}.retro .rnext{right:0;width:68%}
+.retro .rui{position:absolute;top:calc(22px + env(safe-area-inset-top,0px));right:12px;display:flex;gap:8px;z-index:2}
+.retro .rui .btn{box-shadow:none}
+:root[data-special="namorados"]{--ink:#B0144F;--accent:#AD1457;--accent-soft:rgba(233,30,99,.13)}
+:root[data-special="natal"]{--coral:#B3261E;--coral-btn:#B3261E;--coral-soft:rgba(179,38,30,.13)}
+:root[data-special="anonovo"]{--coral:#8A5A00;--coral-btn:#9A6500;--coral-soft:rgba(245,196,81,.25)}
+:root[data-special="aniversario"],:root[data-special="niver"]{--coral-soft:rgba(245,196,81,.28)}
+@media (prefers-color-scheme: dark){:root[data-special="namorados"]:not([data-theme="light"]){--ink:#F48FB1;--accent:#F48FB1;--accent-soft:rgba(244,143,177,.16)}:root[data-special="natal"]:not([data-theme="light"]){--coral:#FF8A80;--coral-btn:#FF8A80}:root[data-special="anonovo"]:not([data-theme="light"]){--coral:#F5C451;--coral-btn:#F5C451}}
+:root[data-theme="dark"][data-special="namorados"]{--ink:#F48FB1;--accent:#F48FB1}
+@media (prefers-color-scheme: light){:root[data-special="namorados"]:not([data-theme="dark"]){--glow1:#FBD3E4;--glow2:#FFD9CF}:root[data-special="natal"]:not([data-theme="dark"]){--glow1:#CFEBD9;--glow2:#F8D3CF}:root[data-special="anonovo"]:not([data-theme="dark"]){--glow1:#F7E7B4;--glow2:#E9DDF8}:root[data-special="aniversario"]:not([data-theme="dark"]),:root[data-special="niver"]:not([data-theme="dark"]){--glow1:#FFE3B3;--glow2:#FCD6E2}}
+@media (prefers-reduced-motion: reduce){.fx-layer{display:none}}
 /* Plano: cadeados, faixa do teste e tela do Premium */
 .tile.locked .ic > svg:last-of-type,.secrow.locked > svg:last-of-type{display:none}
 .lockpill{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;color:var(--coral);background:var(--coral-soft);border-radius:999px;padding:3px 8px}
@@ -298,6 +338,9 @@ details summary::-webkit-details-marker{display:none}
 <div id="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
 <div id="pop" class="pop" role="status" aria-live="polite" hidden></div>
+<div id="retro" class="retro" hidden role="dialog" aria-label="Retrospectiva do mês"><canvas id="retroCv" width="1080" height="1920" aria-label="Retrospectiva em stories"></canvas>
+  <button class="rnav rprev" data-act="retroPrev" aria-label="Anterior"></button><button class="rnav rnext" data-act="retroNext" aria-label="Próximo"></button>
+  <div class="rui"><button class="btn sm" data-act="retroShare">Compartilhar</button><button class="btn sm ghost" data-act="retroClose" style="background:rgba(255,255,255,.9);color:#1F2B28">Fechar</button></div></div>
 
 <script>
 /* ===================== Conteúdo ===================== */
@@ -513,7 +556,7 @@ const hhmm = iso => { const d = new Date(iso); return `${pad(d.getHours())}:${pa
 const lsSet = (k,v) => { try{ v==null?localStorage.removeItem(k):localStorage.setItem(k,v); }catch(e){} };
 
 /* ===================== Estado e sincronização ===================== */
-const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards"];
+const COLS = ["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards","challenges"];
 const blank = () => Object.fromEntries(COLS.map(c=>[c,{}]));
 let S = blank();
 let mode = "loading";          // loading | db | cloud | local | demo
@@ -617,12 +660,393 @@ function del(c, id){
   else saveLocal();
 }
 
+/* ===================== Encantamento ===================== */
+// Pequenas surpresas que fazem o casal sorrir: confete e corações, som, marcos que ninguém lembra,
+// sintonia nas respostas, pote de gratidão, "lembra disso?", datas especiais, desafios a dois,
+// retrospectiva do mês em stories, livro do casal e um segredo escondido no contador de dias.
+const reduceMotion = () => !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+const fxKey = k => `nd-fx-${mode==="demo" ? "demo" : (cloud && cloud.id) || mode}-${k}`;
+function burst(kind = "confetti", n = 70){
+  if(reduceMotion()) return;
+  const box = document.createElement("div"); box.className = "fx-layer"; box.setAttribute("aria-hidden", "true");
+  const cols = ["#2BB592","#F2785C","#FFC3A6","#13785F","#F5C451","#B38CF0"];
+  for(let i = 0; i < n; i++){
+    const p = document.createElement("i");
+    if(kind === "hearts"){
+      p.className = "fx-heart"; p.textContent = ["❤","💚","🧡","💕"][i % 4];
+      p.style.left = (Math.random() * 96) + "vw"; p.style.fontSize = (18 + Math.random() * 24) + "px";
+      p.style.animationDelay = (Math.random() * 1.1) + "s"; p.style.animationDuration = (2.2 + Math.random() * 1.6) + "s";
+    } else {
+      p.className = "fx-conf"; p.style.left = (15 + Math.random() * 70) + "vw"; p.style.background = cols[i % cols.length];
+      p.style.setProperty("--dx", ((Math.random() - .5) * 80) + "vw"); p.style.setProperty("--rot", (Math.random() * 900 - 450) + "deg");
+      p.style.animationDelay = (Math.random() * .3) + "s"; p.style.animationDuration = (1.7 + Math.random() * 1.3) + "s";
+    }
+    box.appendChild(p);
+  }
+  document.body.appendChild(box); setTimeout(() => box.remove(), 5000);
+}
+// Efeitos pedidos durante o desenho da tela rodam logo depois dele (e só uma vez por aparelho)
+let pendingFx = [];
+const fxOnce = (key, kind, sound) => { if(mode === "loading" || lsGet(key)) return; lsSet(key, "1"); pendingFx.push([kind, sound]); };
+function runFx(){ if(!pendingFx.length) return; const list = pendingFx; pendingFx = []; setTimeout(() => list.forEach(([k, s]) => { burst(k); if(s) chime(s); }), 350); }
+
+/* ----- Som e vibração ----- */
+const sfxOn = () => lsGet("nd-sfx") !== "0";
+let actx = null;
+function chime(kind = "note"){
+  if(!sfxOn()) return;
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if(actx.state === "suspended") actx.resume();
+    const notes = kind === "love" ? [659, 784, 988, 1319] : kind === "win" ? [523, 659, 784, 1047] : [784, 1175];
+    notes.forEach((f, i) => { const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + i * .09;
+      o.type = "sine"; o.frequency.value = f; g.gain.setValueAtTime(.0001, t0); g.gain.exponentialRampToValueAtTime(.16, t0 + .02); g.gain.exponentialRampToValueAtTime(.0001, t0 + .75);
+      o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + .8); });
+  }catch(e){}
+  try{ if(navigator.vibrate) navigator.vibrate(kind === "love" ? [40,60,40,60,120] : kind === "win" ? [30,40,30] : [35,50,35]); }catch(e){}
+}
+// Os navegadores só liberam áudio depois de um toque
+document.addEventListener("pointerdown", () => { if(sfxOn() && !actx){ try{ actx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){} } }, {once:true});
+
+/* ----- Datas especiais (tema do app muda no dia) ----- */
+function specialDay(){
+  const c = C(); if(!c || !me) return null;
+  const t = today(), md = t.slice(5), y = Number(t.slice(0,4));
+  if(md === "06-12") return {k:"namorados", emoji:"💘", title:"Feliz Dia dos Namorados!", sub:`${nameOf("a")} e ${nameOf("b")}, hoje o dia é de vocês.`};
+  if(c.start && c.start.slice(5) === md && c.start.slice(0,4) < t.slice(0,4)){ const n = y - Number(c.start.slice(0,4)); return {k:"aniversario", emoji:"🥂", title:`${pl(n,"ano","anos")} juntos hoje!`, sub:"Feliz aniversário de vocês. Que venham muitos outros."}; }
+  for(const s of ["a","b"]){ const b = (S.about[s] || {}).birthday;
+    if(b && b.slice(5) === md) return {k:"niver", who:s, emoji:"🎂", title: s === me ? `Feliz aniversário, ${nameOf(s)}!` : `Hoje é aniversário de ${nameOf(s)}!`, sub: s === me ? `${nameOf(other(s))} está com você nessa.` : `Que tal deixar um recado na tela de ${nameOf(s)}?`}; }
+  if(md === "12-24" || md === "12-25") return {k:"natal", emoji:"🎄", title:"Feliz Natal!", sub:"Que a casa de vocês fique cheia de coisa boa."};
+  if(md === "12-31") return {k:"anonovo", emoji:"✨", title:"Último dia do ano", sub:"Que tal assistir à retrospectiva de vocês?"};
+  if(md === "01-01") return {k:"anonovo", emoji:"🎆", title:"Feliz Ano Novo!", sub:"Um ano inteirinho pela frente, a dois."};
+  if(hasStage("temos") && t === nthSunday(y, 5, 2)) return {k:"maes", emoji:"💐", title:"Feliz Dia das Mães!", sub:"Para quem cuida de tudo e de todos."};
+  if(hasStage("temos") && t === nthSunday(y, 8, 2)) return {k:"pais", emoji:"🎈", title:"Feliz Dia dos Pais!", sub:"Para quem está junto em cada fase."};
+  return null;
+}
+
+/* ----- Marcos que ninguém lembra ----- */
+function milestonesToday(){
+  const c = C(); if(!c) return []; const t = today(), out = [];
+  if(c.start){ const d = diff(c.start, t);
+    if(d > 0 && (d === 100 || d === 500 || d % 1000 === 0 || /^(\d)\1{2,}$/.test(String(d))))
+      out.push({k:"dias" + d, emoji:"🎉", title:`Hoje vocês completam ${nf(d)} dias juntos`, sub: d % 1000 === 0 ? "Um número redondo desses não se repete tão cedo." : d < 1000 ? "Contando cada um deles." : "Um número de sorte: todo igual."});
+    const p = ymd(c.start, t), months = p.y * 12 + p.m;
+    if(p.d === 0 && p.m !== 0 && months > 0 && months < 24) out.push({k:"mes" + months, emoji:"💞", title:`Hoje faz ${pl(months,"mês","meses")} que vocês estão juntos`, sub:"Mesversário! Comemorem do jeito de vocês."});
+  }
+  const both = [...new Set(Object.values(S.answers).map(a => a.date))].filter(bothDone).sort(), nb = both.length;
+  if(nb && both[nb - 1] === t && [1,10,30,50,100,200,365,500,1000].includes(nb))
+    out.push({k:"resp" + nb, emoji:"💬", title: nb === 1 ? "A primeira pergunta respondida pelos dois!" : `${nf(nb)}ª pergunta respondida pelos dois`, sub:"Cada resposta é um pedacinho de vocês guardado aqui."});
+  const done = []; Object.values(S.tasks).forEach(x => { if(x.done && x.doneAt) done.push(x.doneAt); (x.log || []).forEach(l => done.push(l.at)); }); done.sort();
+  const nt = done.length;
+  if(nt && done[nt - 1] === t && [10,50,100,250,500,1000].includes(nt)) out.push({k:"tar" + nt, emoji:"🏠", title:`${nf(nt)} tarefas feitas juntos`, sub:"A casa agradece. E a carga ficou mais leve."});
+  return out;
+}
+
+/* ----- Sintonia: quando os dois respondem parecido ----- */
+const STOPW = new Set("a o e de da do das dos em no na nos nas um uma uns umas que se por para pra com sem ao aos as os eu voce vc meu minha teu tua seu sua nosso nossa isso essa esse este esta mais muito bem tao ou mas como quando onde ja so tambem ser ter foi era estou ele ela eles elas me te lhe nao sim".split(" "));
+const normWords = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 1 && !STOPW.has(w));
+function sintonia(d){
+  const a = ans(d, "a"), b = ans(d, "b"); if(!a || !b) return false;
+  const x = normWords(a.text), y = normWords(b.text); if(!x.length || !y.length) return false;
+  const sx = new Set(x), sy = new Set(y), inter = [...sx].filter(w => sy.has(w)).length, small = Math.min(sx.size, sy.size);
+  if(small <= 3 && inter >= small) return true;          // respostas curtas iguais ou uma dentro da outra
+  return inter / new Set([...sx, ...sy]).size >= .5;     // respostas longas com metade das palavras em comum
+}
+const WORD_SKIP = new Set("dois duas gente voces coisa coisas fazer feito muito mais tudo sempre quando porque agora vamos nossa nosso nossos nossas dele dela todo toda todos todas cada mesmo mesma outro outra algum alguma depois antes ainda aqui la ali assim entao pouco vida dia dias vez vezes".split(" "));
+const sintoniaDays = () => [...new Set(Object.values(S.answers).map(a => a.date))].filter(sintonia).sort();
+
+/* ----- Gratidão: agradecimentos guardam a data ----- */
+function thanksIn(from, to){
+  const out = {a:0, b:0}; const add = (who, v) => { if(typeof v === "string" && v >= from && v <= to && out[who] != null) out[who]++; };
+  Object.values(S.tasks).forEach(x => Object.entries(x.thanks || {}).forEach(([w, v]) => add(w, v)));
+  ["a","b"].forEach(s => { const r = S.meta["recado_" + s]; if(r && r.thanks) Object.entries(r.thanks).forEach(([w, v]) => add(w, v)); });
+  return out;
+}
+
+/* ----- Lembra disso? ----- */
+const weekNo = () => Math.floor(dayNum(today()) / 7);
+function agoText(d){ const n = diff(d, today()); if(n >= 330){ const y = Math.max(1, Math.round(n / 365)); return `Há ${pl(y,"ano","anos")}`; } if(n >= 60) return `Há ${Math.floor(n / 30)} meses`; return `Há ${Math.floor(n / 7)} semanas`; }
+function memoryOfWeek(){
+  const t = today(); const cands = [...new Set(Object.values(S.answers).map(a => a.date))].filter(d => diff(d, t) >= 28 && bothDone(d)).sort();
+  if(!cands.length) return null;
+  const same = cands.filter(d => d.slice(5) === t.slice(5)), wk = weekNo();
+  const d = same.length ? same[same.length - 1] : cands[wk % cands.length];
+  const a = ans(d, wk % 2 ? "a" : "b") || ans(d, wk % 2 ? "b" : "a");
+  return a ? {d, a} : null;
+}
+
+/* ----- Recado com hora marcada ----- */
+const nowIso = () => new Date().toISOString();
+const recadoVisible = r => !!r && !!(r.text || r.photo) && (!r.showAt || r.showAt <= nowIso());
+const fmtWhen = iso => new Date(iso).toLocaleString("pt-BR", {weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+const localDT = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function checkScheduledRecado(){
+  if(!me || mode === "demo" || mode === "loading" || !C()) return;
+  const r = S.meta["recado_" + other(me)]; if(!r || !r.showAt || r.showAt > nowIso()) return;
+  const k = fxKey("recshow-" + r.at); if(lsGet(k)) return; lsSet(k, "1");
+  announce([{key:"rec", raw:true, title:`Recado de ${nameOf(other(me))}`, text: r.text || "Mandou uma foto para a sua tela.", view:"home"}]);
+  scheduleBg();
+}
+setInterval(checkScheduledRecado, 15000);
+
+/* ----- Desafios a dois ----- */
+const CHALLENGES = [
+  {k:"elogios", emoji:"🌷", title:"7 dias de elogios", desc:"Cada dia, um elogio sincero, em voz alta ou por mensagem.", check:"Fiz meu elogio hoje"},
+  {k:"jantar", emoji:"🍽️", title:"Jantar sem celular", desc:"Uma semana de jantares com os celulares longe da mesa.", check:"Jantamos sem celular", together:true},
+  {k:"gesto", emoji:"🎁", title:"Um gesto por dia", desc:"Um cuidado pequeno por dia: um café, um bilhete, uma tarefa a menos.", check:"Fiz meu gesto hoje"},
+  {k:"perguntas", emoji:"💬", title:"7 perguntas seguidas", desc:"Os dois respondem a pergunta do dia por 7 dias. Conta sozinho.", auto:"answers"},
+  {k:"obrigado", emoji:"❤", title:"7 dias de obrigado", desc:"Agradecer o outro todo dia por algo que ele(a) fez.", check:"Agradeci hoje"},
+  {k:"caminhada", emoji:"🚶", title:"Caminhada a dois", desc:"20 minutos andando juntos, sem pressa, todo dia.", check:"Caminhamos hoje", together:true},
+];
+const chDef = k => CHALLENGES.find(c => c.k === k) || {emoji:"⭐", title:"Desafio", desc:"", check:"Fiz hoje"};
+const chDays = ch => [0,1,2,3,4,5,6].map(i => addDays(ch.start, i));
+function chDayDone(ch, d){ const def = chDef(ch.k); if(def.auto === "answers") return bothDone(d); const c = (ch.checks || {})[d] || {}; return def.together ? !!(c.a || c.b) : !!(c.a && c.b); }
+const chCount = ch => chDays(ch).filter(d => d <= today() && chDayDone(ch, d)).length;
+const chList = () => Object.entries(S.challenges).map(([id, c]) => ({...c, id})).sort((a, b) => a.start < b.start ? 1 : -1);
+const chActive = () => chList().find(c => !c.ended && diff(c.start, today()) >= 0 && diff(c.start, today()) <= 6) || null;
+const chFinished = () => chList().filter(c => c.ended || diff(c.start, today()) > 6);
+const medalOf = n => n >= 7 ? ["🥇","Ouro"] : n >= 5 ? ["🥈","Prata"] : n >= 3 ? ["🥉","Bronze"] : ["🌱","Semente"];
+function desafios(){
+  const pn = nameOf(other(me)), act = chActive(), fin = chFinished(), t = today();
+  let top = "";
+  if(act){
+    const def = chDef(act.k), idx = diff(act.start, t), n = chCount(act), mine = ((act.checks || {})[t] || {})[me], theirs = ((act.checks || {})[t] || {})[other(me)];
+    if(n === 7) fxOnce(fxKey("ch7-" + act.id), "confetti", "win");
+    top = `<section class="hero stack" style="gap:12px">
+      <div class="row between"><span class="eyebrow">Desafio de vocês · dia ${idx + 1} de 7</span><span style="font-size:32px;line-height:1">${def.emoji}</span></div>
+      <h2>${esc(def.title)}</h2><p class="small muted">${esc(def.desc)}</p>
+      <div class="chdots">${chDays(act).map((d, i) => `<span class="${chDayDone(act, d) ? "on" : ""} ${d === t ? "now" : ""}" title="${esc(fmtShort(d))}">${chDayDone(act, d) ? ic("tick") : i + 1}</span>`).join("")}</div>
+      ${def.auto ? (bothDone(t) ? `<p class="small">Hoje já conta: os dois responderam ✓</p>` : `<button class="btn block" data-act="go" data-v="pergunta">Responder a pergunta de hoje</button>`)
+        : `<button class="btn block ${mine ? "ghost" : ""}" data-act="chCheck" data-id="${act.id}">${mine ? `${ic("tick")} Marcado hoje` : esc(def.check)}</button>
+           <p class="small muted">${def.together ? "Vale quando um dos dois marcar." : theirs ? `${esc(pn)} já marcou hoje.` : `${esc(pn)} ainda não marcou hoje.`}</p>`}
+      <div class="row between small"><span class="muted num">${n} de 7 dias cumpridos</span><button class="linkrow small muted" data-act="chEnd" data-id="${act.id}">Encerrar</button></div>
+    </section>`;
+  }
+  const medals = fin.map(c => { const def = chDef(c.k), n = chDays(c).filter(d => d <= today() && chDayDone(c, d)).length, [m, l] = medalOf(n);
+    return `<div class="medal"><span>${m}</span><b>${esc(def.title)}</b><small>${l} · ${n}/7 · ${esc(fmt(c.start, {month:"short", year:"numeric"}))}</small></div>`; }).join("");
+  const list = CHALLENGES.map(d => `<section class="card row" style="gap:12px"><span style="font-size:30px;line-height:1">${d.emoji}</span><div class="grow"><b>${esc(d.title)}</b><p class="small muted">${esc(d.desc)}</p></div>${act ? "" : `<button class="btn sm" data-act="chStart" data-k="${d.k}">Começar</button>`}</section>`).join("");
+  return `${topBack("Desafios a dois", "Sete dias, uma missão leve, uma medalha para os dois")}
+  ${top}
+  ${medals ? `<div class="section"><h3>Medalhas de vocês</h3><div class="medals">${medals}</div></div>` : ""}
+  <div class="section"><h3>${act ? "Próximos desafios" : "Escolham um desafio"}</h3><div class="stack">${list}</div>${act ? `<p class="small muted">Um desafio por vez. Quando este acabar, vocês escolhem o próximo.</p>` : ""}</div>`;
+}
+
+/* ----- Retrospectiva do mês (stories desenhados em canvas, prontos para postar) ----- */
+const SLIDE_S = 5.5;
+let retro = null;
+const monthOnly = m => { const [y, mo] = m.split("-").map(Number); return new Date(y, mo - 1, 1).toLocaleDateString("pt-BR", {month:"long"}); };
+function retroData(m){
+  const inM = d => (d || "").slice(0, 7) === m;
+  const both = [...new Set(Object.values(S.answers).map(a => a.date))].filter(d => inM(d) && bothDone(d));
+  const tasks = {a:0, b:0};
+  Object.values(S.tasks).forEach(x => { if(x.done && inM(x.doneAt) && tasks[x.doneBy] != null) tasks[x.doneBy]++; (x.log || []).forEach(l => { if(inM(l.at) && tasks[l.by] != null) tasks[l.by]++; }); });
+  const [y, mo] = m.split("-").map(Number); const last = `${m}-${pad(new Date(y, mo, 0).getDate())}`;
+  const words = {}; both.forEach(d => ["a","b"].forEach(s => normWords(ans(d, s).text).filter(w => w.length >= 4 && !WORD_SKIP.has(w)).forEach(w => { words[w] = (words[w] || 0) + 1; })));
+  const top = Object.entries(words).sort((a, b) => b[1] - a[1])[0];
+  return {m, mon:monthOnly(m), year:y, both:both.length, sint:both.filter(sintonia).length, tasks, th:thanksIn(`${m}-01`, last),
+    polls:Object.values(S.polls).filter(q => inM((q.at || "").slice(0, 10)) && q.votes && q.votes.a != null && q.votes.a === q.votes.b).length,
+    dates:Object.values(S.dates).filter(d => d.type === "encontro" && !d.yearly && inM(d.date)).length,
+    word: top && top[1] >= 2 ? top[0] : null,
+    medals: chFinished().filter(c => inM(addDays(c.start, 6))).map(c => ({def:chDef(c.k), medal:medalOf(chDays(c).filter(d => chDayDone(c, d)).length)}))};
+}
+const retroHasData = d => d.both + d.tasks.a + d.tasks.b + d.th.a + d.th.b + d.polls + d.dates > 0;
+function retroSlides(d){
+  const s = [{type:"cover"}];
+  if(d.both) s.push({type:"num", eyebrow:"Pergunta do dia", n:d.both, label: d.both === 1 ? "dia em que os dois responderam" : "dias em que os dois responderam", extra: d.sint ? `🫶 ${pl(d.sint,"vez","vezes")} vocês pensaram igual` : "Cada resposta, um pedacinho de vocês."});
+  const tt = d.tasks.a + d.tasks.b; if(tt) s.push({type:"versus", eyebrow:"A casa", n:tt, label: tt === 1 ? "tarefa feita" : "tarefas feitas"});
+  const th = d.th.a + d.th.b; if(th) s.push({type:"num", eyebrow:"Gratidão", n:th, label: th === 1 ? "obrigado trocado" : "obrigados trocados", extra:"❤ Reconhecer também é cuidar."});
+  const duo = [[d.polls, d.polls === 1 ? "decisão combinada" : "decisões combinadas"], [d.dates, d.dates === 1 ? "encontro a dois" : "encontros a dois"]].filter(([n]) => n > 0);
+  if(duo.length) s.push({type:"duo", eyebrow:"Juntos", items:duo});
+  if(d.word) s.push({type:"word", eyebrow:"A palavra do mês"});
+  if(d.medals.length) s.push({type:"medals", eyebrow:"Desafios"});
+  s.push({type:"end"});
+  return s;
+}
+function rr(ctx, x, y, w, h, r){ ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function wrapLines(ctx, text, maxW){ const words = String(text).split(" "), lines = []; let cur = "";
+  words.forEach(w => { const tryL = cur ? cur + " " + w : w; if(ctx.measureText(tryL).width > maxW && cur){ lines.push(cur); cur = w; } else cur = tryL; }); if(cur) lines.push(cur); return lines; }
+function drawRetro(ctx, d, sl, idx, total, lt, exporting){
+  const W = 1080, H = 1920, e = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3), dark = sl.type === "cover" || sl.type === "end";
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  if(dark){ g.addColorStop(0, "#16846B"); g.addColorStop(1, "#0B4F40"); } else { g.addColorStop(0, "#CFEBDF"); g.addColorStop(.5, "#EEF6F2"); g.addColorStop(1, "#FBDCC9"); }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const blob = (x, y, r, c) => { const rg = ctx.createRadialGradient(x, y, 0, x, y, r); rg.addColorStop(0, c); rg.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = rg; ctx.fillRect(x - r, y - r, r * 2, r * 2); };
+  blob(160 + Math.sin(lt * .6) * 60, 300, 420, dark ? "rgba(95,212,182,.35)" : "rgba(159,224,198,.7)"); blob(920, 1600 + Math.cos(lt * .5) * 60, 480, dark ? "rgba(255,195,166,.25)" : "rgba(255,195,166,.7)");
+  if(!exporting) for(let i = 0; i < total; i++){ const bw = (W - 96) / total, x = 48 + i * bw, w = bw - 10, f = i < idx ? 1 : i === idx ? Math.min(1, lt / SLIDE_S) : 0;
+    ctx.fillStyle = dark ? "rgba(255,255,255,.3)" : "rgba(31,43,40,.15)"; rr(ctx, x, 56, w, 8, 4); ctx.fill(); if(f > 0){ ctx.fillStyle = dark ? "#FFFFFF" : "#13785F"; rr(ctx, x, 56, Math.max(8, w * f), 8, 4); ctx.fill(); } }
+  const fg = dark ? "#F4FBF8" : "#1F2B28", sub = dark ? "#D7F0E7" : "#4C5C57", acc = dark ? "#FFC3A6" : "#13785F", coral = dark ? "#FFC3A6" : "#C24A2A";
+  ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  const text = (s, y, size, weight, color, delay = 0, maxW = 920) => { const a = e((lt - delay) / .6); ctx.globalAlpha = a; ctx.fillStyle = color; ctx.font = `${weight} ${size}px Poppins, Inter, system-ui, sans-serif`;
+    const lines = wrapLines(ctx, s, maxW); lines.forEach((l, i) => ctx.fillText(l, W / 2, y + i * size * 1.15 + (1 - a) * 50)); ctx.globalAlpha = 1; return lines.length; };
+  const count = (n, delay = .3) => Math.round(n * e((lt - delay) / 1.4));
+  const rings = (cx, cy, r, w, a) => { ctx.globalAlpha = a; ctx.lineWidth = w; ctx.strokeStyle = "#FFFFFF"; ctx.beginPath(); ctx.arc(cx - r * .54, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.strokeStyle = "#FFC3A6"; ctx.beginPath(); ctx.arc(cx + r * .54, cy, r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; };
+  const A = nameOf("a"), B = nameOf("b");
+  if(sl.type === "cover"){
+    rings(W / 2, 620, 120 * (.85 + .15 * e(lt / .8)), 34, e(lt / .6));
+    text("O nosso", 930, 70, 600, sub, .3); text(cap1(d.mon), 1090, 160, 700, acc, .5); text(`${A} & ${B}`, 1240, 56, 600, fg, .8); text(String(d.year), 1330, 40, 500, sub, 1);
+  } else if(sl.type === "num"){
+    text(sl.eyebrow.toUpperCase(), 520, 40, 700, acc, 0); text(nf(count(sl.n)), 960, 300, 700, fg, .1); const nl = text(sl.label, 1100, 60, 600, fg, .5, 860); text(sl.extra, 1150 + nl * 70, 46, 500, coral, 1, 860);
+  } else if(sl.type === "versus"){
+    text(sl.eyebrow.toUpperCase(), 460, 40, 700, acc, 0); text(nf(count(sl.n)), 820, 280, 700, fg, .1); text(sl.label, 930, 58, 600, fg, .4);
+    const max = Math.max(1, d.tasks.a, d.tasks.b);
+    [["a", A, "#2BB592", 1130], ["b", B, "#F2785C", 1310]].forEach(([s, name, col, y], i) => { const a = e((lt - .8 - i * .2) / .6);
+      ctx.globalAlpha = a; ctx.textAlign = "left"; ctx.fillStyle = fg; ctx.font = `600 46px Poppins, Inter, sans-serif`; ctx.fillText(name, 110, y);
+      ctx.textAlign = "right"; ctx.fillText(nf(count(d.tasks[s], .8)), 970, y); ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(31,43,40,.12)"; rr(ctx, 110, y + 26, 860, 34, 17); ctx.fill(); ctx.fillStyle = col; rr(ctx, 110, y + 26, Math.max(34, 860 * d.tasks[s] / max * e((lt - 1) / 1.2)), 34, 17); ctx.fill(); ctx.globalAlpha = 1; });
+    const win = d.tasks.a === d.tasks.b ? "Empate perfeito 🤝" : `Quem mais fez: ${d.tasks.a > d.tasks.b ? A : B} 💪`; text(win, 1560, 50, 600, coral, 1.8);
+  } else if(sl.type === "duo"){
+    text(sl.eyebrow.toUpperCase(), 440, 40, 700, acc, 0);
+    sl.items.forEach(([n, l], i) => { text(nf(count(n, .2 + i * .4)), 820 + i * 480, 240, 700, fg, .2 + i * .4); text(l, 920 + i * 480, 54, 600, i ? coral : acc, .5 + i * .4); });
+  } else if(sl.type === "word"){
+    text(sl.eyebrow.toUpperCase(), 620, 40, 700, acc, 0);
+    ctx.font = `700 180px Poppins, sans-serif`; const size = Math.min(180, Math.floor(180 * 900 / Math.max(1, ctx.measureText(`“${d.word}”`).width)));
+    text(`“${d.word}”`, 1000, size, 700, fg, .3, 2000); text("a mais repetida nas respostas de vocês", 1160, 48, 500, sub, .8, 820);
+  } else if(sl.type === "medals"){
+    text(sl.eyebrow.toUpperCase(), 460, 40, 700, acc, 0); text("Missões cumpridas a dois", 560, 58, 600, fg, .2);
+    d.medals.slice(0, 3).forEach((m, i) => { text(m.medal[0], 860 + i * 300, 150, 400, fg, .5 + i * .3); text(`${m.def.title} · ${m.medal[1]}`, 940 + i * 300, 44, 600, sub, .6 + i * .3); });
+  } else {
+    rings(W / 2, 520, 90, 26, e(lt / .6));
+    text("Um mês de nós dois.", 860, 92, 700, fg, .2, 900); text("E o próximo começa agora.", 1120, 50, 500, sub, .7);
+    text("Feito com Nós Dois", 1560, 44, 600, acc, 1.1); text("phillphotovideolinks-nos-dois.vercel.app", 1630, 32, 500, sub, 1.3);
+  }
+}
+function openRetro(m){
+  const d = retroData(m); if(!retroHasData(d)){ toast(`Ainda não há o que mostrar de ${monthOnly(m)}. Usem o app juntos e voltem depois!`); return; }
+  retro = {d, slides:retroSlides(d), i:0, t0:performance.now()};
+  const box = document.getElementById("retro"); box.hidden = false;
+  try{ document.fonts.load("700 100px Poppins"); }catch(e){}
+  cancelAnimationFrame(retro.raf || 0); tickRetro(); chime("win");
+}
+function tickRetro(){
+  if(!retro) return;
+  let lt = (performance.now() - retro.t0) / 1000;
+  if(lt > SLIDE_S && retro.i < retro.slides.length - 1){ retro.i++; retro.t0 = performance.now(); lt = 0; }
+  if(reduceMotion()) lt = Math.max(lt, 3);
+  const cv = document.getElementById("retroCv"); drawRetro(cv.getContext("2d"), retro.d, retro.slides[retro.i], retro.i, retro.slides.length, Math.min(lt, SLIDE_S));
+  retro.raf = requestAnimationFrame(tickRetro);
+}
+function closeRetro(){ if(retro) cancelAnimationFrame(retro.raf); retro = null; document.getElementById("retro").hidden = true; }
+function stepRetro(k){ if(!retro) return; retro.i = Math.max(0, Math.min(retro.slides.length - 1, retro.i + k)); retro.t0 = performance.now(); }
+async function shareRetro(){
+  if(!retro) return;
+  const c = document.createElement("canvas"); c.width = 1080; c.height = 1920;
+  drawRetro(c.getContext("2d"), retro.d, retro.slides[retro.i], retro.i, retro.slides.length, 99, true);
+  const blob = await new Promise(r => c.toBlob(r, "image/png")); if(!blob){ toast("Não deu para gerar a imagem."); return; }
+  const file = new File([blob], `nos-dois-${retro.d.m}-${retro.i + 1}.png`, {type:"image/png"});
+  try{ if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"O nosso mês", text:"A retrospectiva do nosso mês no Nós Dois 💚"}); return; } }
+  catch(e){ if(e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800); toast("Imagem salva. É só postar nos stories!");
+}
+
+/* ----- Livro do casal (abre numa aba pronta para salvar em PDF) ----- */
+function livro(){
+  const both = [...new Set(Object.values(S.answers).map(a => a.date))].filter(bothDone).length;
+  return `${topBack("Livro do casal", "Tudo o que vocês escreveram, num livro para guardar")}
+  <section class="hero stack" style="gap:12px"><span style="font-size:44px;line-height:1">📖</span>
+    <h2>A história de vocês, página por página</h2>
+    <p class="small muted">Capa, números, ${pl(both,"resposta","respostas")} da pergunta do dia, as vezes que pensaram igual, recados, datas, família e desafios. Dá para salvar em PDF, mandar para a família ou imprimir.</p>
+    <button class="btn block" data-act="makeBook">${ic("image")} Gerar o livro</button>
+    <p class="small muted">Abre numa nova aba. Lá, toque em <b>Salvar em PDF</b>. No celular: Compartilhar › Imprimir › Salvar como PDF.</p></section>`;
+}
+function bookHtml(){
+  const e = esc, c = C() || {}, A = nameOf("a"), B = nameOf("b"), t = today();
+  const days = c.start ? diff(c.start, t) : 0;
+  const both = [...new Set(Object.values(S.answers).map(a => a.date))].filter(bothDone).sort().reverse();
+  const sint = new Set(sintoniaDays());
+  const photo = s => { const p = safeImg(photoOf(s)); return p ? `<img class="ph" src="${e(p)}" alt="">` : `<div class="ph ini">${e(initial(s))}</div>`; };
+  const done = s => Object.values(S.tasks).reduce((n, x) => n + ((x.done && x.doneBy === s) ? 1 : 0) + (x.log || []).filter(l => l.by === s).length, 0);
+  const polls = Object.values(S.polls).filter(q => q.votes && q.votes.a != null && q.votes.a === q.votes.b);
+  const answers = [...both.filter(d => sint.has(d)), ...both.filter(d => !sint.has(d))].slice(0, 60).sort().reverse();
+  const recs = ["a","b"].map(s => [s, S.meta["recado_" + s]]).filter(([, r]) => r && r.text);
+  const dates = Object.values(S.dates).sort((x, y) => x.date < y.date ? -1 : 1);
+  const kids = Object.entries(S.kids);
+  const medals = chFinished().map(ch => ({def:chDef(ch.k), m:medalOf(chDays(ch).filter(d => chDayDone(ch, d)).length), start:ch.start}));
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Livro de ${e(A)} & ${e(B)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+@page{size:A5;margin:14mm}
+*{box-sizing:border-box}body{margin:0;font:12.5pt/1.55 Inter,system-ui,sans-serif;color:#1F2B28;background:#EAF4EF}
+.bar{position:sticky;top:0;display:flex;gap:10px;justify-content:center;padding:12px;background:#14201D;z-index:2}
+.bar button{font:600 15px Inter,sans-serif;border:0;border-radius:999px;padding:12px 22px;background:#2BB592;color:#06231B}
+.page{background:#FFFFFF;max-width:148mm;margin:14px auto;padding:16mm 14mm;break-after:page;page-break-after:always;border-radius:6px}
+.cover{background:linear-gradient(150deg,#16846B,#0B4F40);color:#F4FBF8;text-align:center;min-height:190mm;display:flex;flex-direction:column;justify-content:center;gap:10mm}
+h1,h2{font-family:Poppins,sans-serif;margin:0;letter-spacing:-.02em}h1{font-size:30pt;line-height:1.05}h2{font-size:17pt;margin-bottom:6mm;color:#13785F}
+.sub{opacity:.85}.phs{display:flex;justify-content:center;gap:6mm}.ph{width:28mm;height:28mm;border-radius:50%;object-fit:cover;border:3px solid #FFC3A6}
+.ini{display:grid;place-items:center;background:#FFC3A6;color:#0B4F40;font:700 18pt Poppins,sans-serif}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:4mm}.n{background:#EEF6F2;border-radius:4mm;padding:4mm}.n b{display:block;font:700 18pt Poppins,sans-serif;color:#13785F}.n span{font-size:10pt;color:#4C5C57}
+.q{break-inside:avoid;margin:0 0 6mm;padding-bottom:4mm;border-bottom:1px solid #DCE9E3}.q .d{font-size:9pt;color:#5E6E69}.q .t{font-weight:600;margin:1mm 0}.q p{margin:1mm 0}.tag{display:inline-block;font-size:8.5pt;font-weight:700;color:#C24A2A;background:#FCE5D8;border-radius:99px;padding:0 6px}
+.who{font-weight:600;color:#13785F}.rec{font:500 14pt Poppins,sans-serif;background:#FFF4EE;border-radius:4mm;padding:5mm;margin-bottom:4mm}
+ul{padding-left:5mm}li{margin-bottom:1.5mm}.end{text-align:center;color:#4C5C57}
+@media print{body{background:#fff}.bar{display:none}.page{margin:0;max-width:none;border-radius:0;padding:0}.cover{min-height:180mm;padding:10mm}}
+</style></head><body>
+<div class="bar"><button onclick="window.print()">Salvar em PDF / Imprimir</button></div>
+<section class="page cover"><div class="phs">${photo("a")}${photo("b")}</div><h1>${e(A)} & ${e(B)}</h1>
+<div class="sub">${c.start ? `Juntos desde ${e(fmt(c.start, {day:"numeric", month:"long", year:"numeric"}))}` : ""}</div><div class="sub">O livro de nós dois · ${e(fmt(t, {month:"long", year:"numeric"}))}</div></section>
+<section class="page"><h2>Os nossos números</h2><div class="nums">
+<div class="n"><b>${nf(days)}</b><span>dias juntos</span></div><div class="n"><b>${nf(both.length)}</b><span>perguntas respondidas pelos dois</span></div>
+<div class="n"><b>${nf(sint.size)}</b><span>vezes que pensamos igual</span></div><div class="n"><b>${nf(polls.length)}</b><span>decisões combinadas</span></div>
+<div class="n"><b>${nf(done("a"))}</b><span>tarefas feitas por ${e(A)}</span></div><div class="n"><b>${nf(done("b"))}</b><span>tarefas feitas por ${e(B)}</span></div>
+<div class="n"><b>${nf(Object.values(S.dates).filter(d => d.type === "encontro").length)}</b><span>encontros a dois</span></div><div class="n"><b>${nf(Object.values(S.wishes).filter(w => w.got).length)}</b><span>desejos realizados</span></div>
+</div></section>
+${answers.length ? `<section class="page"><h2>As nossas respostas</h2>${answers.map(d => { const a = ans(d, "a"), b = ans(d, "b");
+  return `<div class="q"><div class="d">${e(fmt(d, {day:"numeric", month:"long", year:"numeric"}))} ${sint.has(d) ? `<span class="tag">🫶 pensamos igual</span>` : ""}</div><div class="t">${e(a.q || b.q || "")}</div><p><span class="who">${e(A)}:</span> ${e(a.text)}</p><p><span class="who">${e(B)}:</span> ${e(b.text)}</p></div>`; }).join("")}</section>` : ""}
+${recs.length ? `<section class="page"><h2>Recados na tela</h2>${recs.map(([s, r]) => `<div class="rec">“${e(r.text)}”<div class="d" style="font:400 10pt Inter,sans-serif;color:#5E6E69;margin-top:2mm">— ${e(nameOf(s))}</div></div>`).join("")}</section>` : ""}
+${dates.length ? `<section class="page"><h2>As nossas datas</h2><ul>${dates.map(d => `<li><b>${e(fmt(d.date, {day:"numeric", month:"long", year: d.yearly ? undefined : "numeric"}))}</b> · ${e(d.title)}</li>`).join("")}</ul></section>` : ""}
+${kids.length ? `<section class="page"><h2>A nossa família</h2>${kids.map(([id, k]) => { const js = Object.values(S.journal).filter(j => j.kidId === id).sort((x, y) => x.date < y.date ? -1 : 1);
+  return `<div class="q"><div class="t" style="font:600 14pt Poppins,sans-serif">${e(k.name)}</div><div class="d">Nasceu em ${e(fmt(k.birth, {day:"numeric", month:"long", year:"numeric"}))}</div>${js.length ? `<ul>${js.map(j => `<li><b>${e(fmt(j.date, {day:"numeric", month:"short", year:"numeric"}))}</b> · ${e(j.text)}</li>`).join("")}</ul>` : ""}</div>`; }).join("")}</section>` : ""}
+${medals.length ? `<section class="page"><h2>Desafios cumpridos</h2><ul>${medals.map(m => `<li>${m.m[0]} <b>${e(m.def.title)}</b> · ${e(m.m[1])} · ${e(fmt(m.start, {month:"long", year:"numeric"}))}</li>`).join("")}</ul></section>` : ""}
+<section class="page end"><h2>Continua…</h2><p>Esta história ainda está sendo escrita, um dia de cada vez.</p><p style="font-size:9pt;margin-top:12mm">Feito com Nós Dois</p></section>
+</body></html>`;
+}
+function makeBook(){
+  const url = URL.createObjectURL(new Blob([bookHtml()], {type:"text/html"}));
+  const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; document.body.appendChild(a); a.click();
+  setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 60000); burst("confetti", 40); toast("O livro abriu numa nova aba 📖");
+}
+
+/* ----- Segredo: 5 toques no contador de dias ----- */
+let eggN = 0, eggT = 0, eggTimer = null;
+function openEgg(){
+  const c = C(); if(!c || !c.start) return;
+  burst("confetti"); chime("win");
+  openSheet("Juntos há…", `<div class="egg" id="eggLive"></div><p class="small muted" style="text-align:center">Desde ${esc(fmt(c.start, {day:"numeric", month:"long", year:"numeric"}))}. E contando. 💚</p>`, null,
+    {extra:`<button type="button" class="btn block" data-act="closeSheet">Que lindo</button>`});
+  const [y, m, d] = c.start.split("-").map(Number), base = new Date(y, m - 1, d).getTime();
+  const upd = () => { const el = document.getElementById("eggLive"); if(!el){ clearInterval(eggTimer); return; }
+    const s = Math.floor((Date.now() - base) / 1000);
+    el.innerHTML = [[Math.floor(s / 86400), "dias"], [Math.floor(s / 3600), "horas"], [Math.floor(s / 60), "minutos"], [s, "segundos"]].map(([n, l]) => `<div><b class="num">${nf(n)}</b><span>${l}</span></div>`).join(""); };
+  clearInterval(eggTimer); upd(); eggTimer = setInterval(upd, 1000);
+}
+
+/* ----- Cartões do início ----- */
+function delightCards(){
+  const t = today(), pn = nameOf(other(me)), out = [];
+  const sd = specialDay();
+  if(sd){ fxOnce(fxKey(`sd-${sd.k}-${t}`), sd.k === "namorados" ? "hearts" : "confetti", "win");
+    const btn = sd.k === "niver" && sd.who !== me ? `<button class="btn sm" data-act="go" data-v="recado">Recado</button>` : sd.k === "anonovo" && t.slice(5) === "12-31" ? `<button class="btn sm" data-act="retroOpen" data-m="${monthOf(t)}">Ver</button>` : "";
+    out.push(`<section class="card special"><span class="sp-emoji">${sd.emoji}</span><div class="grow"><b>${esc(sd.title)}</b><p class="small muted">${esc(sd.sub)}</p></div>${btn}</section>`); }
+  milestonesToday().forEach(x => { fxOnce(fxKey(`ms-${x.k}-${t}`), "confetti", "win");
+    out.push(`<section class="card special"><span class="sp-emoji">${x.emoji}</span><div class="grow"><span class="eyebrow">Um marco de vocês</span><b>${esc(x.title)}</b><p class="small muted">${esc(x.sub)}</p></div><button class="hbtn" data-act="celebrate" aria-label="Comemorar de novo" style="font-size:18px">🎉</button></section>`); });
+  const act = chActive();
+  if(act){ const def = chDef(act.k), mine = ((act.checks || {})[t] || {})[me];
+    if(!def.auto && !mine) out.push(`<section class="card row" style="gap:12px"><span class="sp-emoji">${def.emoji}</span><div class="grow"><span class="eyebrow">Desafio · dia ${diff(act.start, t) + 1} de 7</span><b>${esc(def.title)}</b></div><button class="btn sm" data-act="chCheck" data-id="${act.id}">${esc(def.check)}</button></section>`); }
+  const wk = weekNo(), mem = lsGet(fxKey("memx-" + wk)) ? null : memoryOfWeek();
+  if(mem) out.push(`<section class="card stack memory" style="gap:8px"><div class="row between"><span class="eyebrow">💭 Lembra disso?</span><button class="hbtn" data-act="memDismiss" data-w="${wk}" aria-label="Fechar">${ic("plus")}</button></div>
+    <p class="small muted">${esc(agoText(mem.d))}, ${esc(mem.a.slot === me ? "você" : nameOf(mem.a.slot))} respondeu:</p><b>${esc(mem.a.q || "")}</b><p class="answer">“${esc(String(mem.a.text).slice(0, 220))}”</p></section>`);
+  if(new Date().getDay() === 0){ const th = thanksIn(addDays(t, -6), t), n = th.a + th.b;
+    if(n) out.push(`<section class="card special"><span class="sp-emoji">🫙</span><div class="grow"><span class="eyebrow">Pote de gratidão da semana</span><b>Vocês se agradeceram ${pl(n,"vez","vezes")}</b><p class="small muted">${esc(nameOf("a"))}: ${th.a} · ${esc(nameOf("b"))}: ${th.b}</p></div></section>`); }
+  const pm = shiftMonth(monthOf(t), -1);
+  if(Number(t.slice(8)) <= 7 && !lsGet(fxKey("retrox-" + pm))){ const rd = retroData(pm);
+    if(retroHasData(rd)) out.push(`<section class="card special"><span class="sp-emoji">🎬</span><div class="grow"><span class="eyebrow">Retrospectiva</span><b>O nosso ${esc(monthOnly(pm))} está pronto</b><p class="small muted">Um resumo em stories, para ver juntos e postar.</p></div><div class="stack" style="gap:6px"><button class="btn sm" data-act="retroOpen" data-m="${pm}">Assistir</button><button class="linkrow small muted" data-act="retroDismiss" data-m="${pm}" style="justify-content:center">Depois</button></div></section>`); }
+  return out.join("");
+}
+
 /* ===================== Plano: teste de 7 dias, grátis e Premium ===================== */
 // O servidor decide o plano (teste, grátis, premium ou fundador). Fora do modo nuvem tudo fica liberado.
 let plan = null, contact = null;
 try{ plan = JSON.parse(lsGet("nd-plan") || "null"); }catch(e){ plan = null; }
 const PRICE_M = "R$ 9,90", PRICE_Y = "R$ 69,90";
-const PREMIUM_VIEWS = {contas:"Contas da casa", familia:"Família", recado:"Recado na tela", bomsaber:"Bom saber", decidir:"Decidir juntos", radar:"Radar de presentes", notas:"Notas", planos:"Planos", capsulas:"Cápsulas", cofre:"Cofre", cartoes:"Cartões", numeros:"O nosso ano", desejos:"Desejos"};
+const PREMIUM_VIEWS = {contas:"Contas da casa", familia:"Família", recado:"Recado na tela", bomsaber:"Bom saber", decidir:"Decidir juntos", radar:"Radar de presentes", notas:"Notas", planos:"Planos", capsulas:"Cápsulas", cofre:"Cofre", cartoes:"Cartões", numeros:"O nosso ano", desejos:"Desejos", livro:"Livro do casal"};
 const planOn = () => mode==="cloud" && plan && plan.status;
 const isLocked = v => planOn() && plan.status==="free" && !!PREMIUM_VIEWS[v];
 const daysLeft = t => Math.max(0, Math.ceil((t - Date.now()) / 86400000));
@@ -746,8 +1170,10 @@ function describe(c, id, before, after, actor){
   const you = other(actor), q = s => `“${String(s||"").slice(0,60)}”`, b = before || null;
   const newly = (o, k) => o && o[k]!=null && o[k]!==false && !(b && b[k] && b[k]!=null);
   switch(c){
-    case "answers": if(!b && after.slot===actor) return {key:"ans", view:"pergunta", text: ans(after.date, you) ? "respondeu a pergunta do dia. Já dá para ver as respostas!" : "respondeu a pergunta do dia. Sua vez!"}; return null;
+    case "answers": if(!b && after.slot===actor) return {key:"ans", view:"pergunta", text: ans(after.date, you) ? (sintonia(after.date) ? "respondeu a pergunta do dia, e vocês pensaram igual! 🫶" : "respondeu a pergunta do dia. Já dá para ver as respostas!") : "respondeu a pergunta do dia. Sua vez!"}; return null;
     case "meta":
+      if(id==="recado_"+you && after.thanks && after.thanks[actor] && !(b && b.thanks && b.thanks[actor])) return {key:"thxrec", view:"home", text:"amou o seu recado ❤"};
+      if(id==="recado_"+actor && after.showAt && after.showAt > nowIso()) return null; // agendado: aparece na hora marcada
       if(id==="recado_"+actor && (after.text || after.photo) && (!b || b.at!==after.at)) return {key:"rec", view:"home", title:`Recado de ${nameOf(actor)}`, text: after.text || "Mandou uma foto para a sua tela.", raw:true};
       if(id==="photos" && after[actor] && (!b || b[actor]!==after[actor])) return {key:"ph", view:"home", text:"trocou a foto do perfil"};
       if(id==="vault" && !b) return {key:"vlt", view:"cofre", text:"ativou o cofre. Peça o código para abrir no seu celular."};
@@ -787,6 +1213,10 @@ function describe(c, id, before, after, actor){
     case "capsules": return !b && (after.to===you || after.to==="ambos" || !after.to) ? {key:"cap"+id, view:"capsulas", text:`guardou uma cápsula para abrir em ${fmt(after.openAt,{day:"numeric",month:"long",year:"numeric"})}`} : null;
     case "cards": return !b ? {key:"card"+id, view:"cartoes", text:`adicionou o cartão ${q(after.name)}`} : null;
     case "vault": return !b ? {key:"vault", view:"cofre", text:"guardou um item no cofre"} : null;
+    case "challenges": { const def = chDef(after.k);
+      if(!b) return {key:"ch"+id, view:"desafios", text:`começou o desafio “${def.title}”. Bora juntos?`};
+      const td = today(), now = ((after.checks||{})[td]||{})[actor], was = ((b.checks||{})[td]||{})[actor];
+      return now && !was ? {key:"chk"+id, view:"desafios", text:`marcou o dia de hoje no desafio “${def.title}”`} : null; }
   }
   return null;
 }
@@ -821,7 +1251,8 @@ let popQ = [], popT = null;
 function announce(evs){
   if(!evs.length || mode==="demo") return;
   popQ.push(...evs); if(!popT) showPop();
-  try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){}
+  if(evs.some(e => /^thx/.test(e.key))){ burst("hearts", 36); chime("love"); }
+  else chime(evs.some(e => e.key === "rec") ? "love" : "note");
 }
 function showPop(){
   const el = document.getElementById("pop"); const e = popQ.shift();
@@ -1026,6 +1457,7 @@ function render(){
   const focusId = ae && app.contains(ae) && ae.id ? ae.id : null;
   let sel = null; try{ if(focusId && ae.selectionStart!=null) sel = [ae.selectionStart, ae.selectionEnd]; }catch(e){}
   app.innerHTML = screen();
+  runFx();
   for(const id in keep){ if(clearIds.has(id)) continue; const el = document.getElementById(id); if(el && app.contains(el) && el.type!=="checkbox" && el.type!=="radio") el.value = keep[id]; }
   clearIds.clear();
   if(focusId){ const el = document.getElementById(focusId); if(el){ el.focus({preventScroll:true}); if(sel) try{ el.setSelectionRange(sel[0], sel[1]); }catch(e){} } }
@@ -1040,7 +1472,8 @@ function screen(){
   if(!C()) return onboarding();
   if(!me){ const ms = C().members||{}; if(myId){ if(ms.a===myId) me="a"; else if(ms.b===myId) me="b"; } }
   if(!me) return whoPicker();
-  const views = {home, pergunta, tarefas, listas, familia, datas, ideias, desejos, ajustes, contas, secoes, recado, bomsaber, decidir, radar, notas, planos, capsulas, cofre, cartoes, numeros, assinar};
+  const views = {home, pergunta, tarefas, listas, familia, datas, ideias, desejos, ajustes, contas, secoes, recado, bomsaber, decidir, radar, notas, planos, capsulas, cofre, cartoes, numeros, assinar, desafios, livro};
+  document.documentElement.dataset.special = mode==="demo" ? "" : ((specialDay()||{}).k || "");
   if(isLocked(view)){ lockedFrom = view; view = "assinar"; }
   let body = (views[view]||home)();
   body = markLocks(body);
@@ -1137,11 +1570,12 @@ function home(){
   </div>
   ${trialBar()}
   <div class="stack" style="gap:14px">
-    ${rec && (rec.text || recImg) ? `<section class="card recado" aria-label="Recado de ${esc(pn)}">
-      <div class="row between"><span class="eyebrow row" style="gap:6px">${avatar(other(me),"xs")} Recado de ${esc(pn)}</span><span class="small muted">${rec.at ? esc(inDaysText(diff(rec.at.slice(0,10), today())).toLowerCase()) : ""}</span></div>
+    ${delightCards()}
+    ${rec && recadoVisible(rec) && (rec.text || recImg) ? `<section class="card recado" aria-label="Recado de ${esc(pn)}">
+      <div class="row between"><span class="eyebrow row" style="gap:6px">${avatar(other(me),"xs")} Recado de ${esc(pn)}</span><span class="small muted">${rec.at ? esc(inDaysText(diff((rec.showAt||rec.at).slice(0,10), today())).toLowerCase()) : ""}</span></div>
       ${recImg ? `<img src="${esc(recImg)}" alt="Foto do recado">` : ""}
       ${rec.text ? `<p style="font-family:var(--display);font-weight:500;font-size:20px;line-height:1.35">${esc(rec.text)}</p>` : ""}
-      <button class="linkrow small" data-act="go" data-v="recado">Responder com um recado ${ic("chev")}</button>
+      <div class="row between" style="flex-wrap:wrap;gap:8px">${(rec.thanks||{})[me] ? `<span class="tag acc">❤ Você amou</span>` : `<button class="btn sm soft" data-act="loveRecado">❤ Amei</button>`}<button class="linkrow small" data-act="go" data-v="recado">Responder com um recado ${ic("chev")}</button></div>
     </section>` : ""}
     ${pendingPoll ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${esc(pn)} quer decidir com você</b><p class="small" style="color:var(--fg)">${esc(pendingPoll[1].question)}</p></div><button class="btn sm coral" data-act="go" data-v="decidir">Votar</button></section>` : ""}
     ${capsReady ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${pl(capsReady,"cápsula abriu","cápsulas abriram")}</b><p class="small" style="color:var(--fg)">Uma mensagem guardada para hoje.</p></div><button class="btn sm coral" data-act="go" data-v="capsulas">Abrir</button></section>` : ""}
@@ -1150,7 +1584,7 @@ function home(){
       <div class="row between" style="align-items:center">
         <div class="stack" style="gap:6px;min-width:0">
           <span class="eyebrow">Juntos há</span>
-          <span class="big num">${pl(days,"dia","dias")}</span>
+          <span class="big num" data-act="egg" style="cursor:default;-webkit-user-select:none;user-select:none">${pl(days,"dia","dias")}</span>
           <span class="small muted">desde ${c.start?fmt(c.start):"—"}</span>
         </div>
         ${ring(((days%1000)||(days?1000:0))/1000, `${Math.floor(((days%1000)||(days?1000:0))/10)}%`, `até ${nf(nextRound)}`)}
@@ -1215,7 +1649,8 @@ function pergunta(){
 
   const dates = [...new Set(Object.values(S.answers).map(a=>a.date))].filter(d=>d<t).sort().reverse();
   const hist = dates.map(d => { const a = ans(d,"a"), b = ans(d,"b"); const x = a||b; return {d, q:x.q, theme:x.theme||"", a, b}; })
-    .filter(h => histTheme==="Todos" || h.theme===histTheme);
+    .filter(h => histTheme==="Todos" || (histTheme==="Sintonias" ? sintonia(h.d) : h.theme===histTheme));
+  const sintHoje = mine && theirs && sintonia(t); if(sintHoje) fxOnce(fxKey("sint-"+t), "hearts", "love");
 
   return `
   <div class="top"><div><h1>Pergunta <em class="acc">do dia</em></h1><p class="sub num">2 minutos por dia · ${pl(st,"dia seguido","dias seguidos")} · Melhor: ${best}</p></div></div>
@@ -1230,15 +1665,16 @@ function pergunta(){
       </form>`
     : `<div class="stack" style="gap:6px"><div class="row between"><span class="small" style="font-weight:600">Você</span><button class="linkrow small" data-act="editAns">${ic("pencil")} Editar</button></div><div class="answer">${esc(mine.text)}</div></div>`}
     <div class="hr"></div>
+    ${sintHoje ? `<div class="sintonia"><span>🫶</span><div><b>Sintonia!</b><div class="small muted" style="font-weight:400">Vocês dois pensaram igual hoje.</div></div></div>` : ""}
     <div class="stack" style="gap:6px"><span class="small" style="font-weight:600">${esc(pn)}</span>${partner}${!theirs && mode!=="demo" ? `<div>${waBtn(mine?`Respondi a pergunta de hoje no Nós Dois. Sua vez! ${appUrl()}`:`A pergunta de hoje no Nós Dois é: "${q.q}" Bora responder? ${appUrl()}`, `Chamar ${esc(pn)} no WhatsApp`)}</div>` : ""}</div>
   </section>
   <p class="small muted" style="margin-top:10px">A sequência conta os dias em que os dois respondem. Se um dia passar em branco, ela aguenta uma falta por semana. O tom vale para os próximos dias: a pergunta de hoje não muda.</p>
 
   <div class="section">
     <div class="row"><h2>Antes</h2></div>
-    <div class="chips" role="group" aria-label="Filtrar por tema">${["Todos",...THEMES].map(th=>`<button class="chip" data-act="histTheme" data-v="${esc(th)}" aria-pressed="${histTheme===th}">${esc(th)}</button>`).join("")}</div>
+    <div class="chips" role="group" aria-label="Filtrar por tema">${["Todos","Sintonias",...THEMES].map(th=>`<button class="chip" data-act="histTheme" data-v="${esc(th)}" aria-pressed="${histTheme===th}">${th==="Sintonias"?"🫶 Sintonias":esc(th)}</button>`).join("")}</div>
     <div class="card">${hist.length ? hist.map(h=>`<div class="hist">
-        <span class="small muted">${esc(fmtShort(h.d))}${h.theme?` · ${esc(h.theme)}`:""}</span>
+        <span class="small muted">${esc(fmtShort(h.d))}${h.theme?` · ${esc(h.theme)}`:""}${sintonia(h.d)?` <span class="tag acc">🫶 Sintonia</span>`:""}</span>
         <span class="q">${esc(h.q)}</span>
         ${["a","b"].map(s=>{ const x = s==="a"?h.a:h.b; return `<span class="small"><span class="who">${esc(label(s))}:</span> ${x?esc(x.text):`<span class="muted">não respondeu</span>`}</span>`; }).join("")}
       </div>`).join("") : `<div class="empty"><p>As respostas dos dias anteriores aparecem aqui.</p></div>`}</div>
@@ -1483,6 +1919,8 @@ function secoes(){
     ${row("desejos","star","Desejos","O que cada um gostaria de ter")}
     ${row("ideias","cup","Fazer juntos","Programas em casa ou fora")}
     ${row("radar","gift","Radar de presentes","Datas que pedem presente")}
+    ${row("desafios","target","Desafios a dois","Sete dias, uma missão, uma medalha")}
+    <button class="secrow" data-act="retroOpen" data-m="${monthOf(today())}"><span class="iconbtn">${ic("image")}</span><span class="grow">Retrospectiva do mês<small>O mês de vocês em stories</small></span>${ic("chev")}</button>
   </div></div>
   <div class="section"><span class="eyebrow">O que guardam</span><div class="card seclist">
     ${row("bomsaber","info","Bom saber","Tamanhos, gostos e o que não agrada")}
@@ -1490,6 +1928,7 @@ function secoes(){
     ${row("cofre","shield","Cofre","Documentos cifrados no celular")}
     ${row("notas","pencil","Notas","Senha do wi-fi, receitas, combinados")}
     ${row("numeros","star","O nosso ano","Os números de vocês")}
+    ${row("livro","image","Livro do casal","A história de vocês em PDF")}
     ${row("planos","target","Planos","Metas com passos")}
     ${row("capsulas","hourglass","Cápsulas","Mensagens que só abrem numa data")}
   </div></div>
@@ -1508,12 +1947,16 @@ function recado(){
   const pn = nameOf(other(me)); const mine = S.meta["recado_"+me]; const theirs = S.meta["recado_"+other(me)];
   const mineImg = mine && safeImg(mine.photo), theirImg = theirs && safeImg(theirs.photo); const draftImg = recadoPhoto || null;
   return `${topBack("Recado na tela", `Uma linha que aparece no início de ${esc(pn)}. O novo substitui o anterior.`)}
-  ${theirs && (theirs.text || theirImg) ? `<div class="section" style="margin-top:0"><span class="eyebrow">De ${esc(pn)} para você</span><section class="card recado">${theirImg?`<img src="${esc(theirImg)}" alt="Foto do recado">`:""}${theirs.text?`<p style="font-family:var(--display);font-weight:500;font-size:20px">${esc(theirs.text)}</p>`:""}</section></div>` : ""}
+  ${theirs && recadoVisible(theirs) ? `<div class="section" style="margin-top:0"><span class="eyebrow">De ${esc(pn)} para você</span><section class="card recado">${theirImg?`<img src="${esc(theirImg)}" alt="Foto do recado">`:""}${theirs.text?`<p style="font-family:var(--display);font-weight:500;font-size:20px">${esc(theirs.text)}</p>`:""}</section></div>` : ""}
   <div class="section"><span class="eyebrow">Na tela de ${esc(pn)}</span>
-    ${mine && (mine.text || mineImg) ? `<section class="card recado">${mineImg?`<img src="${esc(mineImg)}" alt="Foto do seu recado">`:""}${mine.text?`<p style="font-family:var(--display);font-weight:500;font-size:18px">${esc(mine.text)}</p>`:""}<button class="btn sm ghost" data-act="clearRecado">Tirar da tela de ${esc(pn)}</button></section>` : ""}
+    ${mine && (mine.text || mineImg) ? `<section class="card recado">${mineImg?`<img src="${esc(mineImg)}" alt="Foto do seu recado">`:""}${mine.text?`<p style="font-family:var(--display);font-weight:500;font-size:18px">${esc(mine.text)}</p>`:""}${mine.showAt && mine.showAt > nowIso() ? `<span class="tag acc">⏰ Aparece para ${esc(pn)} ${esc(fmtWhen(mine.showAt))}</span>` : ""}<button class="btn sm ghost" data-act="clearRecado">Tirar da tela de ${esc(pn)}</button></section>` : ""}
     <form class="stack" data-form="recado" style="gap:10px">
       <label class="field"><span>Seu recado</span><textarea id="recText" name="text" maxlength="140" rows="2" placeholder="Curto, pra ler de relance." style="min-height:64px"></textarea></label>
       ${draftImg ? `<img class="photo" src="${esc(draftImg)}" alt="Foto escolhida"><button type="button" class="btn sm ghost" data-act="recPhotoClear">Tirar a foto</button>` : `<button type="button" class="btn ghost block" data-act="recPhoto">${ic("image")} Foto</button>`}
+      <details><summary>⏰ Agendar para depois</summary><div class="stack" style="gap:8px;margin-top:10px">
+        <input type="datetime-local" id="recWhen" name="when" min="${localDT(new Date())}" aria-label="Quando o recado aparece">
+        <div class="row" style="gap:8px;flex-wrap:wrap"><button type="button" class="chip" data-act="recWhenPreset" data-v="amanha7">Amanhã às 7h</button><button type="button" class="chip" data-act="recWhenPreset" data-v="noite">Hoje às 22h</button></div>
+        <span class="small muted">O recado fica guardado e só aparece para ${esc(pn)} na hora marcada, com um aviso na tela.</span></div></details>
       <button class="btn block" type="submit">${ic("phone")} Colocar na tela de ${esc(pn)}</button>
     </form>
     ${!partnerJoined() ? `<p class="small muted">Quando ${esc(pn)} entrar no espaço de vocês, o recado aparece no início do app dela(e).</p>` : ""}
@@ -1669,7 +2112,9 @@ function numeros(){
     ${stat(tasksDone("a"), `tarefas feitas por ${esc(nameOf("a"))}`)}${stat(tasksDone("b"), `tarefas feitas por ${esc(nameOf("b"))}`)}
     ${stat(encontros, "encontros a dois")}${stat(`${combinou}/${polls.length}`, "decisões em que combinaram")}
     ${stat(desejos, "desejos realizados")}${stat(Object.keys(S.notes).length + Object.keys(S.plans).length, "notas e planos")}
+    ${stat(sintoniaDays().filter(inScope).length, "vezes que pensaram igual 🫶")}${stat(chFinished().filter(x=>inScope(x.start)).length, "desafios a dois")}
   </div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:12px"><button class="btn sm" data-act="retroOpen" data-m="${monthOf(t)}">🎬 Retrospectiva de ${esc(monthOnly(monthOf(t)))}</button><button class="btn sm ghost" data-act="retroOpen" data-m="${shiftMonth(monthOf(t),-1)}">${esc(cap1(monthOnly(shiftMonth(monthOf(t),-1))))}</button><button class="btn sm ghost" data-act="go" data-v="livro">📖 Livro do casal</button></div>
   <section class="card stack" style="margin-top:12px"><span class="eyebrow">Gastos anotados</span><b class="num" style="font-family:var(--display);font-size:28px;font-weight:500">${money2(gastos)}</b><button class="linkrow small" data-act="go" data-v="contas">Ver contas da casa ${ic("chev")}</button></section>`;
 }
 
@@ -1843,6 +2288,7 @@ function ajustes(){
     <button class="btn block" type="submit">Salvar ajustes</button>
   </form>
   ${planOn() ? `<div class="section"><h3>Plano</h3><section class="card row" style="gap:12px"><div class="grow"><b>${plan.status==="premium" ? "Premium" : plan.status==="trial" ? "Teste grátis" : plan.status==="free" ? "Grátis" : "Casal fundador"}</b><p class="small muted">${plan.status==="premium" ? `Tudo liberado até ${esc(fmtTs(plan.premiumUntil))}.` : plan.status==="trial" ? `Tudo liberado por mais ${pl(daysLeft(plan.trialEnds),"dia","dias")}.` : plan.status==="free" ? "Pergunta do dia, tarefas, listas e datas." : "Tudo liberado, sem prazo."}</p></div>${plan.status==="founder" ? "" : `<button class="btn sm ${plan.status==="free"?"coral":"ghost"}" data-act="go" data-v="assinar">${plan.status==="premium" ? "Renovar" : "Ver planos"}</button>`}</section></div>` : ""}
+  <div class="section"><h3>Som e vibração</h3><section class="card row" style="gap:12px"><div class="grow"><b>${sfxOn() ? "Ligados" : "Desligados"}</b><p class="small muted">Um som suave e uma vibração quando chega recado, agradecimento ou um momento especial.</p></div><button class="btn sm ghost" data-act="sfxToggle">${sfxOn() ? "Desligar" : "Ligar"}</button></section></div>
   ${mode==="cloud" && cloud ? `<div class="section"><h3>Avisos</h3><section class="card">${pushCard()}</section></div>` : ""}
   <div class="section"><h3>Sua foto</h3><section class="card row" style="gap:14px">${avatar(me)}<div class="grow small muted">Aparece no início e nos recados, para ${esc(nameOf(other(me)))} também.</div><button class="btn sm ghost" data-act="setPhoto">${photoOf(me)?"Trocar":"Escolher foto"}</button>${photoOf(me)?`<button class="hbtn" data-act="delPhoto" aria-label="Tirar foto">${ic("trash")}</button>`:""}</section></div>
   <div class="section"><h3>Quem está usando este aparelho</h3>
@@ -2019,7 +2465,7 @@ const ACT = {
   delVault: el => { if(!armed(el)) return; del("vault", el.dataset.id); },
   hideSteps: () => patch("meta","couple",{hideSteps:{[me]:true}}),
   tone: el => { patch("meta","couple",{tone:el.dataset.v}); toast(`Tom: ${TONES[el.dataset.v]}. Vale a partir da próxima pergunta.`); },
-  thank: el => { const t = S.tasks[el.dataset.id]; if(!t) return; patch("tasks", el.dataset.id, {thanks:{[me]:true}}); toast(`Valeu enviado para ${nameOf(other(me))}`); },
+  thank: el => { const t = S.tasks[el.dataset.id]; if(!t) return; patch("tasks", el.dataset.id, {thanks:{[me]:today()}}); burst("hearts", 28); chime("love"); toast(`Valeu enviado para ${nameOf(other(me))}`); },
   startNight: el => patch("meta","couple",{night:{base:today(), who:el.dataset.s}}),
   swapNight: () => { const nw = nightWho(); patch("meta","couple",{night:{base:today(), who:other(nw||me)}}); toast(`Hoje o plantão é ${other(nw||me)===me?"seu":"de "+nameOf(other(nw||me))}`); },
   logBaby: el => { const k = el.dataset.v; put("logs", uid(), {type:k, at:new Date().toISOString(), by:me});
@@ -2052,6 +2498,24 @@ const ACT = {
         patch("fixed", id, {paid:{[m]:bid}}); toast(`${f.title} marcada como paga`); }, {submit:"Marcar como paga"}); },
   unpayFixed: el => { const id = el.dataset.id, m = el.dataset.m, f = S.fixed[id]; if(!f) return; const bid = f.paid && f.paid[m];
     if(bid) del("bills", bid); patch("fixed", id, {paid:{[m]:null}}); toast("Pagamento desfeito"); },
+  celebrate: () => { burst("confetti"); chime("win"); },
+  memDismiss: el => { lsSet(fxKey("memx-" + el.dataset.w), "1"); schedule(); },
+  retroOpen: el => openRetro(el.dataset.m || monthOf(today())),
+  retroDismiss: el => { lsSet(fxKey("retrox-" + el.dataset.m), "1"); schedule(); },
+  retroClose: () => closeRetro(),
+  retroNext: () => stepRetro(1),
+  retroPrev: () => stepRetro(-1),
+  retroShare: () => shareRetro(),
+  makeBook: () => makeBook(),
+  egg: () => { const now = Date.now(); eggN = now - eggT < 1500 ? eggN + 1 : 1; eggT = now; if(eggN >= 5){ eggN = 0; openEgg(); } },
+  sfxToggle: () => { lsSet("nd-sfx", sfxOn() ? "0" : "1"); if(sfxOn()) chime("note"); schedule(); },
+  loveRecado: () => { const k = "recado_" + other(me), r = S.meta[k]; if(!r || (r.thanks||{})[me]) return; patch("meta", k, {thanks:{[me]:today()}}); burst("hearts", 30); chime("love"); },
+  recWhenPreset: el => { const d = new Date(); if(el.dataset.v === "amanha7"){ d.setDate(d.getDate() + 1); d.setHours(7, 0, 0, 0); } else { d.setHours(22, 0, 0, 0); if(d.getTime() < Date.now() + 60000) d.setDate(d.getDate() + 1); }
+    const i = document.getElementById("recWhen"); if(i){ i.value = localDT(d); toast(`Vai aparecer ${fmtWhen(d.toISOString())}`); } },
+  chStart: el => { if(chActive()){ toast("Já tem um desafio rolando."); return; } put("challenges", uid(), {k:el.dataset.k, start:today(), checks:{}, by:me, at:new Date().toISOString()}); burst("confetti", 40); chime("win"); toast("Desafio começou! Bora juntos 💪"); },
+  chCheck: el => { const c = S.challenges[el.dataset.id]; if(!c) return; const td = today(), cur = ((c.checks||{})[td]||{})[me];
+    patch("challenges", el.dataset.id, {checks:{[td]:{[me]: !cur}}}); if(!cur){ burst("confetti", 30); chime("note"); } },
+  chEnd: el => { if(!armed(el)) return; patch("challenges", el.dataset.id, {ended:true}); toast("Desafio encerrado. A medalha fica guardada."); },
   popGo: el => { clearTimeout(popT); popQ = []; document.getElementById("pop").hidden = true; popT = null; view = el.dataset.v || "home"; if(view==="contas") billMonth = null; schedule(); },
   popClose: () => { clearTimeout(popT); showPop(); },
   pushOn: () => pushEnable(),
@@ -2081,7 +2545,9 @@ function kidForm(k){ return `<label class="field"><span>Nome</span><input type="
 
 const FORMS = {
   recado: (fd, f) => { const text = String(fd.text||"").trim(); if(!text && !recadoPhoto){ toast("Escreva algo ou escolha uma foto."); return; }
-    put("meta","recado_"+me,{text, photo:recadoPhoto||null, at:new Date().toISOString()}); recadoPhoto = null; clearIds.add("recText"); f.reset(); toast(`Recado na tela de ${nameOf(other(me))}`); },
+    let showAt = null; if(fd.when){ const d = new Date(fd.when); if(!isNaN(d) && d.getTime() > Date.now() + 60000) showAt = d.toISOString(); }
+    put("meta","recado_"+me,{text, photo:recadoPhoto||null, at:new Date().toISOString(), showAt}); recadoPhoto = null; clearIds.add("recText"); clearIds.add("recWhen"); f.reset();
+    toast(showAt ? `Recado agendado: aparece para ${nameOf(other(me))} ${fmtWhen(showAt)} ⏰` : `Recado na tela de ${nameOf(other(me))}`); if(!showAt) burst("hearts", 18); },
   redeem: fd => { redeemCode(fd.code); },
   about: fd => { const o = {}; ABOUT_FIELDS.forEach(([k]) => { const v = String(fd[k]||"").trim(); if(v) o[k] = v; }); put("about", me, {...o, at:new Date().toISOString()}); toast("Salvo"); },
   vaultUnlock: (fd, f) => { const raw = fromB32(fd.code); if(raw.length < 20){ toast("Código incompleto. Confira as letras."); return; }
@@ -2162,7 +2628,11 @@ function startDemo(){
   D.wishes = {w1:{who:"b", text:"Aula de cerâmica", note:"Ateliê perto do trabalho", got:false, at:"1"}, w2:{who:"a", text:"Fone sem fio", note:"", got:false, at:"2"}, w3:{who:"b", text:"Um dia de spa", note:"", got:false, at:"3"}, w4:{who:"a", text:"Livro novo do autor preferido", note:"", got:true, at:"4"}};
   D.names = {n1:{name:"Helena", likes:{a:true,b:true}, at:"1"}, n2:{name:"Alice", likes:{a:true}, at:"2"}, n3:{name:"Cecília", likes:{b:true}, at:"3"}, n4:{name:"Antônio", likes:{a:true,b:true}, at:"4"}, n5:{name:"Davi", likes:{b:true}, at:"5"}};
   D.meta.couple.night = {base:t, who:"b"}; D.meta.couple.tone = "leve";
-  D.tasks.d2.thanks = {a:true}; D.tasks.d1.thanks = {b:true};
+  D.tasks.d2.thanks = {a:addDays(t,-1)}; D.tasks.d1.thanks = {b:addDays(t,-2)};
+  { const d3 = addDays(t,-3); D.answers[`${d3}_a`].text = "Uma viagem só nós dois para a praia"; D.answers[`${d3}_b`].text = "Viagem pra praia, só nós dois!"; }
+  { const y1 = addDays(t,-364), q1 = questionFor(y1); D.answers[`${y1}_a`] = {date:y1, slot:"a", text:"Quando a gente dançou na cozinha sem música nenhuma.", q:q1.q, theme:q1.theme}; D.answers[`${y1}_b`] = {date:y1, slot:"b", text:"O dia em que você me buscou na chuva sem eu pedir.", q:q1.q, theme:q1.theme}; }
+  D.challenges = {c1:{k:"elogios", start:addDays(t,-2), checks:{[addDays(t,-2)]:{a:true,b:true}, [addDays(t,-1)]:{a:true,b:true}, [t]:{b:true}}, by:"b"},
+    c0:{k:"jantar", start:addDays(t,-40), checks:Object.fromEntries([0,1,2,3,4,5,6].map(i=>[addDays(t,-40+i), {a:true}])), by:"a"}};
   const now = Date.now(); [["mamada",35,"b"],["fralda",80,"a"],["mamada",190,"a"],["sono",240,"b"],["fralda",300,"b"]].forEach(([k,m,s],i)=>{ const at = new Date(now - m*60000); if(isoOf(at)===t) D.logs["g"+i] = {type:k, at:at.toISOString(), by:s}; });
   D.kids.k2 = {name:"Lia", birth:addDays(t,-150)};
   const mo = monthOf(t);

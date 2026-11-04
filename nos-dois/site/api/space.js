@@ -5,7 +5,7 @@ const net = require("net");
 const tls = require("tls");
 const push = require("./_push.js");
 
-const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards"]);
+const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards","challenges"]);
 const ID_RE = /^[a-f0-9]{8,32}$/;
 const KEY_RE = /^[a-f0-9]{16,64}$/;
 const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
