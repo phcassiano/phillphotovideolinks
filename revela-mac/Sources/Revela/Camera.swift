@@ -34,7 +34,7 @@ final class CameraController: NSObject, ICDeviceBrowserDelegate, ICCameraDeviceD
 
     func start() {
         browser.delegate = self
-        browser.browsedDeviceTypeMask = ICDeviceTypeMask(rawValue: ICDeviceTypeMask.camera.rawValue | ICDeviceLocationTypeMask.local.rawValue)
+        browser.browsedDeviceTypeMask = ICDeviceTypeMask(rawValue: ICDeviceTypeMask.camera.rawValue | ICDeviceLocationTypeMask.local.rawValue) ?? .camera
         browser.start()
         Log.add("procurando câmeras no USB")
         onStatus("Ligue a câmera no cabo USB")
