@@ -1,0 +1,47 @@
+name: "Revela Mac: gerar .dmg"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "revela-mac/Package.swift"
+      - "revela-mac/Sources/**"
+      - "revela-mac/Tests/**"
+      - "revela-mac/Resources/**"
+      - "revela-mac/scripts/**"
+      - ".github/workflows/revela-mac.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: revela-mac
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Testes
+        run: swift test
+
+      - name: Revela.dmg
+        run: ./scripts/build-dmg.sh "0.1.$GITHUB_RUN_NUMBER"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Revela-mac
+          path: revela-mac/build/Revela.dmg
+          if-no-files-found: error
+
+      # O .dmg fica no próprio repositório (como o APK), com um link fixo para baixar.
+      - name: Publicar o .dmg no branch
+        run: |
+          cp build/Revela.dmg Revela.dmg
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Revela.dmg
+          git commit -m "Revela Mac: .dmg da build $GITHUB_RUN_NUMBER" || exit 0
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
