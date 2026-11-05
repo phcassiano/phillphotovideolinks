@@ -102,9 +102,13 @@ public struct PresetLook {
         if p.hasHsl {
             let (band, next, t) = PresetLook.band(hue)
             let wa = 1 - t
-            hue += (p.hue[band] * wa + p.hue[next] * t) * hueRange
-            sat *= 1 + p.sat[band] * wa + p.sat[next] * t
-            lum += (p.lum[band] * wa + p.lum[next] * t) * 0.3 * sat * (1 - abs(2 * lum - 1))
+            let dh: Float = p.hue[band] * wa + p.hue[next] * t
+            let ds: Float = p.sat[band] * wa + p.sat[next] * t
+            let dl: Float = p.lum[band] * wa + p.lum[next] * t
+            let mid: Float = 1 - abs(2 * lum - 1)
+            hue += dh * hueRange
+            sat *= 1 + ds
+            lum += dl * 0.3 * sat * mid
         }
         if p.vibrance != 0 { sat *= 1 + p.vibrance * (1 - sat) }
         if p.dehaze != 0 { sat *= 1 + p.dehaze * 0.35 }
@@ -113,7 +117,7 @@ public struct PresetLook {
 
         // Color grading (ou divisão de tons, nos presets antigos).
         if !p.grading.isEmpty {
-            let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            let y: Float = 0.2126 * r + 0.7152 * g + 0.0722 * b
             let pivot = min(max(0.5 + p.balance * 0.25, 0.15), 0.85)
             let shadows = clamp(1 - smoothstep(0, pivot * 2, y))
             let highlights = clamp(smoothstep(pivot * 2 - 1, 1, y))
@@ -127,9 +131,12 @@ public struct PresetLook {
                 case .global: w = 1
                 }
                 if w == 0 { continue }
-                r += w * (zone.tint.0 * zone.strength + zone.light)
-                g += w * (zone.tint.1 * zone.strength + zone.light)
-                b += w * (zone.tint.2 * zone.strength + zone.light)
+                let dr: Float = zone.tint.0 * zone.strength + zone.light
+                let dg: Float = zone.tint.1 * zone.strength + zone.light
+                let db: Float = zone.tint.2 * zone.strength + zone.light
+                r += w * dr
+                g += w * dg
+                b += w * db
             }
         }
         return (clamp(r), clamp(g), clamp(b))
@@ -155,7 +162,10 @@ public struct PresetLook {
         if p.highlights != 0 { x += p.highlights * 0.22 * bump(clamp(x), shadow: false) }
         if p.whites != 0 { x += p.whites * 0.12 * pow(clamp(x), 3) }
         x = clamp(x)
-        if p.contrast != 0 { x += p.contrast * 0.6 * (x * x * (3 - 2 * x) - x) }
+        if p.contrast != 0 {
+            let s: Float = x * x * (3 - 2 * x)
+            x += p.contrast * 0.6 * (s - x)
+        }
         for zone in p.parametric where zone.amount != 0 {
             let d = (x - zone.center) / 0.14
             x += zone.amount * 0.12 * exp(-d * d)
@@ -302,9 +312,14 @@ public struct PresetLook {
 
         static func build(_ points: [(Double, Double)]) -> [Float] {
             let n = points.count
-            let xs = points.map { $0.0 }
-            let ys = points.map { $0.1 }
-            let slopes = (0..<(n - 1)).map { (ys[$0 + 1] - ys[$0]) / (xs[$0 + 1] - xs[$0]) }
+            let xs: [Double] = points.map { $0.0 }
+            let ys: [Double] = points.map { $0.1 }
+            var slopes = [Double](repeating: 0, count: n - 1)
+            for k in 0..<(n - 1) {
+                let dy: Double = ys[k + 1] - ys[k]
+                let dx: Double = xs[k + 1] - xs[k]
+                slopes[k] = dy / dx
+            }
             var m = [Double](repeating: 0, count: n)
             m[0] = slopes[0]
             m[n - 1] = slopes[n - 2]
@@ -319,11 +334,11 @@ public struct PresetLook {
                     m[i + 1] = 0
                     continue
                 }
-                let a = m[i] / slopes[i]
-                let b = m[i + 1] / slopes[i]
-                let s = a * a + b * b
+                let a: Double = m[i] / slopes[i]
+                let b: Double = m[i + 1] / slopes[i]
+                let s: Double = a * a + b * b
                 if s > 9 {
-                    let tau = 3 / s.squareRoot()
+                    let tau: Double = 3.0 / s.squareRoot()
                     m[i] = tau * a * slopes[i]
                     m[i + 1] = tau * b * slopes[i]
                 }
@@ -338,12 +353,17 @@ public struct PresetLook {
                 } else {
                     var k = 0
                     while x > xs[k + 1] { k += 1 }
-                    let h = xs[k + 1] - xs[k]
-                    let t = (x - xs[k]) / h
-                    let t2 = t * t
-                    let t3 = t2 * t
-                    y = (2 * t3 - 3 * t2 + 1) * ys[k] + (t3 - 2 * t2 + t) * h * m[k] +
-                        (-2 * t3 + 3 * t2) * ys[k + 1] + (t3 - t2) * h * m[k + 1]
+                    let h: Double = xs[k + 1] - xs[k]
+                    let t: Double = (x - xs[k]) / h
+                    let t2: Double = t * t
+                    let t3: Double = t2 * t
+                    let h00: Double = 2 * t3 - 3 * t2 + 1
+                    let h10: Double = t3 - 2 * t2 + t
+                    let h01: Double = -2 * t3 + 3 * t2
+                    let h11: Double = t3 - t2
+                    let left: Double = h00 * ys[k] + h10 * h * m[k]
+                    let right: Double = h01 * ys[k + 1] + h11 * h * m[k + 1]
+                    y = left + right
                 }
                 return Float(min(max(y / 255, 0), 1))
             }
