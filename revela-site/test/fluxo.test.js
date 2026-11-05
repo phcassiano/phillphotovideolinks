@@ -23,6 +23,7 @@ lib.db = async (f, a) => {
     hits.set(a.p_key, h + 1); return h + 1 <= a.p_max;
   }
   if (f === "revela_license_bind") { const l = lic.get(a.p_id); if (l && !l.device) l.device = a.p_device; return l ? JSON.parse(JSON.stringify(l)) : null; }
+  if (f === "revela_license_rekey") { const l = lic.get(a.p_id); if (l && l.device && !l.rekeyed_at) { l.device = a.p_device; l.rekeyed_at = "agora"; } return l ? JSON.parse(JSON.stringify(l)) : null; }
   if (f === "revela_revoked") return [...lic.values()].filter((l) => l.status === "reembolsada" || l.status === "revogada").map((l) => l.id);
   throw new Error("função " + f);
 };
@@ -99,6 +100,15 @@ async function call(name, body, query = {}, ip = "1.1.1.1") {
   for (let i = 0; i < 10; i++) assert.equal((await call("vendas", { senha: "chute" + i }, {}, "6.6.6.6")).status, 401);
   assert.equal((await call("vendas", { senha: "senha-admin" }, {}, "6.6.6.6")).status, 429);
   assert.equal((await call("vendas", { senha: "senha-admin" }, {}, "2.2.2.2")).status, 200);
+  // 15. App com a assinatura nova (código de tablet novo): a chave passa uma vez, só uma.
+  const mig = (await call("licenca", { senha: "senha-admin", nome: "Migra", plano: "mensal" })).json.chave;
+  assert.equal((await call("ativar", { chave: mig, aparelho: "HHHH2222" })).status, 200);
+  lic.get(lib.ler(mig).i).created_at = "2026-12-01T10:00:00Z"; // chave feita depois da 0.9.9
+  assert.equal((await call("ativar", { chave: mig, aparelho: "JJJJ3333", nova_assinatura: true })).status, 409); // chave nova: não
+  lic.get(lib.ler(mig).i).created_at = "2026-11-01T10:00:00Z"; // chave de antes da 0.9.9
+  assert.equal((await call("ativar", { chave: mig, aparelho: "JJJJ3333" })).status, 409); // app antigo: não
+  assert.equal((await call("ativar", { chave: mig, aparelho: "JJJJ3333", nova_assinatura: true })).status, 200);
+  assert.equal((await call("ativar", { chave: mig, aparelho: "KKKK4444", nova_assinatura: true })).status, 409);
   // 14. Cadastro de testador com o campo escondido preenchido (robô): recusado.
   assert.equal((await call("testadores", { acao: "cadastrar", nome: "Bot", site: "http://spam" })).status, 400);
   console.log("TODOS OS CENÁRIOS OK");

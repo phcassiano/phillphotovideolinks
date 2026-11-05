@@ -2,6 +2,9 @@
 // primeiro tablet e devolve uma chave dele com a validade atual da assinatura.
 const lib = require("./_lib");
 
+/** Só chaves criadas antes do app 0.9.9 (assinatura nova) podem passar para o código novo do tablet. */
+const REKEY_ATE = "2026-11-06";
+
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method !== "POST") return res.status(405).json({ erro: "Use POST" });
@@ -28,6 +31,16 @@ module.exports = async function handler(req, res) {
 
   if (licenca.status === "reembolsada" || licenca.status === "revogada") {
     return res.status(403).json({ erro: "Esta chave foi cancelada.", revogada: true });
+  }
+  if (licenca.device && licenca.device !== aparelho && body.nova_assinatura === true && !licenca.rekeyed_at &&
+      String(licenca.created_at || "") < REKEY_ATE) {
+    // App 0.9.9+: a assinatura nova do app muda o código do tablet. Cada chave pode passar uma vez.
+    try {
+      licenca = (await lib.db("revela_license_rekey", { p_id: licenca.id, p_device: aparelho })) || licenca;
+    } catch (e) {
+      console.error(e);
+      return res.status(503).json({ erro: "Servidor indisponível. Tente de novo em instantes." });
+    }
   }
   if (licenca.device && licenca.device !== aparelho) {
     return res.status(409).json({ erro: `Esta chave já está ativada em outro tablet (${licenca.device}). Fale com o suporte para trocar de aparelho.` });

@@ -162,8 +162,16 @@ Em outras Alpha os passos são parecidos:
 3. Ligue a câmera no tablet pelo cabo. O Android pergunta se quer abrir o
    Revela: marque "sempre" para ele abrir sozinho nas próximas vezes.
 
-O APK é assinado com a chave em `keystore/`, então uma versão nova instala por
-cima da antiga sem perder nada.
+O APK é assinado com a chave do Revela, que fica **fora do repositório** (quem tem a chave
+consegue publicar "atualizações" do app). Com a mesma chave, uma versão nova instala por cima
+da antiga sem perder nada; sem ela, não dá mais para atualizar o app de quem já instalou.
+
+- Local: copie `keystore.properties` (aponta para o `revela-release.jks`) para `sony-tether/`,
+  ou passe o caminho em `REVELA_KEYSTORE_PROPERTIES`. Os dois estão no `.gitignore`.
+- GitHub Actions: crie os segredos `REVELA_KEYSTORE_B64` (o `.jks` em base64) e
+  `REVELA_KEYSTORE_PASSWORD`. Sem eles, o workflow gera um APK sem assinatura.
+- A chave antiga (`keystore/sony-tether.keystore`, até a 0.9.8) ficou pública e foi
+  aposentada: quem tem uma versão antiga precisa desinstalar e instalar a 0.9.9.
 
 ## Design
 

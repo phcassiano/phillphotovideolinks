@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -11,28 +13,30 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 21
-        versionName = "0.9.8-beta"
+        versionCode = 22
+        versionName = "0.9.9-beta"
     }
 
-    // Chave fixa e só para uso próprio: assim um APK novo instala por cima do antigo,
-    // não importa em qual máquina ele foi gerado.
+    // A chave de assinatura fica FORA do repositório (quem tem a chave consegue publicar
+    // "atualizações" do Revela). Vem de keystore.properties, no caminho de
+    // REVELA_KEYSTORE_PROPERTIES ou em sony-tether/keystore.properties (ignorado pelo git).
+    // Sem ela, o APK de release sai sem assinatura e não instala.
+    val signing = (System.getenv("REVELA_KEYSTORE_PROPERTIES")?.let(::file) ?: rootProject.file("keystore.properties"))
+        .takeIf { it.isFile }
+        ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
     signingConfigs {
-        create("own") {
-            storeFile = rootProject.file("keystore/sony-tether.keystore")
-            storePassword = "sonytether"
-            keyAlias = "sonytether"
-            keyPassword = "sonytether"
+        if (signing != null) create("release") {
+            storeFile = file(signing.getProperty("storeFile"))
+            storePassword = signing.getProperty("storePassword")
+            keyAlias = signing.getProperty("keyAlias")
+            keyPassword = signing.getProperty("keyPassword")
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("own")
-        }
-        debug {
-            signingConfig = signingConfigs.getByName("own")
+            if (signing != null) signingConfig = signingConfigs.getByName("release")
         }
     }
 

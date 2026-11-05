@@ -208,7 +208,12 @@ class LicenseManager(private val context: Context, private val verifier: License
         refreshRevoked()
     }
 
-    private fun activation(key: String) = JSONObject().put("chave", key).put("aparelho", deviceCode).toString()
+    /**
+     * [nova_assinatura]: este app usa a chave de assinatura nova (0.9.9), que muda o código do
+     * tablet; o servidor deixa cada chave passar uma vez para o código novo.
+     */
+    private fun activation(key: String) =
+        JSONObject().put("chave", key).put("aparelho", deviceCode).put("nova_assinatura", true).toString()
 
     /** POST com JSON; devolve o código HTTP e o corpo. */
     private fun post(url: String, json: String): Pair<Int, String> {
