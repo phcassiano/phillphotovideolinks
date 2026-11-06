@@ -450,20 +450,23 @@ function tabLook() {
         <div class="fl"><label>Cor de destaque</label><div class="color"><input type="color" id="c2" value="${s.accent}"><input class="in" style="width:110px" id="c2t" value="${s.accent}"></div><small>Selos de desconto e contadores.</small></div>
         <div class="fl"><label for="md">Fundo</label><select class="in" id="md"><option value="light">Claro</option><option value="dark" ${s.mode === "dark" ? "selected" : ""}>Escuro</option></select></div>
       </div></div>
-    <div class="box"><h2>Aviso no topo</h2><input class="in" id="ann" maxlength="140" value="${esc(s.announcement)}" placeholder="Ex.: Frete grátis acima de R$ 299 · Parcele em até 12x"></div>
-    <div class="box"><h2>Banners</h2><p class="help" style="margin-bottom:10px">Tamanho ideal: 1920×840 (computador) e 1080×1350 (celular). Até 6 banners.</p>
+    <div class="box"><h2>Fontes</h2><select class="in" id="fnt" style="max-width:420px">${[["classico", "Clássico: títulos com serifa + texto Inter"], ["elegante", "Elegante: Playfair + Lato"], ["moderno", "Moderno: Sora + Inter"], ["esportivo", "Esportivo: Montserrat + DM Sans"], ["geometrico", "Geométrico: Poppins + Work Sans"]].map(([k, n]) => `<option value="${k}" ${s.font === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
+    <div class="box"><h2>Avisos no topo</h2><p class="help" style="margin-bottom:10px">Frases que passam correndo na faixa colorida do topo (até 6).</p>
+      ${[0, 1, 2, 3, 4, 5].map((i) => `<input class="in" data-msg="${i}" maxlength="80" style="margin-bottom:6px" value="${esc((s.messages || [])[i] || (i === 0 && !(s.messages || []).length ? s.announcement : "") || "")}" placeholder="${["Realize seu pedido pelo WhatsApp!", "Produtos com qualidade garantida", "Parcele em até 12x no cartão", "", "", ""][i]}">`).join("")}</div>
+    <div class="box"><h2>Banners</h2><p class="help" style="margin-bottom:10px">Ocupam a largura toda da tela. Tamanho ideal: 1920×640 (computador) e 1080×1350 (celular). Até 6 banners.</p>
       ${s.banners.map((b, i) => `<div class="ban">
         <div><div class="im" style="width:120px;height:70px"><img src="${img(b.image)}" alt=""></div><button type="button" class="lnk help" data-bm="${i}" style="text-decoration:underline;margin-top:4px">${b.imageMobile ? "Trocar versão celular" : "+ Versão celular"}</button></div>
         <div><input class="in" data-bt="${i}" placeholder="Título (opcional)" value="${esc(b.title)}" style="margin-bottom:6px"><input class="in" data-bs="${i}" placeholder="Subtítulo (opcional)" value="${esc(b.subtitle)}" style="margin-bottom:6px">
         <input class="in" data-bl="${i}" placeholder="Link ao tocar: ex. categoria/nike (opcional)" value="${esc(b.link)}">
         <div class="row" style="margin-top:6px"><button class="btn ghost sm" data-bu="${i}">↑</button><button class="btn ghost sm" data-bd="${i}">↓</button><button class="btn ghost sm" data-bx="${i}">Remover</button></div></div></div>`).join("")}
       ${s.banners.length < 6 ? `<button class="btn ghost" id="addban">+ Adicionar banner</button>` : ""}</div>
-    <div class="box"><h2>Selos de confiança</h2><p class="help" style="margin-bottom:10px">Aparecem abaixo do banner (até 4).</p>
+    <div class="box"><h2>Benefícios</h2><p class="help" style="margin-bottom:10px">Aparecem logo abaixo do banner, com ícone (até 4). Ex.: Frete Rápido / Receba seu pedido rapidamente.</p>
       ${[0, 1, 2, 3].map((i) => `<div class="grid2" style="margin-bottom:8px"><input class="in" data-ht="${i}" placeholder="Título" maxlength="40" value="${esc((s.highlights[i] || {}).title)}"><input class="in" data-hx="${i}" placeholder="Texto" maxlength="80" value="${esc((s.highlights[i] || {}).text)}"></div>`).join("")}</div>
     <button class="btn" id="lsave">Salvar aparência</button>`;
   };
   const collect = () => {
-    s.color = $("#c1t").value; s.accent = $("#c2t").value; s.mode = $("#md").value; s.announcement = $("#ann").value;
+    s.color = $("#c1t").value; s.accent = $("#c2t").value; s.mode = $("#md").value; s.font = $("#fnt").value;
+    s.messages = [0, 1, 2, 3, 4, 5].map((i) => $(`[data-msg="${i}"]`).value.trim()).filter(Boolean); s.announcement = "";
     s.banners.forEach((b, i) => { b.title = $(`[data-bt="${i}"]`).value; b.subtitle = $(`[data-bs="${i}"]`).value; b.link = $(`[data-bl="${i}"]`).value; });
     s.highlights = [0, 1, 2, 3].map((i) => ({ title: $(`[data-ht="${i}"]`).value, text: $(`[data-hx="${i}"]`).value })).filter((h) => h.title || h.text);
   };
@@ -506,7 +509,13 @@ function tabStore() {
     <div class="fl"><label for="s-gr">Mensagem do botão de WhatsApp</label><input class="in" id="s-gr" name="greeting" maxlength="200" value="${esc(s.greeting)}"></div>
     <div class="fl"><label for="s-ig">Instagram</label><input class="in" id="s-ig" name="instagram" value="${esc(s.instagram)}" placeholder="@sualoja"></div>
     <div class="fl"><label for="s-em">E-mail</label><input class="in" id="s-em" name="email" type="email" value="${esc(s.email)}"></div></div>
-    <div class="fl"><label for="s-ad">Endereço da loja física</label><input class="in" id="s-ad" name="address" maxlength="200" value="${esc(s.address)}"></div></div>
+    <div class="grid2"><div class="fl"><label for="s-ph">Telefone (opcional)</label><input class="in" id="s-ph" name="phone" inputmode="tel" value="${esc(s.phone || "")}" placeholder="5511999990000"></div>
+    <div class="fl"><label for="s-cn">Nome de quem atende</label><input class="in" id="s-cn" name="contactName" maxlength="60" value="${esc(s.contactName || "")}"></div>
+    <div class="fl"><label for="s-hr">Horário de atendimento</label><input class="in" id="s-hr" name="hours" maxlength="100" value="${esc(s.hours || "")}" placeholder="Seg a sáb, das 9h às 18h"></div></div>
+    <div class="fl"><label for="s-ad">Endereço ou cidade</label><input class="in" id="s-ad" name="address" maxlength="200" value="${esc(s.address)}"></div>
+    <label class="chk"><input type="checkbox" name="newsletter" ${s.newsletter !== false ? "checked" : ""}> Mostrar o cadastro "Receba as últimas novidades" no rodapé</label></div>
+  <div class="box"><h2>Perguntas frequentes</h2><p class="help" style="margin-bottom:10px">Se deixar em branco, a loja mostra perguntas prontas sobre pedido, pagamento, entrega e troca.</p>
+    ${[0, 1, 2, 3, 4, 5].map((i) => `<div style="margin-bottom:10px"><input class="in" name="fq${i}" maxlength="140" placeholder="Pergunta ${i + 1}" value="${esc(((s.faq || [])[i] || {}).q || "")}" style="margin-bottom:4px"><textarea class="in" name="fa${i}" maxlength="800" placeholder="Resposta" style="min-height:60px">${esc(((s.faq || [])[i] || {}).a || "")}</textarea></div>`).join("")}</div>
   <div class="box"><h2>Pagamento</h2>
     <div class="fl"><label for="s-pay">Formas de pagamento</label><input class="in" id="s-pay" name="payments" value="${esc(s.payments.join(", "))}"><small>Separe por vírgula. Ex.: Pix, Cartão de crédito, Dinheiro</small></div>
     <div class="fl"><label for="s-pn">Observação de pagamento</label><input class="in" id="s-pn" name="paymentNote" maxlength="140" value="${esc(s.paymentNote)}" placeholder="Ex.: Parcele em até 12x no cartão"></div>
@@ -523,6 +532,8 @@ function tabStore() {
   $("#ssave").onclick = async () => {
     const f = new FormData($("#sf")); const v = (k) => f.get(k) || "";
     const ns = { ...D.settings, name: v("name"), tagline: v("tagline"), about: v("about"), whatsapp: v("whatsapp").replace(/\D/g, ""), greeting: v("greeting"), instagram: v("instagram"), email: v("email"), address: v("address"),
+      phone: v("phone").replace(/\D/g, ""), contactName: v("contactName"), hours: v("hours"), newsletter: f.has("newsletter"),
+      faq: [0, 1, 2, 3, 4, 5].map((i) => ({ q: v("fq" + i).trim(), a: v("fa" + i).trim() })).filter((x) => x.q && x.a),
       payments: v("payments").split(",").map((x) => x.trim()).filter(Boolean), paymentNote: v("paymentNote"), minOrderCents: parseMoney(v("minOrder")), hidePrices: f.has("hidePrices"),
       delivery: f.has("delivery"), deliveryText: v("deliveryText"), deliveryFeeCents: parseMoney(v("deliveryFee")), freeShippingFromCents: parseMoney(v("freeFrom")), pickup: f.has("pickup"), pickupText: v("pickupText") };
     if (ns.whatsapp && ns.whatsapp.length < 12) return toast("Coloque o WhatsApp com 55 e DDD, ex.: 5511999990000");
@@ -560,7 +571,17 @@ function tabShare() {
   <a class="btn ok" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Confira o catálogo da ${D.settings.name}: ${url}`)}">Mandar no WhatsApp</a></div></div>
   <div class="grid2"><div class="box"><h2>QR Code</h2><div class="qr" id="qr"></div><button class="btn ghost" id="qrd" style="margin-top:10px">Baixar QR Code</button><p class="help" style="margin-top:6px">Para a vitrine, o balcão ou as embalagens.</p></div>
   <div class="box"><h2>Exportar catálogo</h2><p class="help" style="margin-bottom:10px">PDF com fotos e preços, ou planilha com todos os produtos.</p>
-    <div class="row"><button class="btn" id="pdf">Catálogo em PDF</button><button class="btn ghost" id="csv">Planilha (CSV)</button></div></div></div>`;
+    <div class="row"><button class="btn" id="pdf">Catálogo em PDF</button><button class="btn ghost" id="csv">Planilha (CSV)</button></div></div></div>
+  <div class="box"><h2>Cadastros de novidades</h2><p class="help" id="ldinfo">Carregando…</p><button class="btn ghost" id="ldcsv" style="margin-top:10px" disabled>Baixar contatos (CSV)</button></div>`;
+  api("leads").then(({ leads }) => {
+    $("#ldinfo").textContent = leads.length ? `${leads.length} ${leads.length > 1 ? "pessoas pediram" : "pessoa pediu"} para receber novidades pelo rodapé da loja.` : "Ninguém se cadastrou ainda. O formulário fica no rodapé da loja.";
+    const b = $("#ldcsv"); b.disabled = !leads.length;
+    b.onclick = () => {
+      const q = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+      const rows = [["Nome", "WhatsApp", "E-mail", "Data"], ...leads.map((l) => [l.name, l.phone, l.email, new Date(l.at).toLocaleDateString("pt-BR")])];
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + rows.map((r) => r.map(q).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" })); a.download = `contatos-${D.slug}.csv`; a.click();
+    };
+  }).catch((e) => { const i = $("#ldinfo"); if (i) i.textContent = e.message; });
   $("#cp").onclick = async () => { try { await navigator.clipboard.writeText(url); toast("Link copiado"); } catch { $("#url").select(); } };
   if (window.QRCode) new QRCode($("#qr"), { text: url, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
   else $("#qr").textContent = "Não foi possível gerar o QR Code.";

@@ -172,6 +172,12 @@ module.exports = async (req, res) => {
       return send(res, 200, { orders });
     }
 
+    if (op === "leads") {
+      const [all] = await redis(st, ["HGETALL", K.leads(slug)]);
+      const vals = Array.isArray(all) ? all.filter((_, i) => i % 2) : Object.values(all || {});
+      return send(res, 200, { leads: vals.map((v) => db.parse(v)).filter(Boolean).sort((a, b) => b.at - a.at) });
+    }
+
     if (op === "setOrderStatus") {
       const status = String(body.status || "");
       if (!STATUSES.includes(status)) return send(res, 400, { error: "Status inválido." });

@@ -100,6 +100,7 @@ const K = {
   orders: (s) => `cat:o:${s}`,
   orderSeq: (s) => `cat:on:${s}`,
   imgs: (s) => `cat:is:${s}`,
+  leads: (s) => `cat:l:${s}`,
   img: (id) => `cat:i:${id}`,
   sess: (t) => `cat:t:${t}`,
   stat: (s, d) => `cat:st:${s}:${d}`,
@@ -142,6 +143,7 @@ const LIMITS = {
   login: [10, 3600],   // senhas erradas no painel
   admin: [10, 3600],   // chave errada no /admin
   order: [30, 3600],   // pedidos por IP por hora
+  lead: [10, 3600],    // cadastros de novidades por IP por hora
   hit: [400, 600],     // contagem de visitas
   upload: [300, 3600], // imagens enviadas por IP por hora
 };
@@ -202,6 +204,13 @@ function cleanSettings(s, slug) {
     accent: color(s.accent, "#16a34a"),
     mode: s.mode === "dark" ? "dark" : "light",
     announcement: str(s.announcement, 140),
+    messages: list(s.messages, 6, (m) => str(m, 80) || null),
+    phone: phone(s.phone),
+    contactName: str(s.contactName, 60),
+    hours: str(s.hours, 100),
+    faq: list(s.faq, 10, (f) => (f && f.q && f.a ? { q: str(f.q, 140), a: str(f.a, 800) } : null)),
+    font: ["classico", "elegante", "moderno", "esportivo", "geometrico"].includes(s.font) ? s.font : "classico",
+    newsletter: s.newsletter !== false,
     hidePrices: !!s.hidePrices,
     minOrderCents: cents(s.minOrderCents),
     payments: list(s.payments, 8, (p) => str(p, 60)),

@@ -98,6 +98,18 @@ module.exports = async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    if (body.op === "lead") {
+      if (await db.overLimit(st, "lead", ip)) return send(res, 429, { error: "Muitos cadastros seguidos. Tente mais tarde." });
+      const [exists] = await redis(st, ["EXISTS", K.meta(slug)]);
+      if (!exists) return send(res, 404, { error: "Loja não encontrada." });
+      const lead = { name: db.str(body.name, 80), phone: db.phone(body.phone), email: db.str(body.email, 120).toLowerCase(), at: Date.now() };
+      if (!lead.phone && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(lead.email)) return send(res, 400, { error: "Informe o WhatsApp ou um e-mail válido." });
+      const [n] = await redis(st, ["HLEN", K.leads(slug)]);
+      if (Number(n) >= 20000) return send(res, 200, { ok: true });
+      await redis(st, ["HSET", K.leads(slug), lead.phone || lead.email, JSON.stringify(lead)], ["INCR", K.lim("lead", ip)], ["EXPIRE", K.lim("lead", ip), "3600"]);
+      return send(res, 200, { ok: true });
+    }
+
     if (body.op === "order") {
       if (await db.overLimit(st, "order", ip)) return send(res, 429, { error: "Muitos pedidos seguidos. Tente de novo mais tarde." });
       const store = await loadStore(st, slug);
