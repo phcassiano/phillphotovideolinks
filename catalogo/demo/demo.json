@@ -1,0 +1,459 @@
+{
+ "slug": "vertice-importados",
+ "settings": {
+  "name": "Vértice Importados",
+  "tagline": "Sua loja de tecnologia: iPhones, acessórios e assistência",
+  "about": "Loja exemplo da WhatsLoja. iPhones novos e seminovos, acessórios e assistência técnica. A marca, os produtos e os preços desta loja são fictícios, criados para mostrar como fica o seu catálogo.",
+  "greeting": "Olá! Vim pelo catálogo da Vértice Importados.",
+  "address": "Brasília-DF",
+  "hours": "Seg a sáb, das 9h às 18h",
+  "contactName": "Equipe Vértice",
+  "color": "#d6101f",
+  "accent": "#22c55e",
+  "mode": "dark",
+  "font": "esportivo",
+  "messages": [
+   "Compramos seu iPhone usado",
+   "Parcele em até 12x no cartão",
+   "Garantia em todos os aparelhos",
+   "Peça pelo WhatsApp e retire na loja",
+   "Loja exemplo WhatsLoja: monte a sua"
+  ],
+  "highlights": [
+   {
+    "title": "Avaliamos seu usado",
+    "text": "Pagamento à vista ou na troca"
+   },
+   {
+    "title": "Garantia da loja",
+    "text": "Em todos os aparelhos"
+   },
+   {
+    "title": "Parcele em 12x",
+    "text": "Ou Pix com desconto"
+   }
+  ],
+  "payments": [
+   "Pix",
+   "Cartão em até 12x",
+   "Dinheiro"
+  ],
+  "paymentNote": "Pix com 5% de desconto ou cartão em até 12x.",
+  "delivery": true,
+  "deliveryText": "Entrega por motoboy em Brasília",
+  "deliveryFeeCents": 1500,
+  "freeShippingFromCents": 300000,
+  "pickup": true,
+  "pickupText": "Retire na loja, de seg a sáb, das 9h às 18h",
+  "newsletter": true,
+  "logo": "logo",
+  "banners": [
+   {
+    "image": "banner-troca",
+    "imageMobile": "banner-troca-m",
+    "link": "produto/avaliacao-do-seu-iphone-usado"
+   },
+   {
+    "image": "banner-quinta",
+    "imageMobile": "banner-quinta-m",
+    "link": "categoria/ofertas-da-quinta"
+   },
+   {
+    "image": "banner-assistencia",
+    "imageMobile": "banner-assistencia-m",
+    "link": "categoria/assistencia-e-troca"
+   }
+  ],
+  "faq": [
+   {
+    "q": "Vocês compram meu iPhone usado?",
+    "a": "Sim. Mande o modelo, a capacidade e a saúde da bateria pelo WhatsApp. A gente avalia na hora e você recebe à vista ou usa o valor como desconto em outro aparelho."
+   },
+   {
+    "q": "Os aparelhos têm garantia?",
+    "a": "Todos os aparelhos têm garantia da loja. Os seminovos passam por revisão completa antes da venda."
+   },
+   {
+    "q": "Quais as formas de pagamento?",
+    "a": "Pix com 5% de desconto, cartão de crédito em até 12x ou dinheiro na retirada."
+   },
+   {
+    "q": "Como funciona a entrega?",
+    "a": "Entregamos por motoboy em Brasília (grátis acima de R$ 3.000) ou você retira na loja. O pedido é finalizado pelo WhatsApp."
+   },
+   {
+    "q": "Esta loja é real?",
+    "a": "Não. É uma loja exemplo da WhatsLoja, para mostrar como fica um catálogo pronto. Quer um igual para a sua loja? Fale com a gente."
+   }
+  ]
+ },
+ "categories": [
+  "iPhones Novos",
+  "Seminovos",
+  "Ofertas da Quinta",
+  "Acessórios",
+  "Áudio e Som",
+  "Games",
+  "Assistência e Troca"
+ ],
+ "products": [
+  {
+   "name": "iPhone 17 Pro Max 256GB",
+   "category": "iphones-novos",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 999900,
+   "promo": 949900,
+   "colors": [
+    "Laranja Cósmico",
+    "Azul Profundo",
+    "Prata"
+   ],
+   "images": [
+    "iphone-17-pro-max-laranja",
+    "iphone-17-pro-max-azul"
+   ],
+   "featured": true,
+   "stock": {
+    "|Laranja Cósmico": 4,
+    "|Azul Profundo": 2,
+    "|Prata": 0
+   },
+   "desc": "Lacrado, com nota fiscal.\nTela de 6,9 polegadas, câmera tripla e bateria para o dia todo.\nGarantia da loja."
+  },
+  {
+   "name": "iPhone 17 Pro 256GB",
+   "category": "iphones-novos",
+   "price": 879900,
+   "colors": [
+    "Prata",
+    "Laranja Cósmico",
+    "Azul Profundo"
+   ],
+   "images": [
+    "iphone-17-pro-prata",
+    "iphone-17-pro-max-laranja"
+   ],
+   "stock": {
+    "|Prata": 3,
+    "|Laranja Cósmico": 2,
+    "|Azul Profundo": 1
+   },
+   "desc": "Lacrado, com nota fiscal.\nTela de 6,3 polegadas e câmera tripla.\nGarantia da loja."
+  },
+  {
+   "name": "iPhone Air 256GB",
+   "category": "iphones-novos",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 799900,
+   "promo": 729900,
+   "colors": [
+    "Azul Céu",
+    "Dourado Claro"
+   ],
+   "images": [
+    "iphone-air-azul",
+    "iphone-air-dourado"
+   ],
+   "featured": true,
+   "stock": {
+    "|Azul Céu": 3,
+    "|Dourado Claro": 2
+   },
+   "desc": "O iPhone mais fino. Lacrado, com nota fiscal e garantia da loja."
+  },
+  {
+   "name": "iPhone 17 256GB",
+   "category": "iphones-novos",
+   "price": 649900,
+   "colors": [
+    "Lavanda",
+    "Sálvia"
+   ],
+   "images": [
+    "iphone-17-lavanda",
+    "iphone-17-salvia"
+   ],
+   "featured": true,
+   "stock": {
+    "|Lavanda": 5,
+    "|Sálvia": 3
+   },
+   "desc": "Lacrado, com nota fiscal.\nTela de 6,3 polegadas e câmera dupla.\nGarantia da loja."
+  },
+  {
+   "name": "iPhone 16 128GB",
+   "category": "iphones-novos",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 499900,
+   "promo": 459900,
+   "colors": [
+    "Preto",
+    "Ultramarino"
+   ],
+   "images": [
+    "iphone-16-preto",
+    "iphone-16-ultramarino"
+   ],
+   "stock": {
+    "|Preto": 6,
+    "|Ultramarino": 2
+   },
+   "desc": "Lacrado, com nota fiscal e garantia da loja."
+  },
+  {
+   "name": "iPhone 15 Pro Max 256GB Seminovo",
+   "category": "seminovos",
+   "price": 529900,
+   "colors": [
+    "Titânio Natural"
+   ],
+   "images": [
+    "iphone-15-pro-max-titanio"
+   ],
+   "featured": true,
+   "stock": {
+    "|Titânio Natural": 1
+   },
+   "desc": "Seminovo grade A, sem marcas de uso.\nBateria com 88% de saúde.\nRevisado e com garantia da loja."
+  },
+  {
+   "name": "iPhone 14 Pro 128GB Seminovo",
+   "category": "seminovos",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 379900,
+   "promo": 349900,
+   "colors": [
+    "Roxo-profundo"
+   ],
+   "images": [
+    "iphone-14-pro-roxo"
+   ],
+   "stock": {
+    "|Roxo-profundo": 2
+   },
+   "desc": "Seminovo grade A.\nBateria com 86% de saúde.\nRevisado e com garantia da loja."
+  },
+  {
+   "name": "iPhone 13 128GB Seminovo",
+   "category": "seminovos",
+   "price": 259900,
+   "colors": [
+    "Meia-noite",
+    "Rosa"
+   ],
+   "images": [
+    "iphone-13-meianoite",
+    "iphone-13-rosa"
+   ],
+   "stock": {
+    "|Meia-noite": 2,
+    "|Rosa": 1
+   },
+   "desc": "Seminovo grade A.\nBateria com 85% de saúde.\nRevisado e com garantia da loja."
+  },
+  {
+   "name": "Carregador USB-C 20W",
+   "category": "acessorios",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 12900,
+   "promo": 9900,
+   "images": [
+    "carregador-20w"
+   ],
+   "stock": {
+    "|": 25
+   },
+   "desc": "Carregamento rápido para iPhone e outros aparelhos USB-C."
+  },
+  {
+   "name": "Cabo USB-C 1 m trançado",
+   "category": "acessorios",
+   "price": 5900,
+   "images": [
+    "cabo-usbc"
+   ],
+   "stock": {
+    "|": 40
+   },
+   "desc": "Cabo trançado resistente, USB-C dos dois lados."
+  },
+  {
+   "name": "Capinha transparente MagSafe",
+   "category": "acessorios",
+   "price": 8900,
+   "sizes": [
+    "iPhone 17 Pro Max",
+    "iPhone 17 Pro",
+    "iPhone 17",
+    "iPhone Air",
+    "iPhone 16"
+   ],
+   "images": [
+    "capinha-magsafe"
+   ],
+   "desc": "Transparente, não amarela e com ímã para acessórios MagSafe. Escolha o modelo do seu iPhone.",
+   "sizeLabel": "Modelo"
+  },
+  {
+   "name": "Película 3D de vidro",
+   "category": "acessorios",
+   "price": 4900,
+   "sizes": [
+    "iPhone 17 Pro Max",
+    "iPhone 17 Pro",
+    "iPhone 17",
+    "iPhone Air",
+    "iPhone 16"
+   ],
+   "images": [
+    "pelicula-3d"
+   ],
+   "desc": "Vidro temperado 9H com borda preta. Colocamos na hora, na loja.",
+   "sizeLabel": "Modelo"
+  },
+  {
+   "name": "Power bank magnético 5000 mAh",
+   "category": "acessorios",
+   "price": 19900,
+   "promo": 16900,
+   "images": [
+    "powerbank-magsafe"
+   ],
+   "stock": {
+    "|": 12
+   },
+   "desc": "Gruda atrás do iPhone e carrega sem fio."
+  },
+  {
+   "name": "Fone Bluetooth com cancelamento de ruído",
+   "category": "audio-e-som",
+   "price": 34900,
+   "images": [
+    "fone-bluetooth-anc"
+   ],
+   "featured": true,
+   "stock": {
+    "|": 8
+   },
+   "desc": "Cancelamento ativo de ruído, estojo de carga e até 24 h de bateria."
+  },
+  {
+   "name": "Caixa de som Bluetooth 300W",
+   "category": "audio-e-som",
+   "extra": [
+    "ofertas-da-quinta"
+   ],
+   "price": 129900,
+   "promo": 109900,
+   "images": [
+    "caixa-som-300w"
+   ],
+   "featured": true,
+   "stock": {
+    "|": 3
+   },
+   "desc": "300W de potência, luzes de LED e bateria para a festa inteira."
+  },
+  {
+   "name": "Smartwatch esportivo",
+   "category": "acessorios",
+   "price": 39900,
+   "colors": [
+    "Preto",
+    "Grafite"
+   ],
+   "images": [
+    "smartwatch"
+   ],
+   "stock": {
+    "|Preto": 4,
+    "|Grafite": 0
+   },
+   "desc": "Monitor de batimentos, passos e notificações do celular."
+  },
+  {
+   "name": "Controle sem fio para console",
+   "category": "games",
+   "price": 44900,
+   "colors": [
+    "Branco",
+    "Preto"
+   ],
+   "images": [
+    "controle-sem-fio"
+   ],
+   "stock": {
+    "|Branco": 5,
+    "|Preto": 2
+   },
+   "desc": "Controle sem fio com vibração e bateria recarregável."
+  },
+  {
+   "name": "Troca de tela iPhone",
+   "category": "assistencia-e-troca",
+   "price": 39900,
+   "sizes": [
+    "iPhone 11 a 13",
+    "iPhone 14 e 15",
+    "iPhone 16 e 17"
+   ],
+   "images": [
+    "troca-de-tela"
+   ],
+   "desc": "Valor a partir de R$ 399, conforme o modelo. Troca no mesmo dia, com garantia do serviço. Escolha a linha do seu iPhone e combine o horário pelo WhatsApp.",
+   "sizeLabel": "Modelo"
+  },
+  {
+   "name": "Troca de bateria iPhone",
+   "category": "assistencia-e-troca",
+   "price": 29900,
+   "sizes": [
+    "iPhone 11 a 13",
+    "iPhone 14 e 15",
+    "iPhone 16 e 17"
+   ],
+   "images": [
+    "troca-de-bateria"
+   ],
+   "desc": "Bateria nova com 100% de saúde. Valor a partir de R$ 299, conforme o modelo. Troca em cerca de 1 hora.",
+   "sizeLabel": "Modelo"
+  },
+  {
+   "name": "Avaliação do seu iPhone usado",
+   "category": "assistencia-e-troca",
+   "price": 0,
+   "images": [
+    "avaliacao-usado"
+   ],
+   "desc": "Quer trocar de iPhone? Seu usado vale como desconto.\n\nToque no botão verde do WhatsApp e mande: modelo, capacidade, saúde da bateria e fotos. A gente responde com a proposta na hora."
+  }
+ ],
+ "coupons": [
+  {
+   "code": "PRIMEIRACOMPRA",
+   "type": "fixed",
+   "value": 10000,
+   "minCents": 200000,
+   "note": "Loja exemplo"
+  },
+  {
+   "code": "ACESSORIOS15",
+   "type": "percent",
+   "value": 15,
+   "categories": [
+    "acessorios"
+   ],
+   "note": "Loja exemplo"
+  }
+ ]
+}
