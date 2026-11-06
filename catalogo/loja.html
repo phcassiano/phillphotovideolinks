@@ -292,6 +292,14 @@ footer h5 svg{width:16px;height:16px}
 .lines span{display:flex;align-items:center;gap:8px}
 .lines svg{width:16px;height:16px}
 .desc{margin-top:22px;white-space:pre-line;font-size:15px;line-height:1.6}
+.frete{margin-top:22px;padding:16px;border:1px solid var(--line);border-radius:var(--r)}
+.frete h3{font-size:14px;font-weight:600;margin-bottom:10px}
+.fr{display:flex;gap:8px;margin-bottom:6px}
+.fr .in{height:42px;max-width:200px}
+.fr .bt{height:42px;font-size:12px}
+.fo{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.fo:last-child{border-bottom:0}
+.fo small{display:block;color:var(--muted);font-size:12px}
 .buybar{display:none}
 @media(max-width:900px){
   .buybar{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:62px;z-index:30;background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 16px;margin:16px -16px 0}
@@ -513,7 +521,7 @@ function newsletter() {
 }
 function footer() {
   const s = S.settings;
-  const ship = s.delivery ? (s.deliveryText || (s.deliveryFeeCents ? `Entrega: ${brl(s.deliveryFeeCents)}` : "Entrega a combinar")) : s.pickup ? (s.pickupText || "Retirada na loja") : "";
+  const ship = s.delivery && s.shipCalc ? "Frete calculado pelo CEP" : s.delivery ? (s.deliveryText || (s.deliveryFeeCents ? `Entrega: ${brl(s.deliveryFeeCents)}` : "Entrega a combinar")) : s.pickup ? (s.pickupText || "Retirada na loja") : "";
   return `<footer><div class="wrap fg">
     <div class="fabout">${s.logo ? `<img src="${img(s.logo)}" alt="${esc(s.name)}">` : `<h5 style="font-size:20px;text-transform:none">${esc(s.name)}</h5>`}
       <p>${esc(s.about || s.tagline || "")}</p>
@@ -589,7 +597,7 @@ function faqSec() {
   const faq = (s.faq || []).length ? s.faq : [
     { q: "Como posso fazer meu pedido?", a: "Escolha os produtos, adicione ao carrinho e finalize. O pedido chega pronto no nosso WhatsApp e combinamos tudo por lá." },
     (s.payments || []).length ? { q: "Quais formas de pagamento são aceitas?", a: s.payments.join(", ") + "." + (s.paymentNote ? " " + s.paymentNote : "") } : null,
-    s.delivery || s.pickup ? { q: "Como funciona a entrega?", a: [s.delivery ? s.deliveryText || (s.deliveryFeeCents ? `Taxa de entrega de ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? `, grátis acima de ${brl(s.freeShippingFromCents)}` : ""}.` : "Combinamos a entrega pelo WhatsApp.") : "", s.pickup ? "Você também pode retirar na loja" + (s.pickupText ? ": " + s.pickupText : ".") : ""].filter(Boolean).join(" ") } : null,
+    s.delivery || s.pickup ? { q: "Como funciona a entrega?", a: [s.delivery && s.shipCalc ? "Enviamos pelos Correios e transportadoras. Calcule o frete com o seu CEP na página do produto ou no carrinho." + (s.freeShippingFromCents ? ` Frete grátis acima de ${brl(s.freeShippingFromCents)}.` : "") : s.delivery ? s.deliveryText || (s.deliveryFeeCents ? `Taxa de entrega de ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? `, grátis acima de ${brl(s.freeShippingFromCents)}` : ""}.` : "Combinamos a entrega pelo WhatsApp.") : "", s.pickup ? "Você também pode retirar na loja" + (s.pickupText ? ": " + s.pickupText : ".") : ""].filter(Boolean).join(" ") } : null,
     { q: "Posso trocar um produto?", a: "Sim. Fale com a gente pelo WhatsApp para combinar a troca." },
   ].filter(Boolean);
   return `<section class="sec"><h2 class="st">Perguntas frequentes</h2><div class="faq"><div class="lead"><h2>Ficou com alguma dúvida?</h2><p>Se a sua pergunta não estiver aqui, chame a gente no WhatsApp.</p>${s.whatsapp ? `<a class="bt wa" href="${waLink(s.greeting || "Olá! Tenho uma dúvida.")}" target="_blank" rel="noopener" data-wa>${I.wa} Falar no WhatsApp</a>` : ""}</div>
@@ -617,7 +625,7 @@ function pageProduct(p) {
   const sel = { size: p.sizes.length === 1 ? p.sizes[0] : "", color: p.colors.length === 1 ? p.colors[0] : "", qty: 1 };
   const imgs = p.images.length ? p.images : [null];
   const related = S.products.filter((x) => x.id !== p.id && inCat(x, p.category)).slice(0, 12);
-  const ship = s.delivery ? (s.deliveryText || (s.deliveryFeeCents ? `Entrega: ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? ` (grátis acima de ${brl(s.freeShippingFromCents)})` : ""}` : "Entrega a combinar")) : s.pickup ? (s.pickupText || "Retirada na loja") : "";
+  const ship = s.delivery && s.shipCalc ? "Enviamos pelos Correios e transportadoras" + (s.freeShippingFromCents ? ` · frete grátis acima de ${brl(s.freeShippingFromCents)}` : "") : s.delivery ? (s.deliveryText || (s.deliveryFeeCents ? `Entrega: ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? ` (grátis acima de ${brl(s.freeShippingFromCents)})` : ""}` : "Entrega a combinar")) : s.pickup ? (s.pickupText || "Retirada na loja") : "";
   const html = `<div class="wrap">
     <nav class="crumbs" aria-label="Caminho"><a href="${BASE}" data-link>Início</a>${p.category ? `${I.chev}<a href="${BASE}/categoria/${esc(p.category)}" data-link>${esc(catName(p.category))}</a>` : ""}${I.chev}<b>${esc(p.name)}</b></nav>
     <div class="pd">
@@ -637,6 +645,7 @@ function pageProduct(p) {
           ${(s.payments || []).length ? `<span class="chipnote">${I.card}${esc(s.payments.join(", "))}</span>` : ""}
           <div class="note">Compra finalizada pelo WhatsApp: você confere o pedido no carrinho e informa seus dados no checkout.</div>
         </div>
+        ${s.shipCalc && s.delivery ? `<div class="frete"><h3>Calcular frete</h3><form class="fr" data-frete><input class="in" name="cep" inputmode="numeric" placeholder="Digite seu CEP" autocomplete="postal-code" value="${esc(fmtCep(store("cep") || ""))}" aria-label="CEP"><button class="bt ol">Calcular</button></form><a class="note" href="https://buscacepinter.correios.com.br/app/endereco/index.php" target="_blank" rel="noopener" style="text-decoration:underline">Não sei meu CEP</a><div id="frout"></div></div>` : ""}
         ${ship || s.contactName ? `<div class="lines">${ship ? `<span>${I.truck}${esc(ship)}</span>` : ""}${s.contactName ? `<span>${I.chat}${esc(s.contactName)}</span>` : ""}</div>` : ""}
         ${p.description ? `<div class="desc">${esc(p.description)}</div>` : ""}
       </div>
@@ -677,6 +686,24 @@ function mountProduct(p, sel) {
     return true;
   };
   $("#add").onclick = () => { if (add()) { toast("Adicionado ao carrinho"); openCart(); } };
+  const fr = document.querySelector("[data-frete]");
+  if (fr) {
+    fr.cep.addEventListener("input", (e) => { e.target.value = fmtCep(e.target.value); });
+    fr.onsubmit = async (e) => {
+      e.preventDefault();
+      const c = onlyCep(fr.cep.value), out = $("#frout");
+      if (c.length !== 8) { out.innerHTML = `<p class="hint err">Digite um CEP com 8 números.</p>`; return; }
+      store("cep", c);
+      // Cota com a opção escolhida (ou a primeira disponível): o peso é o mesmo.
+      const k = combos(p).find((x) => x === (sel.size || p.sizes[0] || "") + "|" + (sel.color || p.colors[0] || "") && !isOut(p, x)) || combos(p).find((x) => !isOut(p, x)) || combos(p)[0];
+      const [size, color] = k.split("|");
+      out.innerHTML = `<p class="note">Calculando…</p>`;
+      try {
+        const q = await quoteFrete(c, [{ pid: p.id, size: sel.size || size, color: sel.color || color, qty: sel.qty }]);
+        out.innerHTML = q.options.length ? q.options.map((o) => `<div class="fo"><span>${shipLabel(o)}<small>${days(o)}</small></span>${shipPrice(o)}</div>`).join("") + (S.settings.freeShippingFromCents ? `<p class="note">Frete grátis em compras acima de ${brl(S.settings.freeShippingFromCents)}.</p>` : "") : `<p class="note">${esc(q.message || "Nenhuma opção para esse CEP.")}</p>`;
+      } catch (err) { out.innerHTML = `<p class="hint err">${esc(err.message)}</p>`; }
+    };
+  }
   $("#share").onclick = async () => { try { if (navigator.share) await navigator.share({ title: p.name, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("Link copiado"); } } catch {} };
   hit("pv", p.id);
 }
@@ -708,13 +735,26 @@ function pageTrack(n, code) {
 const drawer = $("#drawer"), menu = $("#menu"), ov = $("#ov");
 function updateBadge() { const b = $("#badge"); if (!b) return; const n = CART.reduce((a, i) => a + i.qty, 0); b.textContent = n; b.hidden = !n; }
 const cartLines = () => CART.map((i) => ({ ...i, p: byId(i.pid) })).filter((i) => i.p);
-function totals(delivery) {
+function totals(delivery, shipOpt) {
   const s = S.settings;
   const sub = cartLines().reduce((a, i) => a + unit(i.p) * i.qty, 0);
   let ship = 0;
-  if (delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && sub >= s.freeShippingFromCents)) ship = s.deliveryFeeCents;
+  if (delivery === "entrega" && s.shipCalc) ship = shipOpt ? shipOpt.priceCents : 0;
+  else if (delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && sub >= s.freeShippingFromCents)) ship = s.deliveryFeeCents;
   return { sub, ship, total: sub + ship };
 }
+// ---------- Frete (Melhor Envio) ----------
+const onlyCep = (v) => String(v || "").replace(/\D/g, "").slice(0, 8);
+const fmtCep = (v) => { const d = onlyCep(v); return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d; };
+const days = (o) => (o.daysMax ? `${o.daysMin === o.daysMax ? o.daysMax : `${o.daysMin} a ${o.daysMax}`} dias úteis` : "");
+async function quoteFrete(cep, items) {
+  const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "frete", slug: SLUG, cep: onlyCep(cep), items }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Não foi possível calcular o frete.");
+  return j;
+}
+const shipPrice = (o) => (o.free ? `<b style="color:var(--accent)">Grátis</b>` : `<b>${brl(o.priceCents)}</b>`);
+const shipLabel = (o) => `${esc(o.company)} ${esc(o.name)}`.trim();
 function openSide(el) { closeSides(); el.classList.add("open"); ov.classList.add("open"); el.setAttribute("aria-hidden", "false"); document.body.style.overflow = "hidden"; }
 function closeSides() { [drawer, menu].forEach((el) => { el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); }); ov.classList.remove("open"); document.body.style.overflow = ""; }
 function openCart(view = "cart") { openSide(drawer); view === "checkout" ? drawCheckout() : drawCart(); }
@@ -735,7 +775,7 @@ function drawCart() {
 function drawCheckout() {
   const s = S.settings, me = store("me:" + SLUG) || {};
   const opts = [];
-  if (s.delivery) opts.push(["entrega", "Receber em casa", s.deliveryText || (s.deliveryFeeCents ? `Taxa de ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? `, grátis acima de ${brl(s.freeShippingFromCents)}` : ""}` : "Combine a entrega com a loja")]);
+  if (s.delivery) opts.push(["entrega", "Receber em casa", s.shipCalc ? "Correios e transportadoras, frete calculado pelo CEP" + (s.freeShippingFromCents ? `. Grátis acima de ${brl(s.freeShippingFromCents)}` : "") : s.deliveryText || (s.deliveryFeeCents ? `Taxa de ${brl(s.deliveryFeeCents)}${s.freeShippingFromCents ? `, grátis acima de ${brl(s.freeShippingFromCents)}` : ""}` : "Combine a entrega com a loja")]);
   if (s.pickup) opts.push(["retirada", "Retirar na loja", s.pickupText || s.address || "Combine o horário pela conversa"]);
   const dlv = opts.find((o) => o[0] === me.delivery) ? me.delivery : (opts[0] || [""])[0];
   drawer.innerHTML = `<div class="sh"><button class="ib" data-go="cart" aria-label="Voltar">${I.left}</button><h2 class="hd">Finalizar pedido</h2><span style="width:44px"></span></div>
@@ -744,7 +784,8 @@ function drawCheckout() {
     <div class="fld"><label for="c-phone">Seu WhatsApp <span style="color:var(--muted);font-weight:400">(opcional)</span></label><input class="field" id="c-phone" name="phone" inputmode="tel" autocomplete="tel" value="${esc(me.phone || "")}"></div>
     ${opts.length ? `<div class="fld"><label>Como prefere receber?</label><div class="radios">${opts.map((o) => `<label class="radio ${o[0] === dlv ? "on" : ""}"><input type="radio" name="delivery" value="${o[0]}" ${o[0] === dlv ? "checked" : ""}><span><b>${o[1]}</b><small>${esc(o[2])}</small></span></label>`).join("")}</div></div>` : ""}
     <div id="addr" ${dlv === "entrega" ? "" : "hidden"}>
-      <div class="fld"><label for="c-cep">CEP</label><input class="field" id="c-cep" name="cep" inputmode="numeric" autocomplete="postal-code" value="${esc(me.cep || "")}"></div>
+      <div class="fld"><label for="c-cep">CEP</label><input class="field" id="c-cep" name="cep" inputmode="numeric" autocomplete="postal-code" placeholder="00000-000" value="${esc(fmtCep(me.cep || store("cep") || ""))}"><small class="note" id="cepnote"></small></div>
+      ${s.shipCalc ? `<div class="fld" id="shipbox" hidden><label>Opções de frete</label><div class="radios" id="shipopts"></div></div>` : ""}
       <div class="fld"><label for="c-addr">Endereço completo</label><textarea class="field" id="c-addr" name="address" autocomplete="street-address" placeholder="Rua, número, complemento, bairro e cidade">${esc(me.address || "")}</textarea></div></div>
     ${(s.payments || []).length ? `<div class="fld"><label for="c-pay">Forma de pagamento</label><select class="field" id="c-pay" name="payment">${s.payments.map((p) => `<option ${p === me.payment ? "selected" : ""}>${esc(p)}</option>`).join("")}</select>${s.paymentNote ? `<small class="note">${esc(s.paymentNote)}</small>` : ""}</div>` : ""}
     <div class="fld"><label for="c-note">Observação <span style="color:var(--muted);font-weight:400">(opcional)</span></label><textarea class="field" id="c-note" name="note" rows="2"></textarea></div>
@@ -752,26 +793,63 @@ function drawCheckout() {
   </form>
   <div class="sf"><div class="sum" id="cosum"></div><button class="bt wa full" id="send">${waBtn("Enviar pedido pelo WhatsApp")}</button></div>`;
   const form = $("#co");
+  let shipList = [], shipSel = null, lastCep = "";
+  const dlvNow = () => form.querySelector("[name=delivery]:checked")?.value || "";
   const sum = () => {
     if (s.hidePrices) return;
-    const t = totals(form.querySelector("[name=delivery]:checked")?.value || "");
-    $("#cosum").innerHTML = `<div><span>Subtotal</span><span>${brl(t.sub)}</span></div>${t.ship ? `<div><span>Entrega</span><span>${brl(t.ship)}</span></div>` : ""}<div class="t"><span>Total</span><span>${brl(t.total)}</span></div>`;
+    const d = dlvNow(), t = totals(d, shipSel);
+    const shipRow = d === "entrega" && s.shipCalc
+      ? `<div><span>Frete${shipSel ? ` (${shipLabel(shipSel)})` : ""}</span><span>${shipSel ? (shipSel.free ? "Grátis" : brl(shipSel.priceCents)) : "informe o CEP"}</span></div>`
+      : t.ship ? `<div><span>Entrega</span><span>${brl(t.ship)}</span></div>` : "";
+    $("#cosum").innerHTML = `<div><span>Subtotal</span><span>${brl(t.sub)}</span></div>${shipRow}<div class="t"><span>Total</span><span>${brl(t.total)}</span></div>`;
+  };
+  const drawShip = () => {
+    const box = $("#shipbox"); if (!box) return;
+    box.hidden = !shipList.length;
+    $("#shipopts").innerHTML = shipList.map((o) => `<label class="radio ${shipSel && shipSel.id === o.id ? "on" : ""}"><input type="radio" name="ship" value="${o.id}" ${shipSel && shipSel.id === o.id ? "checked" : ""}><span style="flex:1"><b>${shipLabel(o)}</b><small>${days(o)}</small></span>${shipPrice(o)}</label>`).join("");
+  };
+  // Preenche o endereço pelo CEP (ViaCEP) e cota o frete do carrinho.
+  const onCep = async (force) => {
+    const c = onlyCep($("#c-cep").value), note = $("#cepnote");
+    if (c.length !== 8 || (c === lastCep && !force)) { if (c.length < 8) { shipList = []; shipSel = null; drawShip(); sum(); } return; }
+    lastCep = c; store("cep", c);
+    const addr = $("#c-addr");
+    fetch(`https://viacep.com.br/ws/${c}/json/`).then((r) => r.json()).then((v) => {
+      if (v.erro) { note.textContent = "CEP não encontrado. Confira os números."; return; }
+      note.textContent = `${v.localidade}/${v.uf}`;
+      if (!addr.value.trim() && v.logradouro) { addr.value = `${v.logradouro}, nº , ${v.bairro} - ${v.localidade}/${v.uf}`; addr.focus(); addr.setSelectionRange(v.logradouro.length + 5, v.logradouro.length + 5); }
+    }).catch(() => {});
+    if (!s.shipCalc) return;
+    $("#shipbox").hidden = false; $("#shipopts").innerHTML = `<p class="note">Calculando o frete…</p>`;
+    try {
+      const q = await quoteFrete(c, CART);
+      shipList = q.options; shipSel = shipList[0] || null;
+      drawShip();
+      if (!shipList.length) { $("#shipbox").hidden = false; $("#shipopts").innerHTML = `<p class="note">${esc(q.message || "Nenhuma opção de frete para esse CEP.")}</p>`; }
+    } catch (e) { shipList = []; shipSel = null; $("#shipbox").hidden = false; $("#shipopts").innerHTML = `<p class="hint err">${esc(e.message)}</p>`; }
+    sum();
   };
   sum();
+  form.addEventListener("input", (e) => { if (e.target.id === "c-cep") { e.target.value = fmtCep(e.target.value); onCep(); } });
   form.addEventListener("change", (e) => {
+    if (e.target.name === "ship") { shipSel = shipList.find((o) => o.id === Number(e.target.value)) || null; drawShip(); sum(); return; }
     if (e.target.name !== "delivery") return;
-    form.querySelectorAll(".radio").forEach((r) => r.classList.toggle("on", r.querySelector("input").checked));
+    form.querySelectorAll("[name=delivery]").forEach((r) => r.closest(".radio").classList.toggle("on", r.checked));
     $("#addr").hidden = e.target.value !== "entrega"; sum();
+    if (e.target.value === "entrega") onCep();
   });
+  if (dlv === "entrega") onCep();
   form.addEventListener("submit", (e) => { e.preventDefault(); $("#send").click(); });
   $("#send").onclick = async () => {
     const f = Object.fromEntries(new FormData(form));
     if (!f.name.trim()) { $("#coerr").textContent = "Informe o seu nome."; $("#c-name").focus(); return; }
+    if (f.delivery === "entrega" && s.shipCalc && onlyCep(f.cep).length !== 8) { $("#coerr").textContent = "Informe o CEP para calcular o frete."; $("#c-cep").focus(); return; }
+    if (f.delivery === "entrega" && s.shipCalc && !shipSel) { $("#coerr").textContent = "Escolha uma opção de frete."; return; }
     if (f.delivery === "entrega" && !String(f.address || "").trim()) { $("#coerr").textContent = "Informe o endereço de entrega."; $("#c-addr").focus(); return; }
     store("me:" + SLUG, { name: f.name, phone: f.phone, delivery: f.delivery, cep: f.cep, address: f.address, payment: f.payment });
     const btn = $("#send"); btn.disabled = true; btn.textContent = "Enviando…";
     try {
-      const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "order", slug: SLUG, items: CART, customer: f }) });
+      const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "order", slug: SLUG, items: CART, customer: f, shippingId: f.delivery === "entrega" && shipSel ? shipSel.id : undefined }) });
       const o = await r.json();
       if (!r.ok) throw new Error(o.error || "Não foi possível enviar.");
       CART = []; saveCart();
@@ -786,6 +864,7 @@ function drawCheckout() {
       btn.disabled = false; btn.innerHTML = waBtn("Enviar pedido pelo WhatsApp");
       $("#coerr").textContent = e.message;
       if (/atualize/i.test(e.message)) load(true);
+      if (/frete/i.test(e.message)) onCep(true);
     }
   };
 }

@@ -145,6 +145,7 @@ const LIMITS = {
   order: [30, 3600],   // pedidos por IP por hora
   lead: [10, 3600],    // cadastros de novidades por IP por hora
   hit: [400, 600],     // contagem de visitas
+  frete: [80, 3600],   // cotações de frete por IP por hora
   upload: [300, 3600], // imagens enviadas por IP por hora
 };
 async function overLimit(st, kind, ip) {
@@ -220,6 +221,7 @@ function cleanSettings(s, slug) {
     delivery: s.delivery !== false,
     deliveryText: str(s.deliveryText, 140),
     deliveryFeeCents: cents(s.deliveryFeeCents),
+    shipCalc: !!s.shipCalc, // frete calculado pelo Melhor Envio (ligado no painel, aba Frete)
     freeShippingFromCents: cents(s.freeShippingFromCents),
     highlights: list(s.highlights, 4, (h) => (h && (h.title || h.text) ? { title: str(h.title, 40), text: str(h.text, 80) } : null)),
     banners: list(s.banners, 6, (b) => (b && imgId(b.image) ? { id: str(b.id, 20) || newId(4), image: imgId(b.image), imageMobile: imgId(b.imageMobile), title: str(b.title, 80), subtitle: str(b.subtitle, 140), link: str(b.link, 200) } : null)),
@@ -268,10 +270,18 @@ function cleanProduct(p, old) {
     featured: !!p.featured,
     hidden: !!p.hidden,
     sku: str(p.sku, 40),
+    ship: cleanShip(p.ship),
     createdAt: old ? old.createdAt : Date.now(),
     updatedAt: Date.now(),
     sold: old ? old.sold || 0 : 0,
   };
+}
+// Peso (g) e medidas (cm) do produto embalado; vazio = usa a caixa padrão da loja.
+function cleanShip(d) {
+  if (!d || typeof d !== "object") return null;
+  const o = {};
+  for (const [k, max] of [["g", 100000], ["h", 200], ["w", 200], ["l", 200]]) { const n = Number(d[k]); if (d[k] !== "" && d[k] != null && Number.isFinite(n) && n > 0 && n <= max) o[k] = Math.round(n * 10) / 10; }
+  return Object.keys(o).length ? o : null;
 }
 const totalStock = (p) => (p.stock ? Object.values(p.stock).reduce((a, b) => a + b, 0) : null);
 // O que o público vê de cada produto: estoque vira só "esgotado" por variação.

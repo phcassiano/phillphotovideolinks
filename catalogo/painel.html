@@ -166,7 +166,7 @@ function showLogin(msg) {
 let D = null; // {slug, account, settings, categories, products, brand}
 let ORDERS = null;
 let TAB = LS.get("painel:tab") || "pedidos";
-const TABS = [["pedidos", "Pedidos"], ["produtos", "Produtos"], ["categorias", "Categorias"], ["aparencia", "Aparência"], ["loja", "Dados da loja"], ["numeros", "Números"], ["divulgar", "Divulgar"], ["conta", "Conta"]];
+const TABS = [["pedidos", "Pedidos"], ["produtos", "Produtos"], ["categorias", "Categorias"], ["aparencia", "Aparência"], ["loja", "Dados da loja"], ["frete", "Frete"], ["numeros", "Números"], ["divulgar", "Divulgar"], ["conta", "Conta"]];
 const storeUrl = () => location.origin + "/" + D.slug;
 const catName = (s) => (D.categories.find((c) => c.slug === s) || {}).name || s || "Sem categoria";
 const totalStock = (p) => (p.stock ? Object.values(p.stock).reduce((a, b) => a + b, 0) : null);
@@ -202,7 +202,7 @@ function shell() {
 }
 function render() {
   $("#app").innerHTML = shell();
-  ({ pedidos: tabOrders, produtos: tabProducts, categorias: tabCats, aparencia: tabLook, loja: tabStore, numeros: tabStats, divulgar: tabShare, conta: tabAccount }[TAB] || tabOrders)();
+  ({ pedidos: tabOrders, produtos: tabProducts, categorias: tabCats, aparencia: tabLook, loja: tabStore, frete: tabShip, numeros: tabStats, divulgar: tabShare, conta: tabAccount }[TAB] || tabOrders)();
 }
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-tab]");
@@ -260,7 +260,7 @@ function orderCard(o) {
   const phone = c.phone ? (c.phone.length <= 11 ? "55" + c.phone : c.phone) : "";
   const msg = `Olá, ${c.name}! Sobre o seu pedido #${o.n} na ${D.settings.name}: `;
   return `<div class="oc"><div class="h"><b>#${o.n}</b><span class="pill ${s[1]}">${s[0]}</span><span class="c">${new Date(o.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span><span class="sp"></span><b>${brl(o.totalCents)}</b></div>
-    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
+    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.shippingInfo ? `<div class="c">Frete: ${esc(o.shippingInfo)} — ${o.shippingCents ? brl(o.shippingCents) : "grátis"}</div>` : o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
     <div class="c"><b style="color:var(--text)">${esc(c.name)}</b>${c.phone ? " · " + esc(c.phone) : ""}${c.payment ? " · " + esc(c.payment) : ""}</div>
     <div class="c">${c.delivery === "entrega" ? "Entrega: " + esc(c.address) + (c.cep ? " · CEP " + esc(c.cep) : "") : c.delivery === "retirada" ? "Retira na loja" : ""}</div>
     ${c.note ? `<div class="c">Obs.: ${esc(c.note)}</div>` : ""}
@@ -329,6 +329,8 @@ function editProduct(orig, preset) {
       <div class="fl"><span class="lbl">Cores</span>${chipEditor("colors", p.colors, "Ex.: Preto, Branco")}</div>
       <div class="fl"><label class="chk"><input type="checkbox" id="psk" ${sk ? "checked" : ""}> Controlar estoque</label>
         ${sk ? `<div class="stock">${stockTable(p)}</div><small>Deixe em branco o que não quer controlar. Com 0, a opção aparece riscada na loja.</small>` : `<small>Sem controle, o produto sempre aparece disponível.</small>`}</div>
+      <div class="fl"><span class="lbl">Peso e medidas na embalagem <span class="help" style="font-weight:400">(para o frete; vazio = caixa padrão da aba Frete)</span></span>
+        <div class="row">${[["g", "Peso (g)"], ["h", "Altura (cm)"], ["w", "Largura (cm)"], ["l", "Compr. (cm)"]].map(([k, n]) => `<label style="display:grid;gap:4px;font-size:12px;flex:1;min-width:110px">${n}<input class="in" type="number" min="0" step="any" data-ship="${k}" value="${p.ship && p.ship[k] != null ? p.ship[k] : ""}"></label>`).join("")}</div></div>
       <label class="chk"><input type="checkbox" id="pft" ${p.featured ? "checked" : ""}> Mostrar em Destaques na página inicial</label>
       <label class="chk"><input type="checkbox" id="phd" ${p.hidden ? "checked" : ""}> Ocultar da loja</label>
       <div class="err" id="perr"></div>
@@ -340,6 +342,7 @@ function editProduct(orig, preset) {
     p.category = $("#pcat").value; p.sku = $("#psku").value; p.description = $("#pd").value;
     p.extraCategories = $$("[data-xc]", dlg).filter((x) => x.checked).map((x) => x.dataset.xc);
     p.featured = $("#pft").checked; p.hidden = $("#phd").checked;
+    const sh = {}; $$("[data-ship]", dlg).forEach((i) => { if (i.value !== "") sh[i.dataset.ship] = Number(i.value); }); p.ship = Object.keys(sh).length ? sh : null;
     $$("[data-chipin]", dlg).forEach((ci) => { const vals = ci.value.split(/[,;]/).map((v) => v.trim()).filter(Boolean); if (vals.length) { p[ci.dataset.chipin] = [...new Set([...p[ci.dataset.chipin], ...vals])]; ci.value = ""; } });
     if (p.stock) { const s = {}; $$("[data-sk]", dlg).forEach((i) => { if (i.value !== "") s[i.dataset.sk] = Number(i.value); }); p.stock = s; }
   };
@@ -524,6 +527,7 @@ function tabStore() {
   <div class="box"><h2>Entrega</h2>
     <label class="chk"><input type="checkbox" name="delivery" ${s.delivery ? "checked" : ""}> Faço entrega / envio</label>
     <div class="grid2"><div class="fl"><label for="s-dt">Texto da entrega</label><input class="in" id="s-dt" name="deliveryText" maxlength="140" value="${esc(s.deliveryText)}" placeholder="Ex.: Enviamos para todo o Brasil"></div>
+    ${s.shipCalc ? `<p class="help" style="grid-column:1/-1">O frete está sendo calculado pelo Melhor Envio (aba Frete). A taxa fixa abaixo não é usada.</p>` : ""}
     <div class="fl"><label for="s-fee">Taxa de entrega fixa (R$)</label><input class="in" id="s-fee" name="deliveryFee" inputmode="decimal" value="${money(s.deliveryFeeCents)}" placeholder="a combinar"></div>
     <div class="fl"><label for="s-free">Entrega grátis a partir de (R$)</label><input class="in" id="s-free" name="freeFrom" inputmode="decimal" value="${money(s.freeShippingFromCents)}" placeholder="opcional"></div></div>
     <label class="chk"><input type="checkbox" name="pickup" ${s.pickup ? "checked" : ""}> Cliente pode retirar na loja</label>
@@ -538,6 +542,74 @@ function tabStore() {
       delivery: f.has("delivery"), deliveryText: v("deliveryText"), deliveryFeeCents: parseMoney(v("deliveryFee")), freeShippingFromCents: parseMoney(v("freeFrom")), pickup: f.has("pickup"), pickupText: v("pickupText") };
     if (ns.whatsapp && ns.whatsapp.length < 12) return toast("Coloque o WhatsApp com 55 e DDD, ex.: 5511999990000");
     try { D.settings = (await api("saveSettings", { settings: ns })).settings; document.title = "Painel · " + D.settings.name; toast("Dados salvos"); render(); } catch (e) { toast(e.message); }
+  };
+}
+
+// ---------- Frete (Melhor Envio) ----------
+async function tabShip() {
+  const m = $("#main");
+  const head = `<h1>Frete</h1><p class="sub">Cálculo automático pelo Melhor Envio: o cliente digita o CEP e escolhe entre Correios e transportadoras.</p>`;
+  m.innerHTML = head + `<div class="empty">Carregando…</div>`;
+  let r;
+  try { r = await api("getShipping"); } catch (e) { m.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  const c = r.config, b = c.box;
+  const tokenPh = (cf) => (cf.hasToken ? `Token salvo (termina em …${cf.tokenEnd}). Cole um novo só se quiser trocar.` : "Cole aqui o token do Melhor Envio");
+  let lastQuote = null;
+  m.innerHTML = head + `<form id="shf" onsubmit="return false">
+  <div class="box"><label class="chk" style="font-weight:700"><input type="checkbox" name="enabled" ${r.enabled ? "checked" : ""}> Calcular o frete pelo Melhor Envio</label>
+    <p class="help">Desligado, a loja usa a taxa fixa da aba Dados da loja.</p></div>
+  <div class="box"><h2>Conta Melhor Envio</h2>
+    <ol class="help" style="padding-left:18px;margin-bottom:12px;font-size:13px;line-height:1.6">
+      <li>Crie uma conta grátis em melhorenvio.com.br (ou entre na sua).</li>
+      <li>No menu, abra <b>Integrações › Permissões de acesso</b> e clique em <b>Gerar novo token</b>.</li>
+      <li>Marque a permissão <b>shipping-calculate</b> (cálculo de fretes), gere e copie o token.</li>
+      <li>Cole aqui embaixo e salve.</li></ol>
+    <div class="fl"><label for="tk">Token</label><textarea class="in" id="tk" name="token" rows="3" placeholder="${esc(tokenPh(c))}" style="font-family:monospace;font-size:12px" autocomplete="off" spellcheck="false"></textarea><small>O token fica guardado só no servidor e nunca aparece na loja.</small></div>
+    <label class="chk"><input type="checkbox" name="sandbox" ${c.sandbox ? "checked" : ""}> Token de teste (sandbox.melhorenvio.com.br)</label></div>
+  <div class="box"><h2>Origem e embalagem</h2>
+    <div class="grid2"><div class="fl"><label for="oc">CEP de onde os pedidos saem</label><input class="in" id="oc" name="originCep" inputmode="numeric" value="${esc(c.originCep || "")}" placeholder="00000-000"></div></div>
+    <div class="fl"><span class="lbl">Caixa padrão (usada quando o produto não tem peso e medidas próprios)</span>
+      <div class="row">${[["g", "Peso (g)"], ["h", "Altura (cm)"], ["w", "Largura (cm)"], ["l", "Comprimento (cm)"]].map(([k, n]) => `<label style="display:grid;gap:4px;font-size:12px;flex:1;min-width:120px">${n}<input class="in" type="number" min="1" step="any" name="box_${k}" value="${b[k]}"></label>`).join("")}</div>
+      <small>Ex.: tênis na caixa ≈ 1000 g, 12 × 20 × 32 cm. Camiseta ≈ 300 g, 4 × 25 × 30 cm.</small></div></div>
+  <div class="box"><h2>Ajustes</h2>
+    <div class="grid2"><div class="fl"><label for="mk">Acréscimo por envio (R$)</label><input class="in" id="mk" name="markup" inputmode="decimal" value="${money(c.markupCents)}" placeholder="0,00"><small>Para cobrir a embalagem. Somado a cada opção.</small></div>
+    <div class="fl"><label for="xd">Dias para postar</label><input class="in" id="xd" name="extraDays" type="number" min="0" max="30" value="${c.extraDays || 0}"><small>Somados ao prazo da transportadora.</small></div></div>
+    <label class="chk"><input type="checkbox" name="insurance" ${c.insurance ? "checked" : ""}> Declarar o valor dos produtos (seguro). Deixa o frete um pouco mais caro.</label>
+    <p class="help">O "frete grátis a partir de" da aba Dados da loja vale aqui também: a opção mais barata sai de graça.</p></div>
+  <button class="btn" id="shsave">Salvar frete</button></form>
+  <div class="box" style="margin-top:14px"><h2>Testar cotação</h2><p class="help" style="margin-bottom:10px">Salve antes de testar. Desmarque as opções que você não quer oferecer: a mudança é salva na hora.</p>
+    <div class="row"><input class="in" id="tcep" inputmode="numeric" placeholder="CEP de destino" style="max-width:200px"><select class="in" id="tpid" style="max-width:280px"><option value="">Caixa padrão</option>${D.products.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select><button class="btn ghost" id="ttest">Calcular</button></div>
+    <div id="tout" style="margin-top:12px"></div></div>`;
+  const hidden = new Set(c.hidden || []);
+  const collect = () => {
+    const f = new FormData($("#shf")); const v = (k) => String(f.get(k) || "");
+    const config = { sandbox: f.has("sandbox"), originCep: v("originCep"), markupCents: parseMoney(v("markup")), extraDays: Number(v("extraDays")) || 0, insurance: f.has("insurance"),
+      box: { g: Number(v("box_g")), h: Number(v("box_h")), w: Number(v("box_w")), l: Number(v("box_l")) }, hidden: [...hidden] };
+    if (v("token").trim()) config.token = v("token").trim();
+    return { config, enabled: f.has("enabled") };
+  };
+  const save = async () => {
+    try {
+      const x = await api("saveShipping", collect());
+      D.settings.shipCalc = x.enabled; $("#tk").value = ""; $("#tk").placeholder = tokenPh(x.config);
+      toast(x.enabled ? "Frete salvo e ligado" : "Frete salvo"); return true;
+    } catch (e) { toast(e.message); return false; }
+  };
+  $("#shsave").onclick = save;
+  const drawQuote = () => {
+    const q = lastQuote; if (!q) return;
+    $("#tout").innerHTML = (q.options.length ? `<div class="list">${q.options.map((o) => `<label class="pi" style="grid-template-columns:auto 1fr auto;cursor:pointer"><input type="checkbox" data-svc="${o.id}" ${hidden.has(o.id) ? "" : "checked"}><div><b>${esc(o.company)} ${esc(o.name)}</b><small>${o.daysMin === o.daysMax ? o.daysMax : `${o.daysMin} a ${o.daysMax}`} dias úteis</small></div><b>${brl(o.priceCents)}</b></label>`).join("")}</div>` : `<p class="help">Nenhuma opção para esse CEP.</p>`)
+      + (q.errors && q.errors.length ? `<p class="help" style="margin-top:8px">Não atendem: ${esc(q.errors.join(" · "))}</p>` : "");
+  };
+  $("#ttest").onclick = async () => {
+    const out = $("#tout"); out.innerHTML = `<p class="help">Calculando…</p>`;
+    try { lastQuote = await api("testShipping", { cep: $("#tcep").value, pid: $("#tpid").value }); drawQuote(); }
+    catch (e) { out.innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  };
+  $("#tout").onchange = async (e) => {
+    const cb = e.target.closest("[data-svc]"); if (!cb) return;
+    const id = Number(cb.dataset.svc); cb.checked ? hidden.delete(id) : hidden.add(id);
+    await save();
   };
 }
 

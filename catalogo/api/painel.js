@@ -3,6 +3,7 @@
 const db = require("./_db.js");
 const { redis, K, send } = db;
 const { loadStore } = require("./loja.js");
+const frete = require("./_frete.js");
 
 const SESSION_DAYS = 30;
 const MAX_IMAGES = 4000;
@@ -81,6 +82,7 @@ module.exports = async (req, res) => {
       const [oldRaw] = await redis(st, ["GET", K.settings(slug)]);
       const old = db.parse(oldRaw, {});
       const s = db.cleanSettings(body.settings, slug);
+      s.shipCalc = !!old.shipCalc; // liga e desliga só pela aba Frete
       await redis(st, ["SET", K.settings(slug), JSON.stringify(s)]);
       const keep = new Set(settingsImages(s));
       await dropImages(st, slug, settingsImages(old).filter((id) => !keep.has(id)));
@@ -170,6 +172,36 @@ module.exports = async (req, res) => {
       const vals = Array.isArray(all) ? all.filter((_, i) => i % 2) : Object.values(all || {});
       const orders = vals.map((v) => db.parse(v)).filter(Boolean).sort((a, b) => b.n - a.n).slice(0, 500);
       return send(res, 200, { orders });
+    }
+
+    if (op === "getShipping") {
+      const [cfg, [sRaw]] = [await frete.getConfig(st, slug), await redis(st, ["GET", K.settings(slug)])];
+      return send(res, 200, { config: frete.publicConfig(frete.cleanConfig(cfg, cfg)), enabled: !!db.parse(sRaw, {}).shipCalc });
+    }
+
+    if (op === "saveShipping") {
+      const old = await frete.getConfig(st, slug);
+      const cfg = frete.cleanConfig(body.config, old);
+      const enabled = !!body.enabled;
+      if (enabled && !cfg.token) return send(res, 400, { error: "Cole o token do Melhor Envio para ligar o cálculo de frete." });
+      if (enabled && cfg.originCep.length !== 8) return send(res, 400, { error: "Informe o CEP de onde os pedidos saem (8 números)." });
+      await frete.saveConfig(st, slug, cfg);
+      const [sRaw] = await redis(st, ["GET", K.settings(slug)]);
+      const s = db.parse(sRaw, {});
+      s.shipCalc = enabled;
+      await redis(st, ["SET", K.settings(slug), JSON.stringify(s)]);
+      return send(res, 200, { config: frete.publicConfig(cfg), enabled });
+    }
+
+    if (op === "testShipping") {
+      // Cota a caixa padrão (ou um produto escolhido) para um CEP, sem cache, para conferir a configuração.
+      const store = await loadStore(st, slug);
+      const cfg = { ...frete.cleanConfig(await frete.getConfig(st, slug), {}), hidden: [] }; // mostra também as ocultas
+      const p = store.products.find((x) => x.id === body.pid) || { id: "teste", ship: null, priceCents: 10000 };
+      try {
+        const q = await frete.quote(st, slug, { ...store.settings, freeShippingFromCents: 0 }, [{ p, qty: 1, unitCents: p.promoCents || p.priceCents || 10000 }], body.cep, { cfg, noCache: true });
+        return send(res, 200, q);
+      } catch (e) { return send(res, e.status || 502, { error: e.message }); }
     }
 
     if (op === "leads") {

@@ -5,6 +5,7 @@
 // POST /api/loja {op:"hit"}      → conta visita, visualização de produto ou clique no WhatsApp
 // GET  /api/loja?op=track&slug=x&n=12&code=abc → acompanhamento do pedido pelo cliente
 const db = require("./_db.js");
+const frete = require("./_frete.js");
 const { redis, K, send } = db;
 
 const brl = (c) => "R$ " + (c / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -30,7 +31,8 @@ function orderMessage(store, order) {
   }
   L.push("");
   L.push(`Subtotal: ${brl(order.subtotalCents)}`);
-  if (order.shippingCents) L.push(`Entrega: ${brl(order.shippingCents)}`);
+  if (order.shippingInfo) L.push(`Frete: ${order.shippingInfo} — ${order.shippingCents ? brl(order.shippingCents) : "grátis"}`);
+  else if (order.shippingCents) L.push(`Entrega: ${brl(order.shippingCents)}`);
   L.push(`*Total: ${brl(order.totalCents)}*`);
   L.push("");
   const c = order.customer;
@@ -41,6 +43,35 @@ function orderMessage(store, order) {
   if (c.note) L.push(`Obs.: ${c.note}`);
   if (order.trackUrl) { L.push(""); L.push(`Acompanhe: ${order.trackUrl}`); }
   return L.join("\n");
+}
+
+// Confere o carrinho com os dados do servidor: preço, opções e estoque.
+function buildLines(store, rawItems) {
+  const byId = new Map(store.products.map((p) => [p.id, p]));
+  const items = Array.isArray(rawItems) ? rawItems.slice(0, 60) : [];
+  if (!items.length) return { status: 400, error: "O carrinho está vazio." };
+  const lines = [];
+  const need = new Map(); // productId → {key → qty}
+  for (const it of items) {
+    const p = byId.get(String(it.pid || ""));
+    if (!p || p.hidden) return { status: 409, error: "Um produto do carrinho não está mais disponível. Atualize a página." };
+    const size = db.str(it.size, 20), color = db.str(it.color, 30);
+    if (p.sizes.length && !p.sizes.includes(size)) return { status: 400, error: `Escolha o tamanho de ${p.name}.` };
+    if (p.colors.length && !p.colors.includes(color)) return { status: 400, error: `Escolha a cor de ${p.name}.` };
+    const qty = Math.max(1, Math.min(999, Math.floor(Number(it.qty) || 1)));
+    const unit = p.promoCents && p.promoCents < p.priceCents ? p.promoCents : p.priceCents;
+    lines.push({ pid: p.id, name: p.name, size: p.sizes.length ? size : "", color: p.colors.length ? color : "", qty, unitCents: unit, image: p.images[0] || null, p });
+    const k = (p.sizes.length ? size : "") + "|" + (p.colors.length ? color : "");
+    if (p.stock && k in p.stock) { const m = need.get(p.id) || {}; m[k] = (m[k] || 0) + qty; need.set(p.id, m); }
+  }
+  for (const [pid, m] of need) {
+    const p = byId.get(pid);
+    for (const k in m) if (p.stock[k] < m[k]) {
+      const [a, b] = k.split("|"); const v = [a && `tam. ${a}`, b].filter(Boolean).join(" / ");
+      return { status: 409, error: p.stock[k] > 0 ? `Só temos ${p.stock[k]} de ${p.name}${v ? ` (${v})` : ""}.` : `${p.name}${v ? ` (${v})` : ""} esgotou.` };
+    }
+  }
+  return { lines, need, byId };
 }
 
 module.exports = async (req, res) => {
@@ -62,7 +93,7 @@ module.exports = async (req, res) => {
         const o = db.parse(raw);
         if (!o || !code || !db.sameStr(code, o.code)) return send(res, 404, { error: "Pedido não encontrado." });
         const s = db.parse(settingsRaw, {});
-        return send(res, 200, { n: o.n, createdAt: o.createdAt, status: o.status, items: o.items, subtotalCents: o.subtotalCents, shippingCents: o.shippingCents, totalCents: o.totalCents, delivery: o.customer.delivery, store: { name: s.name, whatsapp: s.whatsapp, logo: s.logo, color: s.color } });
+        return send(res, 200, { n: o.n, createdAt: o.createdAt, status: o.status, items: o.items, subtotalCents: o.subtotalCents, shippingCents: o.shippingCents, shippingInfo: o.shippingInfo || "", totalCents: o.totalCents, delivery: o.customer.delivery, store: { name: s.name, whatsapp: s.whatsapp, logo: s.logo, color: s.color } });
       }
 
       const store = await loadStore(st, slug);
@@ -98,6 +129,25 @@ module.exports = async (req, res) => {
       return send(res, 200, { ok: true });
     }
 
+    if (body.op === "frete") {
+      if (await db.overLimit(st, "frete", ip)) return send(res, 429, { error: "Muitas cotações seguidas. Tente daqui a pouco." });
+      await redis(st, ["INCR", K.lim("frete", ip)], ["EXPIRE", K.lim("frete", ip), "3600"]);
+      const store = await loadStore(st, slug);
+      if (!store || !db.storeState(store.meta).live) return send(res, 404, { error: "Loja indisponível." });
+      if (!store.settings.shipCalc) return send(res, 400, { error: "Esta loja não calcula frete pelo site." });
+      // Na página do produto, cota um único item; no carrinho, os itens do carrinho.
+      const built = buildLines(store, body.items);
+      if (built.error) return send(res, built.status, { error: built.error });
+      try {
+        const q = await frete.quote(st, slug, store.settings, built.lines, body.cep);
+        if (!q.options.length) return send(res, 200, { options: [], message: "Nenhuma transportadora atende esse CEP com esses produtos. Fale com a loja pelo WhatsApp." });
+        return send(res, 200, { options: q.options });
+      } catch (e) {
+        console.error("frete", slug, e.message);
+        return send(res, e.status || 502, { error: e.code === "token" ? "Não foi possível calcular o frete agora. Fale com a loja pelo WhatsApp." : e.message });
+      }
+    }
+
     if (body.op === "lead") {
       if (await db.overLimit(st, "lead", ip)) return send(res, 429, { error: "Muitos cadastros seguidos. Tente mais tarde." });
       const [exists] = await redis(st, ["EXISTS", K.meta(slug)]);
@@ -116,35 +166,9 @@ module.exports = async (req, res) => {
       if (!store || !db.storeState(store.meta).live) return send(res, 404, { error: "Esta loja não está recebendo pedidos agora." });
       const s = store.settings;
       if (!s.whatsapp) return send(res, 400, { error: "A loja ainda não cadastrou o WhatsApp." });
-      const byId = new Map(store.products.map((p) => [p.id, p]));
-      const items = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
-      if (!items.length) return send(res, 400, { error: "O carrinho está vazio." });
-
-      // Preço e estoque sempre do servidor; o carrinho só diz o que foi escolhido.
-      const lines = [];
-      const need = new Map(); // productId → {key → qty}
-      for (const it of items) {
-        const p = byId.get(String(it.pid || ""));
-        if (!p || p.hidden) return send(res, 409, { error: "Um produto do carrinho não está mais disponível. Atualize a página." });
-        const size = db.str(it.size, 20), color = db.str(it.color, 30);
-        if (p.sizes.length && !p.sizes.includes(size)) return send(res, 400, { error: `Escolha o tamanho de ${p.name}.` });
-        if (p.colors.length && !p.colors.includes(color)) return send(res, 400, { error: `Escolha a cor de ${p.name}.` });
-        const qty = Math.max(1, Math.min(999, Math.floor(Number(it.qty) || 1)));
-        const unit = p.promoCents && p.promoCents < p.priceCents ? p.promoCents : p.priceCents;
-        lines.push({ pid: p.id, name: p.name, size: p.sizes.length ? size : "", color: p.colors.length ? color : "", qty, unitCents: unit, image: p.images[0] || null });
-        const k = (p.sizes.length ? size : "") + "|" + (p.colors.length ? color : "");
-        if (p.stock && k in p.stock) {
-          const m = need.get(p.id) || {}; m[k] = (m[k] || 0) + qty; need.set(p.id, m);
-        }
-      }
-      for (const [pid, m] of need) {
-        const p = byId.get(pid);
-        for (const k in m) if (p.stock[k] < m[k]) {
-          const [a, b] = k.split("|"); const v = [a && `tam. ${a}`, b].filter(Boolean).join(" / ");
-          return send(res, 409, { error: p.stock[k] > 0 ? `Só temos ${p.stock[k]} de ${p.name}${v ? ` (${v})` : ""}.` : `${p.name}${v ? ` (${v})` : ""} esgotou.` });
-        }
-      }
-
+      const built = buildLines(store, body.items);
+      if (built.error) return send(res, built.status, { error: built.error });
+      const { lines, need, byId } = built;
       const c = body.customer || {};
       const customer = {
         name: db.str(c.name, 80),
@@ -157,11 +181,22 @@ module.exports = async (req, res) => {
       };
       if (!customer.name) return send(res, 400, { error: "Informe o seu nome." });
       if (customer.delivery === "entrega" && !customer.address) return send(res, 400, { error: "Informe o endereço de entrega." });
+      if (customer.delivery === "entrega" && s.shipCalc && frete.cep(customer.cep).length !== 8) return send(res, 400, { error: "Informe o CEP de entrega." });
 
       const subtotal = lines.reduce((a, l) => a + l.unitCents * l.qty, 0);
       if (s.minOrderCents && subtotal < s.minOrderCents) return send(res, 400, { error: `O pedido mínimo é ${brl(s.minOrderCents)}.` });
-      let shipping = 0;
-      if (customer.delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && subtotal >= s.freeShippingFromCents)) shipping = s.deliveryFeeCents;
+      let shipping = 0, shippingInfo = "";
+      if (customer.delivery === "entrega" && s.shipCalc) {
+        // Frete do Melhor Envio: refaz a cotação (normalmente vem do cache) e usa a opção escolhida.
+        if (!body.shippingId) return send(res, 400, { error: "Calcule o frete e escolha uma opção de entrega." });
+        let q;
+        try { q = await frete.quote(st, slug, s, lines, customer.cep); }
+        catch (e) { return send(res, e.status || 502, { error: e.message }); }
+        const opt = q.options.find((o) => o.id === Number(body.shippingId));
+        if (!opt) return send(res, 409, { error: "Essa opção de frete não está mais disponível. Calcule de novo." });
+        shipping = opt.priceCents;
+        shippingInfo = frete.describe(opt) + (opt.free ? " · frete grátis" : "");
+      } else if (customer.delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && subtotal >= s.freeShippingFromCents)) shipping = s.deliveryFeeCents;
 
       // Baixa do estoque (relê cada produto logo antes de gravar).
       if (need.size) {
@@ -180,13 +215,14 @@ module.exports = async (req, res) => {
         if (writes.length) await redis(st, ...writes);
       }
 
+      lines.forEach((l) => delete l.p);
       const [n] = await redis(st, ["INCR", K.orderSeq(slug)]);
       const proto = String(req.headers["x-forwarded-proto"] || "https").split(",")[0];
       const host = req.headers["x-forwarded-host"] || req.headers.host;
       const code = db.newId(4);
       const order = {
         n: Number(n), code, createdAt: Date.now(), status: "novo", items: lines, customer,
-        subtotalCents: subtotal, shippingCents: shipping, totalCents: subtotal + shipping,
+        subtotalCents: subtotal, shippingCents: shipping, shippingInfo, totalCents: subtotal + shipping,
         trackUrl: host ? `${proto}://${host}/${slug}/pedido/${n}-${code}` : "",
       };
       const statKey = K.stat(slug, db.today());

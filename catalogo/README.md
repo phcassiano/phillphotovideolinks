@@ -34,6 +34,24 @@ Uma plataforma só, com várias lojas. Cada loja tem o próprio link (`seudomini
 3. Mande ao lojista o link da loja, o endereço `/painel`, o nome da loja e a senha.
 4. Quando ele pagar a mensalidade, clique **+30 dias**. Um dia depois do vencimento sem renovação, a loja sai do ar sozinha (nada é apagado) e volta assim que você renovar.
 
+## Frete com Melhor Envio
+
+Cada lojista usa a própria conta do Melhor Envio (o frete sai com os descontos dele e ele compra as etiquetas por lá).
+
+1. No Melhor Envio do lojista: **Integrações › Permissões de acesso › Gerar novo token**, com a permissão `shipping-calculate`.
+2. No painel da loja, aba **Frete**: cole o token, informe o CEP de origem e a caixa padrão (peso e medidas), ligue e salve.
+3. Em **Testar cotação**, confira os preços e desmarque as transportadoras que não quer oferecer.
+4. Produtos com tamanho diferente da caixa padrão podem ter peso e medidas próprios no cadastro do produto.
+
+Como funciona:
+- O cliente calcula o frete na página do produto ou no checkout. O CEP também preenche o endereço (ViaCEP).
+- O preço usado é o `custom_price` do Melhor Envio, mais o acréscimo da loja; o prazo ganha os dias para postar.
+- "Frete grátis a partir de" deixa a opção mais barata de graça.
+- No pedido, o servidor refaz a cotação (com cache de 30 minutos) e grava a transportadora, o prazo e o valor; nada vem do navegador.
+- O token fica em `cat:sec:<loja>` e nunca vai para a loja nem para o painel (o painel mostra só os últimos caracteres).
+
+Para testar sem conta: `node catalogo/dev/mock-melhorenvio.js` e rode o servidor com `MELHOR_ENVIO_BASE=http://localhost:3999`; use um token que comece com `teste`.
+
 ## Como os dados ficam guardados (Redis)
 
 - `cat:m:<loja>` conta (senha com scrypt, plano, vencimento), `cat:s:<loja>` aparência e dados, `cat:c:<loja>` categorias.
@@ -51,7 +69,6 @@ Abra `http://localhost:3000/admin`, crie uma loja e use **Abrir painel**.
 
 ## Próximos passos (ainda não feitos)
 
-- Frete com Melhor Envio (cálculo por CEP).
 - Cupons de desconto e área de atacado (plano Growth).
 - Cobrança automática da mensalidade (Asaas ou Mercado Pago) em vez do "+30 dias" manual.
 - Domínio próprio por loja (`loja.seudominio.com.br`).

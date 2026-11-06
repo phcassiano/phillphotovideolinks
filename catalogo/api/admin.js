@@ -96,7 +96,7 @@ module.exports = async (req, res) => {
       const [imgs] = await redis(st, ["SMEMBERS", K.imgs(slug)]);
       const dels = (imgs || []).map((id) => ["DEL", K.img(id)]);
       for (let i = 0; i < dels.length; i += 200) await redis(st, ...dels.slice(i, i + 200));
-      await redis(st, ["DEL", K.meta(slug)], ["DEL", K.settings(slug)], ["DEL", K.cats(slug)], ["DEL", K.products(slug)], ["DEL", K.orders(slug)], ["DEL", K.orderSeq(slug)], ["DEL", K.imgs(slug)], ["DEL", K.leads(slug)], ["SREM", K.stores, slug]);
+      await redis(st, ["DEL", K.meta(slug)], ["DEL", K.settings(slug)], ["DEL", K.cats(slug)], ["DEL", K.products(slug)], ["DEL", K.orders(slug)], ["DEL", K.orderSeq(slug)], ["DEL", K.imgs(slug)], ["DEL", K.leads(slug)], ["DEL", `cat:sec:${slug}`], ["SREM", K.stores, slug]);
       return send(res, 200, { ok: true });
     }
 
