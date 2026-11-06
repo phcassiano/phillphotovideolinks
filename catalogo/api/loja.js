@@ -27,7 +27,7 @@ function orderMessage(store, order) {
   L.push(`*Pedido #${order.n}* · ${s.name}`);
   L.push("");
   for (const it of order.items) {
-    const v = [it.size && `Tam. ${it.size}`, it.color].filter(Boolean).join(" / ");
+    const v = [it.size && (it.sizeLabel ? `${it.sizeLabel}: ${it.size}` : `Tam. ${it.size}`), it.color].filter(Boolean).join(" / ");
     L.push(`• ${it.qty}x ${it.name}${v ? ` (${v})` : ""} — ${brl(it.unitCents * it.qty)}`);
   }
   L.push("");
@@ -62,14 +62,14 @@ function buildLines(store, rawItems) {
     if (p.colors.length && !p.colors.includes(color)) return { status: 400, error: `Escolha a cor de ${p.name}.` };
     const qty = Math.max(1, Math.min(999, Math.floor(Number(it.qty) || 1)));
     const unit = p.promoCents && p.promoCents < p.priceCents ? p.promoCents : p.priceCents;
-    lines.push({ pid: p.id, name: p.name, size: p.sizes.length ? size : "", color: p.colors.length ? color : "", qty, unitCents: unit, image: p.images[0] || null, p });
+    lines.push({ pid: p.id, name: p.name, sizeLabel: p.sizeLabel || "", size: p.sizes.length ? size : "", color: p.colors.length ? color : "", qty, unitCents: unit, image: p.images[0] || null, p });
     const k = (p.sizes.length ? size : "") + "|" + (p.colors.length ? color : "");
     if (p.stock && k in p.stock) { const m = need.get(p.id) || {}; m[k] = (m[k] || 0) + qty; need.set(p.id, m); }
   }
   for (const [pid, m] of need) {
     const p = byId.get(pid);
     for (const k in m) if (p.stock[k] < m[k]) {
-      const [a, b] = k.split("|"); const v = [a && `tam. ${a}`, b].filter(Boolean).join(" / ");
+      const [a, b] = k.split("|"); const v = [a && (p.sizeLabel ? `${p.sizeLabel.toLowerCase()} ${a}` : `tam. ${a}`), b].filter(Boolean).join(" / ");
       return { status: 409, error: p.stock[k] > 0 ? `Só temos ${p.stock[k]} de ${p.name}${v ? ` (${v})` : ""}.` : `${p.name}${v ? ` (${v})` : ""} esgotou.` };
     }
   }

@@ -79,6 +79,8 @@ async function load(note) {
     <label>Dias pagos<input class="in" name="days" type="number" value="30" min="0"></label>
     <label>Senha (vazio = gerar)<input class="in" name="password" minlength="8"></label>
   </div><div class="err" id="cerr"></div><button class="btn" style="margin-top:6px">Criar loja</button></form>
+  ${S.some((s) => s.slug === "vertice-importados") ? "" : `<div class="box"><h2>Loja exemplo</h2><p class="sub" style="margin-bottom:10px">Cria a Vértice Importados, uma loja fictícia de eletrônicos importados com 20 produtos, banners, cupons e perguntas frequentes, para você mostrar aos clientes. Os pedidos dela chegam no WhatsApp que você informar.</p>
+    <div class="row"><input class="in" id="demowa" placeholder="WhatsApp que recebe os pedidos (5511999990000)" value="${esc(d.brand.whatsapp || "")}" style="max-width:320px"><button class="btn" id="demo">Criar loja exemplo</button></div><div class="err" id="demoerr"></div></div>`}
   <div class="row" style="margin-bottom:10px"><select class="in" id="flt" style="width:auto"><option value="">Todas</option><option value="soon">Vencendo</option><option value="off">Fora do ar</option></select></div>
   <div class="st">${list.map((s) => {
     const left = s.paidUntil ? Math.ceil((s.paidUntil - Date.now()) / 864e5) : null;
@@ -98,6 +100,8 @@ async function load(note) {
         <button class="btn bad" data-a="delete" data-s="${esc(s.slug)}">Excluir</button>
       </div></div>`;
   }).join("") || '<p class="sub">Nenhuma loja.</p>'}</div>`;
+  const db = $("#demo");
+  if (db) db.onclick = () => seedDemo($("#demowa").value.replace(/\D/g, ""), (m) => { db.disabled = true; db.textContent = m; }).then(load).catch((e) => { db.disabled = false; db.textContent = "Criar loja exemplo"; $("#demoerr").textContent = e.message; });
   $("#flt").value = FILTER;
   $("#flt").onchange = (e) => { FILTER = e.target.value; load(); };
   $("#out").onclick = () => { sessionStorage.removeItem("cat:admin"); KEY = ""; login(); };
@@ -126,6 +130,41 @@ async function load(note) {
       load();
     } catch (err) { alert(err.message); }
   };
+}
+// Monta a loja exemplo usando as mesmas rotas do painel (demo/demo.json + imagens em demo/).
+async function seedDemo(whatsapp, step) {
+  if (whatsapp && whatsapp.length < 12) throw new Error("Coloque o WhatsApp com 55 e DDD, ex.: 5511999990000.");
+  const spec = await (await fetch("/demo/demo.json", { cache: "no-store" })).json();
+  const slug = spec.slug;
+  step("Criando a loja…");
+  try { await api("create", { slug, name: spec.settings.name, whatsapp, color: spec.settings.color, days: 3650, notes: "Loja exemplo da plataforma" }); }
+  catch (e) { if (!/Já existe/.test(e.message)) throw e; }
+  const { token } = await api("loginAs", { slug });
+  const painel = async (op, data = {}) => {
+    const r = await fetch("/api/painel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op, token, ...data }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "Erro " + r.status); return j;
+  };
+  const files = new Set([spec.settings.logo, ...spec.settings.banners.flatMap((b) => [b.image, b.imageMobile]), ...spec.products.flatMap((p) => p.images)].filter(Boolean));
+  const ids = {}; let n = 0;
+  for (const f of files) {
+    step(`Enviando imagens… ${++n}/${files.size}`);
+    const blob = await (await fetch(`/demo/${f}.webp`)).blob();
+    const data = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+    ids[f] = (await painel("uploadImage", { data: data.replace(/^data:[^;]+;/, "data:image/webp;") })).id;
+  }
+  step("Categorias…");
+  await painel("saveCategories", { categories: spec.categories.map((name) => ({ name })) });
+  n = 0;
+  for (const p of [...spec.products].reverse()) { // o primeiro da lista fica como o mais novo
+    step(`Produtos… ${++n}/${spec.products.length}`);
+    await painel("saveProduct", { product: { name: p.name, category: p.category, extraCategories: p.extra || [], priceCents: p.price, promoCents: p.promo || 0, colors: p.colors || [], sizes: p.sizes || [], images: p.images.map((i) => ids[i]), featured: !!p.featured, stock: p.stock || null, description: p.desc || "", sizeLabel: p.sizeLabel || "" } });
+  }
+  step("Aparência e textos…");
+  const s = spec.settings;
+  await painel("saveSettings", { settings: { ...s, whatsapp, logo: ids[s.logo], banners: s.banners.map((b) => ({ ...b, image: ids[b.image], imageMobile: ids[b.imageMobile] || null })) } });
+  step("Cupons…");
+  for (const c of spec.coupons) { try { await painel("saveCoupon", { coupon: c }); } catch (e) { if (!/Já existe/.test(e.message)) throw e; } }
+  return `Loja exemplo pronta: <b><a href="/${slug}" target="_blank" rel="noopener">${esc(location.origin + "/" + slug)}</a></b>. Cupons para testar: PRIMEIRACOMPRA e ACESSORIOS15.`;
 }
 KEY ? load() : login();
 </script>

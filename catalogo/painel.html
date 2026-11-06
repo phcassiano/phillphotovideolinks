@@ -260,7 +260,7 @@ function orderCard(o) {
   const phone = c.phone ? (c.phone.length <= 11 ? "55" + c.phone : c.phone) : "";
   const msg = `Olá, ${c.name}! Sobre o seu pedido #${o.n} na ${D.settings.name}: `;
   return `<div class="oc"><div class="h"><b>#${o.n}</b><span class="pill ${s[1]}">${s[0]}</span><span class="c">${new Date(o.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span><span class="sp"></span><b>${brl(o.totalCents)}</b></div>
-    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.couponCode ? `<div class="c">Cupom ${esc(o.couponCode)}${o.discountCents ? `: -${brl(o.discountCents)}` : ""}${o.couponFreeShip ? " (frete grátis)" : ""}</div>` : ""}${o.shippingInfo ? `<div class="c">Frete: ${esc(o.shippingInfo)} — ${o.shippingCents ? brl(o.shippingCents) : "grátis"}</div>` : o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
+    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && (i.sizeLabel ? i.sizeLabel + ": " : "Tam. ") + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.couponCode ? `<div class="c">Cupom ${esc(o.couponCode)}${o.discountCents ? `: -${brl(o.discountCents)}` : ""}${o.couponFreeShip ? " (frete grátis)" : ""}</div>` : ""}${o.shippingInfo ? `<div class="c">Frete: ${esc(o.shippingInfo)} — ${o.shippingCents ? brl(o.shippingCents) : "grátis"}</div>` : o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
     <div class="c"><b style="color:var(--text)">${esc(c.name)}</b>${c.phone ? " · " + esc(c.phone) : ""}${c.payment ? " · " + esc(c.payment) : ""}</div>
     <div class="c">${c.delivery === "entrega" ? "Entrega: " + esc(c.address) + (c.cep ? " · CEP " + esc(c.cep) : "") : c.delivery === "retirada" ? "Retira na loja" : ""}</div>
     ${c.note ? `<div class="c">Obs.: ${esc(c.note)}</div>` : ""}
@@ -325,7 +325,7 @@ function editProduct(orig, preset) {
       <div class="fl"><label for="psku">Código (opcional)</label><input class="in" id="psku" value="${esc(p.sku)}" maxlength="40"></div></div>
       ${D.categories.length > 1 ? `<div class="fl"><span class="lbl">Aparece também em</span><div class="row">${D.categories.filter((c) => c.slug !== p.category).map((c) => `<label class="chk" style="padding:2px 8px 2px 0"><input type="checkbox" data-xc="${esc(c.slug)}" ${p.extraCategories.includes(c.slug) ? "checked" : ""}>${esc(c.name)}</label>`).join("")}</div></div>` : ""}
       <div class="fl"><label for="pd">Descrição</label><textarea class="in" id="pd" maxlength="4000">${esc(p.description)}</textarea></div>
-      <div class="fl"><span class="lbl">Tamanhos</span>${chipEditor("sizes", p.sizes, "Ex.: P, M, G ou 38, 39")}<div class="chips">${PRESETS.sizes.map(([n], i) => `<span class="chip pre" data-preset="${i}">+ ${n}</span>`).join("")}</div></div>
+      <div class="fl"><span class="lbl">Tamanhos ou outra opção</span><input class="in" id="psl" maxlength="20" value="${esc(p.sizeLabel || "")}" placeholder="Nome da opção: Tamanho (padrão), Modelo, Capacidade…" style="margin-bottom:6px">${chipEditor("sizes", p.sizes, "Ex.: P, M, G ou 38, 39")}<div class="chips">${PRESETS.sizes.map(([n], i) => `<span class="chip pre" data-preset="${i}">+ ${n}</span>`).join("")}</div></div>
       <div class="fl"><span class="lbl">Cores</span>${chipEditor("colors", p.colors, "Ex.: Preto, Branco")}</div>
       <div class="fl"><label class="chk"><input type="checkbox" id="psk" ${sk ? "checked" : ""}> Controlar estoque</label>
         ${sk ? `<div class="stock">${stockTable(p)}</div><small>Deixe em branco o que não quer controlar. Com 0, a opção aparece riscada na loja.</small>` : `<small>Sem controle, o produto sempre aparece disponível.</small>`}</div>
@@ -339,7 +339,7 @@ function editProduct(orig, preset) {
   };
   const collect = () => {
     p.name = $("#pn").value; p.priceCents = parseMoney($("#pp").value); p.promoCents = parseMoney($("#ppr").value);
-    p.category = $("#pcat").value; p.sku = $("#psku").value; p.description = $("#pd").value;
+    p.category = $("#pcat").value; p.sku = $("#psku").value; p.sizeLabel = $("#psl").value.trim(); p.description = $("#pd").value;
     p.extraCategories = $$("[data-xc]", dlg).filter((x) => x.checked).map((x) => x.dataset.xc);
     p.featured = $("#pft").checked; p.hidden = $("#phd").checked;
     const sh = {}; $$("[data-ship]", dlg).forEach((i) => { if (i.value !== "") sh[i.dataset.ship] = Number(i.value); }); p.ship = Object.keys(sh).length ? sh : null;

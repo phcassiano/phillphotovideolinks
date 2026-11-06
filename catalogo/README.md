@@ -34,6 +34,13 @@ Uma plataforma só, com várias lojas. Cada loja tem o próprio link (`seudomini
 3. Mande ao lojista o link da loja, o endereço `/painel`, o nome da loja e a senha.
 4. Quando ele pagar a mensalidade, clique **+30 dias**. Um dia depois do vencimento sem renovação, a loja sai do ar sozinha (nada é apagado) e volta assim que você renovar.
 
+## Loja exemplo
+
+No `/admin`, o botão **Criar loja exemplo** monta a **Vértice Importados** (`/vertice-importados`): loja fictícia de eletrônicos importados, tema escuro, 20 produtos (iPhones novos e seminovos, acessórios, áudio, games e assistência), banners, perguntas frequentes e os cupons `PRIMEIRACOMPRA` e `ACESSORIOS15`. Os pedidos chegam no WhatsApp informado no botão.
+
+- Dados em `demo/demo.json`; imagens em `demo/*.webp`, desenhadas por `dev/demo-imagens.py` (ilustrações próprias, sem fotos ou logos de terceiros).
+- A loja avisa no rodapé e nas perguntas frequentes que é uma demonstração.
+
 ## Frete com Melhor Envio
 
 Cada lojista usa a própria conta do Melhor Envio (o frete sai com os descontos dele e ele compra as etiquetas por lá).

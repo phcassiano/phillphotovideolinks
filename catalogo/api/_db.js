@@ -87,7 +87,7 @@ async function redis(st, ...cmds) {
 const DAY = 86400000;
 const GRACE_DAYS = 1; // folga depois do vencimento antes de pausar a loja
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
-const RESERVED = new Set(["admin","painel","api","loja","www","app","static","assets","img","login","entrar","termos","privacidade","ajuda","suporte","index","favicon.ico","robots.txt","sitemap.xml","manifest.webmanifest"]);
+const RESERVED = new Set(["admin","demo","painel","api","loja","www","app","static","assets","img","login","entrar","termos","privacidade","ajuda","suporte","index","favicon.ico","robots.txt","sitemap.xml","manifest.webmanifest"]);
 const ID_RE = /^[a-z0-9]{6,40}$/;
 const IMG_RE = /^[a-z0-9-]{8,80}$/;
 
@@ -271,6 +271,7 @@ function cleanProduct(p, old) {
     featured: !!p.featured,
     hidden: !!p.hidden,
     sku: str(p.sku, 40),
+    sizeLabel: str(p.sizeLabel, 20), // nome da opção: Tamanho (padrão), Modelo, Capacidade…
     ship: cleanShip(p.ship),
     createdAt: old ? old.createdAt : Date.now(),
     updatedAt: Date.now(),
@@ -287,7 +288,7 @@ function cleanShip(d) {
 const totalStock = (p) => (p.stock ? Object.values(p.stock).reduce((a, b) => a + b, 0) : null);
 // O que o público vê de cada produto: estoque vira só "esgotado" por variação.
 function publicProduct(p, hidePrices) {
-  const out = { id: p.id, slug: p.slug, name: p.name, description: p.description, category: p.category, extraCategories: p.extraCategories, images: p.images, sizes: p.sizes, colors: p.colors, featured: p.featured, createdAt: p.createdAt, sold: p.sold || 0 };
+  const out = { id: p.id, slug: p.slug, name: p.name, description: p.description, category: p.category, extraCategories: p.extraCategories, images: p.images, sizes: p.sizes, sizeLabel: p.sizeLabel || "", colors: p.colors, featured: p.featured, createdAt: p.createdAt, sold: p.sold || 0 };
   if (!hidePrices) { out.priceCents = p.priceCents; out.promoCents = p.promoCents; }
   if (p.stock) { out.out = Object.keys(p.stock).filter((k) => p.stock[k] <= 0); out.tracked = Object.keys(p.stock); }
   return out;
