@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo digital para WhatsApp</title>
+<meta name="description" content="Catálogo digital com a cara da sua loja. Seus clientes escolhem os produtos e o pedido chega pronto no seu WhatsApp.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fbfaf7;--ink:#14161a;--muted:#5f6470;--line:#e6e3dc;--pri:#0f5132;--pri2:#d9f2e3;--card:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e100f;--ink:#f1f3f2;--muted:#a3aaa6;--line:#26302b;--pri:#6ee7a8;--pri2:#123222;--card:#151a17}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+nav{display:flex;align-items:center;justify-content:space-between;height:68px}
+nav b{font-size:20px;font-weight:800;letter-spacing:-.02em}
+nav a.l{font-size:14px;font-weight:700;color:var(--muted)}
+.hero{padding:48px 0 32px;display:grid;gap:28px}
+@media(min-width:860px){.hero{grid-template-columns:1.2fr 1fr;align-items:center;padding:72px 0 48px}}
+.kick{display:inline-block;padding:6px 12px;border-radius:999px;background:var(--pri2);color:var(--pri);font-size:13px;font-weight:700;margin-bottom:16px}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.02;letter-spacing:-.04em}
+h1 em{font-style:normal;color:var(--pri)}
+.lead{font-size:18px;color:var(--muted);margin:16px 0 24px;max-width:520px}
+.cta{display:inline-flex;align-items:center;gap:10px;height:54px;padding:0 24px;border-radius:14px;background:var(--pri);color:var(--bg);font-weight:800;font-size:16px}
+.mock{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:14px;box-shadow:0 30px 60px rgba(0,0,0,.08);max-width:340px;margin:0 auto;width:100%}
+.mock .top{height:34px;border-radius:10px;background:var(--pri);margin-bottom:10px}
+.mock .ban{height:120px;border-radius:14px;background:linear-gradient(135deg,var(--pri2),var(--line));margin-bottom:10px}
+.mock .g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mock .p{border:1px solid var(--line);border-radius:12px;padding:8px}
+.mock .p i{display:block;aspect-ratio:1;border-radius:8px;background:var(--line);margin-bottom:6px}
+.mock .p s{display:block;height:8px;border-radius:4px;background:var(--line);width:80%;text-decoration:none;margin-bottom:4px}
+.mock .p u{display:block;height:10px;border-radius:4px;background:var(--pri);width:50%;opacity:.8}
+.mock .wa{margin-top:10px;height:40px;border-radius:10px;background:#25d366;color:#04230f;display:grid;place-items:center;font-weight:800;font-size:13px}
+section{padding:40px 0}
+h2{font-size:clamp(26px,4vw,38px);letter-spacing:-.03em;line-height:1.1;margin-bottom:22px}
+.cards{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.c{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px}
+.c b{display:block;font-size:17px;margin-bottom:4px}
+.c p{color:var(--muted);font-size:15px}
+.n{width:34px;height:34px;border-radius:10px;background:var(--pri2);color:var(--pri);display:grid;place-items:center;font-weight:800;margin-bottom:12px}
+.final{background:var(--pri);color:var(--bg);border-radius:28px;padding:40px 24px;text-align:center;margin:30px 0 60px}
+.final h2{margin-bottom:10px}
+.final .cta{background:var(--bg);color:var(--pri);margin-top:18px}
+footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><b data-brand>Vitrine</b><a class="l" href="/painel">Entrar no painel</a></nav>
+  <div class="hero">
+    <div>
+      <span class="kick">Catálogo digital para WhatsApp</span>
+      <h1>Sua loja num link. <em>Pedidos prontos</em> no WhatsApp.</h1>
+      <p class="lead">Montamos o catálogo com a sua logo e as suas cores e cadastramos os seus produtos. Você divulga o link e recebe os pedidos organizados na conversa.</p>
+      <a class="cta" data-wa href="#">Quero meu catálogo</a>
+    </div>
+    <div class="mock" aria-hidden="true"><div class="top"></div><div class="ban"></div><div class="g"><div class="p"><i></i><s></s><u></u></div><div class="p"><i></i><s></s><u></u></div><div class="p"><i></i><s></s><u></u></div><div class="p"><i></i><s></s><u></u></div></div><div class="wa">Enviar pedido pelo WhatsApp</div></div>
+  </div>
+  <section><h2>Como funciona</h2><div class="cards">
+    <div class="c"><div class="n">1</div><b>Você manda as informações</b><p>Logo, cores, fotos, nomes e preços. Pelo WhatsApp mesmo.</p></div>
+    <div class="c"><div class="n">2</div><b>A gente monta e cadastra</b><p>Seu catálogo fica pronto com categorias, banners e todos os produtos.</p></div>
+    <div class="c"><div class="n">3</div><b>Você divulga o link</b><p>O cliente escolhe tamanho, cor e quantidade, e o pedido chega pronto no seu WhatsApp.</p></div>
+  </div></section>
+  <section><h2>O que vem no catálogo</h2><div class="cards">
+    <div class="c"><b>Sua identidade</b><p>Logo, cores, banners e aviso no topo. Você troca quando quiser.</p></div>
+    <div class="c"><b>Estoque por tamanho e cor</b><p>Opções esgotadas aparecem riscadas e o estoque baixa a cada pedido.</p></div>
+    <div class="c"><b>Painel de pedidos</b><p>Acompanhe o status de cada pedido e mande o link de acompanhamento ao cliente.</p></div>
+    <div class="c"><b>Números da loja</b><p>Visitas, cliques no WhatsApp, pedidos e produtos mais vistos e vendidos.</p></div>
+    <div class="c"><b>Pronto para divulgar</b><p>Link, QR Code e catálogo em PDF ou planilha para mandar nos grupos.</p></div>
+    <div class="c"><b>Entrega e pagamento</b><p>Taxa de entrega, frete grátis acima de um valor, retirada e formas de pagamento.</p></div>
+  </div></section>
+  <div class="final"><h2>Vamos montar a sua vitrine?</h2><p>Conte o que você vende e quantos produtos tem. A gente responde com a proposta.</p><a class="cta" data-wa href="#">Pedir orçamento no WhatsApp</a></div>
+  <footer><span data-brand>Vitrine</span> · Catálogo digital para lojas</footer>
+</div>
+<script>
+fetch("/api/loja?op=info").then((r) => r.json()).then((b) => {
+  if (b.name) { document.querySelectorAll("[data-brand]").forEach((e) => (e.textContent = b.name)); document.title = b.name + " · Catálogo digital para WhatsApp"; }
+  const href = b.whatsapp ? `https://wa.me/${b.whatsapp}?text=${encodeURIComponent("Olá! Quero um catálogo digital para a minha loja.")}` : "/painel";
+  document.querySelectorAll("[data-wa]").forEach((a) => { a.href = href; if (b.whatsapp) { a.target = "_blank"; a.rel = "noopener"; } });
+}).catch(() => {});
+</script>
+</body>
+</html>

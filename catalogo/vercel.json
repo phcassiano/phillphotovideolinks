@@ -1,0 +1,26 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/painel", "destination": "/painel.html" },
+    { "source": "/api/img/:id", "destination": "/api/img?id=:id" },
+    { "source": "/:slug", "destination": "/loja.html" },
+    { "source": "/:slug/:path*", "destination": "/loja.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    {
+      "source": "/(admin|painel)(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Robots-Tag", "value": "noindex" }
+      ]
+    }
+  ]
+}
