@@ -78,9 +78,10 @@ function buildLines(store, rawItems) {
 
 module.exports = async (req, res) => {
   db.cors(res);
+  const url = new URL(req.url, "http://x");
+  if (req.method === "GET" && url.searchParams.get("op") === "info") return send(res, 200, db.brand(), { "cache-control": "public, s-maxage=300" });
   const st = db.storage();
   if (!st) return send(res, 503, { error: "Banco de dados não configurado." });
-  const url = new URL(req.url, "http://x");
   try {
     if (req.method === "GET") {
       const op = url.searchParams.get("op");
