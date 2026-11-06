@@ -4,6 +4,7 @@ const db = require("./_db.js");
 const { redis, K, send } = db;
 const { loadStore } = require("./loja.js");
 const frete = require("./_frete.js");
+const cupom = require("./_cupom.js");
 
 const SESSION_DAYS = 30;
 const MAX_IMAGES = 4000;
@@ -174,6 +175,13 @@ module.exports = async (req, res) => {
       return send(res, 200, { orders });
     }
 
+    if (op === "coupons") return send(res, 200, { coupons: await cupom.list(st, slug) });
+    if (op === "saveCoupon") {
+      try { const c = await cupom.save(st, slug, body.coupon || {}); return send(res, 200, { coupon: c }); }
+      catch (e) { if (e.status) return send(res, e.status, { error: e.message }); throw e; }
+    }
+    if (op === "deleteCoupon") { await cupom.remove(st, slug, body.code); return send(res, 200, { ok: true }); }
+
     if (op === "getShipping") {
       const [cfg, [sRaw]] = [await frete.getConfig(st, slug), await redis(st, ["GET", K.settings(slug)])];
       return send(res, 200, { config: frete.publicConfig(frete.cleanConfig(cfg, cfg)), enabled: !!db.parse(sRaw, {}).shipCalc });
@@ -232,6 +240,7 @@ module.exports = async (req, res) => {
           if (changed) w.push(["HSET", K.products(slug), id, JSON.stringify(p)]);
         });
         if (w.length) await redis(st, ...w);
+        await cupom.giveBack(st, slug, o.couponCode, isCancel ? -1 : 1);
       }
       o.status = status;
       o.updatedAt = Date.now();

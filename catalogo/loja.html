@@ -300,6 +300,12 @@ footer h5 svg{width:16px;height:16px}
 .fo{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
 .fo:last-child{border-bottom:0}
 .fo small{display:block;color:var(--muted);font-size:12px}
+.cupf{display:flex;gap:8px}
+.cupf .in{height:42px;text-transform:uppercase}
+.cupf .bt{height:42px;font-size:12px}
+.cupon{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px dashed var(--accent);border-radius:10px;font-size:13px}
+.cupon span{display:flex;align-items:center;gap:6px}
+.cupon svg{width:15px;height:15px;color:var(--accent)}
 .buybar{display:none}
 @media(max-width:900px){
   .buybar{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:62px;z-index:30;background:var(--bg);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:10px 16px;margin:16px -16px 0}
@@ -417,6 +423,9 @@ const BASE = "/" + SLUG;
 let S = null;
 let CART = store("cart:" + SLUG) || [];
 let FAVS = store("fav:" + SLUG) || [];
+let COUPON = store("cup:" + SLUG) || null;
+const urlCoupon = new URLSearchParams(location.search).get("cupom");
+if (urlCoupon) { store("cuppend:" + SLUG, urlCoupon.toUpperCase()); } // {code, discountCents, freeShipping, label}
 const saveCart = () => { store("cart:" + SLUG, CART); updateBadge(); };
 
 function contrast(hex) {
@@ -724,7 +733,7 @@ function pageTrack(n, code) {
       box.innerHTML = `<h1 class="hd" style="font-size:28px">Pedido #${o.n}</h1><p class="note">Feito em ${new Date(o.createdAt).toLocaleString("pt-BR")}</p>
         ${o.status === "cancelado" ? `<p class="hint err" style="margin:18px 0">Este pedido foi cancelado.</p>` : `<div class="timeline">${steps.map((s, i) => `<div class="step ${i <= idx ? "on" : ""}"><i></i><div><b>${s[1]}</b></div></div>`).join("")}</div>`}
         ${o.items.map((it) => `<div class="ci">${it.image ? `<img src="${img(it.image)}" alt="">` : '<div class="ni"></div>'}<div><b>${esc(it.name)}</b><small>${esc([it.size && "Tam. " + it.size, it.color].filter(Boolean).join(" / "))}</small><div class="r"><small>${it.qty}x ${brl(it.unitCents)}</small><b>${brl(it.unitCents * it.qty)}</b></div></div></div>`).join("")}
-        <div class="sum" style="margin:14px 0">${o.shippingCents ? `<div><span>Entrega</span><span>${brl(o.shippingCents)}</span></div>` : ""}<div class="t"><span>Total</span><span>${brl(o.totalCents)}</span></div></div>
+        <div class="sum" style="margin:14px 0">${o.discountCents ? `<div><span>Cupom ${esc(o.couponCode)}</span><span>-${brl(o.discountCents)}</span></div>` : ""}${o.shippingCents ? `<div><span>Entrega</span><span>${brl(o.shippingCents)}</span></div>` : ""}<div class="t"><span>Total</span><span>${brl(o.totalCents)}</span></div></div>
         ${S.settings.whatsapp ? `<a class="bt wa full" target="_blank" rel="noopener" href="${waLink(`Olá! Quero saber do meu pedido #${o.n}.`)}">${I.wa} Falar com a loja</a>` : ""}`;
     } catch (e) { box.innerHTML = `<div class="empty">${esc(e.message || "Pedido não encontrado.")}</div>`; }
   }, 0);
@@ -741,8 +750,34 @@ function totals(delivery, shipOpt) {
   let ship = 0;
   if (delivery === "entrega" && s.shipCalc) ship = shipOpt ? shipOpt.priceCents : 0;
   else if (delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && sub >= s.freeShippingFromCents)) ship = s.deliveryFeeCents;
-  return { sub, ship, total: sub + ship };
+  if (COUPON && COUPON.freeShipping) ship = 0;
+  const disc = COUPON ? Math.min(COUPON.discountCents || 0, sub) : 0;
+  return { sub, ship, disc, total: sub - disc + ship };
 }
+// ---------- Cupom ----------
+async function applyCoupon(code) {
+  const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "cupom", slug: SLUG, code, items: CART }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Cupom inválido.");
+  COUPON = { code: j.code, discountCents: j.discountCents, freeShipping: j.freeShipping, label: j.label };
+  store("cup:" + SLUG, COUPON);
+  return COUPON;
+}
+function dropCoupon() { COUPON = null; store("cup:" + SLUG, null); }
+// Com o carrinho mudando, o desconto muda: confere de novo e redesenha se precisar.
+async function recheckCoupon(redraw) {
+  if (!COUPON || !CART.length) return;
+  const before = JSON.stringify(COUPON);
+  try { await applyCoupon(COUPON.code); } catch (e) { const c = COUPON.code; dropCoupon(); toast(`Cupom ${c} removido: ${e.message}`); }
+  if (JSON.stringify(COUPON) !== before) redraw();
+}
+function couponBox() {
+  if (S.settings.hidePrices) return "";
+  return COUPON
+    ? `<div class="cupon"><span>${I.tag}<b>${esc(COUPON.code)}</b> · ${esc(COUPON.label)}</span><button class="lnk" data-cup-rm>Remover</button></div>`
+    : `<form class="cupf" data-cup><input class="in" name="code" value="${esc(store("cuppend:" + SLUG) || "")}" placeholder="Cupom de desconto" autocapitalize="characters" aria-label="Cupom de desconto"><button class="bt ol">Aplicar</button></form><div class="hint err" id="cuperr"></div>`;
+}
+const discRow = (t) => (t.disc ? `<div style="color:var(--accent)"><span>Cupom ${esc(COUPON.code)}</span><span>-${brl(t.disc)}</span></div>` : "");
 // ---------- Frete (Melhor Envio) ----------
 const onlyCep = (v) => String(v || "").replace(/\D/g, "").slice(0, 8);
 const fmtCep = (v) => { const d = onlyCep(v); return d.length > 5 ? d.slice(0, 5) + "-" + d.slice(5) : d; };
@@ -761,15 +796,18 @@ function openCart(view = "cart") { openSide(drawer); view === "checkout" ? drawC
 ov.onclick = closeSides;
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSides(); });
 const waBtn = (t) => `${I.wa.replace("<svg", '<svg width="20" height="20"')} ${t}`;
-function drawCart() {
+function drawCart(skipCheck) {
   CART = CART.filter((i) => byId(i.pid)); saveCart();
+  if (!skipCheck) recheckCoupon(() => drawCart(true));
+  const pend = store("cuppend:" + SLUG);
+  if (pend && !COUPON && CART.length && !skipCheck) applyCoupon(pend).then(() => { store("cuppend:" + SLUG, null); toast(`Cupom ${pend} aplicado`); drawCart(true); }).catch(() => {});
   const L = cartLines(), t = totals(""), s = S.settings, hide = s.hidePrices;
   drawer.innerHTML = `<div class="sh"><h2 class="hd">Seu carrinho</h2><button class="ib" data-close aria-label="Fechar">${I.x}</button></div>
   <div class="sb">${L.length ? L.map((i, idx) => `<div class="ci">${i.p.images[0] ? `<img src="${img(i.p.images[0])}" alt="">` : '<div class="ni"></div>'}
       <div><b>${esc(i.p.name)}</b><small>${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))}</small>
         <div class="r"><div class="qty"><button data-cq="${idx}" data-d="-1" aria-label="Diminuir">${I.minus}</button><span>${i.qty}</span><button data-cq="${idx}" data-d="1" aria-label="Aumentar">${I.plus}</button></div>${hide ? "" : `<b>${brl(unit(i.p) * i.qty)}</b>`}</div>
         <button class="lnk" data-rm="${idx}">Remover</button></div></div>`).join("") : `<div class="empty">Seu carrinho está vazio.<br><br><button class="bt" data-close>Ver produtos</button></div>`}</div>
-  ${L.length ? `<div class="sf">${hide ? "" : `<div class="sum"><div class="t"><span>Subtotal</span><span>${brl(t.sub)}</span></div>${s.minOrderCents && t.sub < s.minOrderCents ? `<div class="hint err">Pedido mínimo: ${brl(s.minOrderCents)}</div>` : ""}</div>`}
+  ${L.length ? `<div class="sf">${couponBox()}${hide ? "" : `<div class="sum">${t.disc ? `<div><span>Subtotal</span><span>${brl(t.sub)}</span></div>${discRow(t)}` : ""}${COUPON && COUPON.freeShipping ? `<div style="color:var(--accent)"><span>Cupom ${esc(COUPON.code)}</span><span>Frete grátis</span></div>` : ""}<div class="t"><span>${t.disc ? "Total" : "Subtotal"}</span><span>${brl(t.sub - t.disc)}</span></div>${s.minOrderCents && t.sub < s.minOrderCents ? `<div class="hint err">Pedido mínimo: ${brl(s.minOrderCents)}</div>` : ""}</div>`}
     <button class="bt full" data-go="checkout" ${!hide && s.minOrderCents && t.sub < s.minOrderCents ? "disabled" : ""}>Finalizar pedido</button><button class="bt ol full" data-close>Continuar comprando</button></div>` : ""}`;
 }
 function drawCheckout() {
@@ -798,10 +836,12 @@ function drawCheckout() {
   const sum = () => {
     if (s.hidePrices) return;
     const d = dlvNow(), t = totals(d, shipSel);
+    const cupFree = COUPON && COUPON.freeShipping && d === "entrega";
     const shipRow = d === "entrega" && s.shipCalc
-      ? `<div><span>Frete${shipSel ? ` (${shipLabel(shipSel)})` : ""}</span><span>${shipSel ? (shipSel.free ? "Grátis" : brl(shipSel.priceCents)) : "informe o CEP"}</span></div>`
+      ? `<div><span>Frete${shipSel ? ` (${shipLabel(shipSel)})` : ""}</span><span>${shipSel ? (shipSel.free || cupFree ? "Grátis" : brl(shipSel.priceCents)) : "informe o CEP"}</span></div>`
+      : cupFree ? `<div><span>Entrega</span><span>Grátis (cupom)</span></div>`
       : t.ship ? `<div><span>Entrega</span><span>${brl(t.ship)}</span></div>` : "";
-    $("#cosum").innerHTML = `<div><span>Subtotal</span><span>${brl(t.sub)}</span></div>${shipRow}<div class="t"><span>Total</span><span>${brl(t.total)}</span></div>`;
+    $("#cosum").innerHTML = `<div><span>Subtotal</span><span>${brl(t.sub)}</span></div>${discRow(t)}${shipRow}<div class="t"><span>Total</span><span>${brl(t.total)}</span></div>`;
   };
   const drawShip = () => {
     const box = $("#shipbox"); if (!box) return;
@@ -849,10 +889,10 @@ function drawCheckout() {
     store("me:" + SLUG, { name: f.name, phone: f.phone, delivery: f.delivery, cep: f.cep, address: f.address, payment: f.payment });
     const btn = $("#send"); btn.disabled = true; btn.textContent = "Enviando…";
     try {
-      const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "order", slug: SLUG, items: CART, customer: f, shippingId: f.delivery === "entrega" && shipSel ? shipSel.id : undefined }) });
+      const r = await fetch("/api/loja", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "order", slug: SLUG, items: CART, customer: f, shippingId: f.delivery === "entrega" && shipSel ? shipSel.id : undefined, coupon: COUPON ? COUPON.code : undefined }) });
       const o = await r.json();
       if (!r.ok) throw new Error(o.error || "Não foi possível enviar.");
-      CART = []; saveCart();
+      CART = []; saveCart(); dropCoupon();
       const url = `https://wa.me/${o.whatsapp}?text=${encodeURIComponent(o.text)}`;
       drawer.innerHTML = `<div class="sh"><h2 class="hd">Pedido #${o.n}</h2><button class="ib" data-close aria-label="Fechar">${I.x}</button></div>
         <div class="sb"><div class="ok"><div class="ic">✓</div><h2 class="hd">Pedido registrado!</h2><p class="note" style="font-size:15px">Agora é só enviar a mensagem no WhatsApp da loja para combinar o pagamento e a entrega.</p>
@@ -873,6 +913,7 @@ function drawCheckout() {
   if (t.closest("[data-close]")) return closeSides();
   const go = t.closest("[data-go]"); if (go) return go.dataset.go === "checkout" ? drawCheckout() : drawCart();
   const cq = t.closest("[data-cq]"); if (cq) { const i = CART[Number(cq.dataset.cq)]; i.qty = Math.max(1, Math.min(99, i.qty + Number(cq.dataset.d))); saveCart(); return drawCart(); }
+  if (t.closest("[data-cup-rm]")) { dropCoupon(); return drawCart(true); }
   const rm = t.closest("[data-rm]"); if (rm) { CART.splice(Number(rm.dataset.rm), 1); saveCart(); return drawCart(); }
   if (t.closest("[data-link]")) closeSides();
 }));
@@ -946,6 +987,15 @@ document.addEventListener("click", (e) => {
   }
 });
 document.addEventListener("submit", async (e) => {
+  if (e.target.matches("[data-cup]")) {
+    e.preventDefault();
+    const code = e.target.code.value.trim(), btn = e.target.querySelector("button");
+    if (!code) return;
+    btn.disabled = true;
+    try { const c = await applyCoupon(code); toast(`Cupom ${c.code} aplicado`); drawCart(true); }
+    catch (err) { btn.disabled = false; $("#cuperr").textContent = err.message; }
+    return;
+  }
   if (e.target.matches("[data-search]")) { e.preventDefault(); const q = e.target.q.value.trim(); if (q) go(`${BASE}/busca?q=${encodeURIComponent(q)}`); return; }
   if (e.target.matches("[data-lead]")) {
     e.preventDefault();

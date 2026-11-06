@@ -145,7 +145,8 @@ const LIMITS = {
   order: [30, 3600],   // pedidos por IP por hora
   lead: [10, 3600],    // cadastros de novidades por IP por hora
   hit: [400, 600],     // contagem de visitas
-  frete: [80, 3600],   // cotações de frete por IP por hora
+  frete: [80, 3600],
+  cupom: [40, 3600],   // tentativas de cupom por IP por hora   // cotações de frete por IP por hora
   upload: [300, 3600], // imagens enviadas por IP por hora
 };
 async function overLimit(st, kind, ip) {
@@ -176,7 +177,7 @@ function send(res, code, obj, extraHeaders) {
 }
 
 const brand = () => ({
-  name: process.env.CATALOGO_MARCA || "Vitrine",
+  name: process.env.CATALOGO_MARCA || "WhatsLoja",
   whatsapp: String(process.env.CATALOGO_WHATSAPP || "").replace(/\D/g, "") || null,
 });
 

@@ -166,7 +166,7 @@ function showLogin(msg) {
 let D = null; // {slug, account, settings, categories, products, brand}
 let ORDERS = null;
 let TAB = LS.get("painel:tab") || "pedidos";
-const TABS = [["pedidos", "Pedidos"], ["produtos", "Produtos"], ["categorias", "Categorias"], ["aparencia", "Aparência"], ["loja", "Dados da loja"], ["frete", "Frete"], ["numeros", "Números"], ["divulgar", "Divulgar"], ["conta", "Conta"]];
+const TABS = [["pedidos", "Pedidos"], ["produtos", "Produtos"], ["categorias", "Categorias"], ["cupons", "Cupons"], ["aparencia", "Aparência"], ["loja", "Dados da loja"], ["frete", "Frete"], ["numeros", "Números"], ["divulgar", "Divulgar"], ["conta", "Conta"]];
 const storeUrl = () => location.origin + "/" + D.slug;
 const catName = (s) => (D.categories.find((c) => c.slug === s) || {}).name || s || "Sem categoria";
 const totalStock = (p) => (p.stock ? Object.values(p.stock).reduce((a, b) => a + b, 0) : null);
@@ -202,7 +202,7 @@ function shell() {
 }
 function render() {
   $("#app").innerHTML = shell();
-  ({ pedidos: tabOrders, produtos: tabProducts, categorias: tabCats, aparencia: tabLook, loja: tabStore, frete: tabShip, numeros: tabStats, divulgar: tabShare, conta: tabAccount }[TAB] || tabOrders)();
+  ({ pedidos: tabOrders, produtos: tabProducts, categorias: tabCats, cupons: tabCoupons, aparencia: tabLook, loja: tabStore, frete: tabShip, numeros: tabStats, divulgar: tabShare, conta: tabAccount }[TAB] || tabOrders)();
 }
 document.addEventListener("click", (e) => {
   const t = e.target.closest("[data-tab]");
@@ -260,7 +260,7 @@ function orderCard(o) {
   const phone = c.phone ? (c.phone.length <= 11 ? "55" + c.phone : c.phone) : "";
   const msg = `Olá, ${c.name}! Sobre o seu pedido #${o.n} na ${D.settings.name}: `;
   return `<div class="oc"><div class="h"><b>#${o.n}</b><span class="pill ${s[1]}">${s[0]}</span><span class="c">${new Date(o.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span><span class="sp"></span><b>${brl(o.totalCents)}</b></div>
-    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.shippingInfo ? `<div class="c">Frete: ${esc(o.shippingInfo)} — ${o.shippingCents ? brl(o.shippingCents) : "grátis"}</div>` : o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
+    <div class="items">${o.items.map((i) => `<div>${i.qty}x ${esc(i.name)}${i.size || i.color ? ` <span class="c">(${esc([i.size && "Tam. " + i.size, i.color].filter(Boolean).join(" / "))})</span>` : ""} — ${brl(i.unitCents * i.qty)}</div>`).join("")}${o.couponCode ? `<div class="c">Cupom ${esc(o.couponCode)}${o.discountCents ? `: -${brl(o.discountCents)}` : ""}${o.couponFreeShip ? " (frete grátis)" : ""}</div>` : ""}${o.shippingInfo ? `<div class="c">Frete: ${esc(o.shippingInfo)} — ${o.shippingCents ? brl(o.shippingCents) : "grátis"}</div>` : o.shippingCents ? `<div class="c">Entrega: ${brl(o.shippingCents)}</div>` : ""}</div>
     <div class="c"><b style="color:var(--text)">${esc(c.name)}</b>${c.phone ? " · " + esc(c.phone) : ""}${c.payment ? " · " + esc(c.payment) : ""}</div>
     <div class="c">${c.delivery === "entrega" ? "Entrega: " + esc(c.address) + (c.cep ? " · CEP " + esc(c.cep) : "") : c.delivery === "retirada" ? "Retira na loja" : ""}</div>
     ${c.note ? `<div class="c">Obs.: ${esc(c.note)}</div>` : ""}
@@ -405,6 +405,87 @@ function stockTable(p) {
   const v = (k) => (p.stock && k in p.stock ? p.stock[k] : "");
   if (cs.length === 1 && ss.length === 1) return `<input type="number" min="0" data-sk="${esc(ss[0] + "|" + cs[0])}" value="${v(ss[0] + "|" + cs[0])}" aria-label="Estoque">`;
   return `<table><tr><th></th>${cs.map((c) => `<th>${esc(c || "Qtd.")}</th>`).join("")}</tr>${ss.map((s) => `<tr><th>${esc(s || "—")}</th>${cs.map((c) => `<td><input type="number" min="0" data-sk="${esc(s + "|" + c)}" value="${v(s + "|" + c)}" aria-label="Estoque ${esc(s)} ${esc(c)}"></td>`).join("")}</tr>`).join("")}</table>`;
+}
+
+// ---------- Cupons ----------
+const dateIn = (t) => (t ? new Date(t - new Date(t).getTimezoneOffset() * 60000).toISOString().slice(0, 10) : "");
+const dateOut = (v, end) => (v ? new Date(v + (end ? "T23:59:59" : "T00:00:00")).getTime() : null);
+function couponText(c) {
+  const what = c.type === "percent" ? `${c.value}% de desconto` : c.type === "fixed" ? `${brl(c.value)} de desconto` : "Frete grátis";
+  const rules = [c.minCents ? `acima de ${brl(c.minCents)}` : "", c.categories.length ? `em ${c.categories.map(catName).join(", ")}` : ""].filter(Boolean).join(" · ");
+  return what + (rules ? " · " + rules : "");
+}
+function couponState(c) {
+  const now = Date.now();
+  if (!c.active) return ["Pausado", ""];
+  if (c.endsAt && now > c.endsAt) return ["Expirado", "bad"];
+  if (c.startsAt && now < c.startsAt) return ["Agendado", "blue"];
+  if (c.maxUses && c.used >= c.maxUses) return ["Esgotado", "bad"];
+  return ["Ativo", "ok"];
+}
+async function tabCoupons() {
+  const m = $("#main");
+  m.innerHTML = `<h1>Cupons</h1><p class="sub">Descontos que o cliente digita no carrinho.</p><div class="empty">Carregando…</div>`;
+  let list;
+  try { list = (await api("coupons")).coupons; } catch (e) { m.innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+  m.innerHTML = `<div class="row" style="margin-bottom:12px"><div><h1>Cupons</h1><p class="sub" style="margin:0">Descontos que o cliente digita no carrinho. O desconto é conferido de novo no servidor em cada pedido.</p></div><span class="sp"></span><button class="btn" id="newc">+ Novo cupom</button></div>
+  <div class="list">${list.length ? list.map((c) => { const [st, cls] = couponState(c); return `<div class="pi" style="grid-template-columns:1fr auto">
+    <div style="min-width:0"><div class="row" style="gap:6px"><b style="font-family:monospace;font-size:15px">${esc(c.code)}</b><span class="pill ${cls}">${st}</span></div>
+      <small>${esc(couponText(c))}</small><br><small>${c.used} uso${c.used === 1 ? "" : "s"}${c.maxUses ? ` de ${c.maxUses}` : ""}${c.endsAt ? ` · até ${new Date(c.endsAt).toLocaleDateString("pt-BR")}` : ""}${c.note ? ` · ${esc(c.note)}` : ""}</small></div>
+    <div class="row" style="gap:4px"><button class="btn ghost sm" data-clink="${esc(c.code)}">Copiar link</button><button class="btn ghost sm" data-cedit="${esc(c.code)}">Editar</button></div></div>`; }).join("") : `<div class="empty">Nenhum cupom ainda. Crie um para divulgar no Instagram ou mandar para clientes.</div>`}</div>
+  <p class="help" style="margin-top:12px">"Copiar link" gera o link da loja com o cupom: quem abre já encontra o código no carrinho.</p>`;
+  $("#newc").onclick = () => editCoupon(null);
+  m.onclick = async (e) => {
+    const ed = e.target.closest("[data-cedit]"); if (ed) return editCoupon(list.find((c) => c.code === ed.dataset.cedit));
+    const ln = e.target.closest("[data-clink]");
+    if (ln) { const u = `${storeUrl()}?cupom=${encodeURIComponent(ln.dataset.clink)}`; try { await navigator.clipboard.writeText(u); toast("Link copiado"); } catch { prompt("Copie o link:", u); } }
+  };
+}
+function editCoupon(orig) {
+  const c = orig ? { ...orig } : { code: "", type: "percent", value: 10, minCents: 0, maxUses: 0, startsAt: null, endsAt: null, categories: [], active: true, note: "" };
+  const dlg = $("#dlg");
+  const draw = () => {
+    dlg.innerHTML = `<div class="dh"><h2 style="margin:0">${orig ? "Editar cupom" : "Novo cupom"}</h2><button class="btn ghost sm" data-x>Fechar</button></div>
+    <form class="dbd" id="cf" onsubmit="return false">
+      <div class="grid2"><div class="fl"><label for="cc">Código</label><input class="in" id="cc" value="${esc(c.code)}" maxlength="30" placeholder="BEMVINDO10" style="text-transform:uppercase;font-family:monospace" autocapitalize="characters"><small>Letras e números, sem espaço.</small></div>
+      <div class="fl"><label for="ct">Tipo</label><select class="in" id="ct"><option value="percent" ${c.type === "percent" ? "selected" : ""}>Porcentagem (%)</option><option value="fixed" ${c.type === "fixed" ? "selected" : ""}>Valor fixo (R$)</option><option value="freeship" ${c.type === "freeship" ? "selected" : ""}>Frete grátis</option></select></div></div>
+      ${c.type !== "freeship" ? `<div class="grid2"><div class="fl"><label for="cv">${c.type === "percent" ? "Desconto (%)" : "Desconto (R$)"}</label><input class="in" id="cv" inputmode="decimal" value="${c.type === "percent" ? c.value : money(c.value)}"></div></div>` : `<p class="help" style="margin-bottom:12px">Zera o frete de quem escolher "Receber em casa".</p>`}
+      <div class="grid2"><div class="fl"><label for="cm">Compra mínima (R$)</label><input class="in" id="cm" inputmode="decimal" value="${money(c.minCents)}" placeholder="sem mínimo"></div>
+      <div class="fl"><label for="cx">Limite de usos</label><input class="in" id="cx" type="number" min="0" value="${c.maxUses || ""}" placeholder="sem limite"><small>${orig ? `Já usado ${orig.used} vez${orig.used === 1 ? "" : "es"}.` : "Total de pedidos que podem usar o cupom."}</small></div>
+      <div class="fl"><label for="cs">Começa em</label><input class="in" id="cs" type="date" value="${dateIn(c.startsAt)}"></div>
+      <div class="fl"><label for="ce">Termina em</label><input class="in" id="ce" type="date" value="${dateIn(c.endsAt)}"></div></div>
+      ${D.categories.length && c.type !== "freeship" ? `<div class="fl"><span class="lbl">Vale só para estas categorias <span class="help" style="font-weight:400">(nenhuma marcada = loja toda)</span></span><div class="row">${D.categories.map((k) => `<label class="chk" style="padding:2px 8px 2px 0"><input type="checkbox" data-ccat="${esc(k.slug)}" ${c.categories.includes(k.slug) ? "checked" : ""}>${esc(k.name)}</label>`).join("")}</div></div>` : ""}
+      <div class="fl"><label for="cn">Anotação (só você vê)</label><input class="in" id="cn" maxlength="120" value="${esc(c.note)}" placeholder="Ex.: parceria com @influenciadora"></div>
+      <label class="chk"><input type="checkbox" id="ca" ${c.active ? "checked" : ""}> Cupom ativo</label>
+      <div class="err" id="cerr"></div></form>
+    <div class="df">${orig ? `<button class="btn bad" id="cdel" style="margin-right:auto">Excluir</button>` : ""}<button class="btn" id="csave">Salvar</button></div>`;
+  };
+  const collect = () => {
+    c.code = $("#cc").value; c.type = $("#ct").value;
+    const v = $("#cv"); if (v) c.value = c.type === "percent" ? Number(String(v.value).replace(",", ".")) : parseMoney(v.value);
+    c.minCents = parseMoney($("#cm").value); c.maxUses = Number($("#cx").value) || 0;
+    c.startsAt = dateOut($("#cs").value); c.endsAt = dateOut($("#ce").value, true);
+    c.categories = $$("[data-ccat]", dlg).filter((x) => x.checked).map((x) => x.dataset.ccat);
+    c.note = $("#cn").value; c.active = $("#ca").checked;
+  };
+  draw();
+  dlg.onchange = (e) => { if (e.target.id === "ct") { collect(); if (c.type === "fixed" && c.value < 100) c.value = c.value * 100; if (c.type === "percent" && c.value > 100) c.value = 10; draw(); } };
+  dlg.onkeydown = null;
+  dlg.onclick = async (e) => {
+    const t = e.target;
+    if (t.closest("[data-x]")) return dlg.close();
+    if (t.id === "csave") {
+      collect();
+      if (c.startsAt && c.endsAt && c.endsAt < c.startsAt) { $("#cerr").textContent = "A data final é antes da inicial."; return; }
+      try { await api("saveCoupon", { coupon: { ...c, originalCode: orig ? orig.code : undefined } }); dlg.close(); toast("Cupom salvo"); tabCoupons(); }
+      catch (err) { $("#cerr").textContent = err.message; }
+    }
+    if (t.id === "cdel") {
+      if (!confirm(`Excluir o cupom ${orig.code}?`)) return;
+      try { await api("deleteCoupon", { code: orig.code }); dlg.close(); toast("Cupom excluído"); tabCoupons(); } catch (err) { toast(err.message); }
+    }
+  };
+  if (!dlg.open) dlg.showModal();
 }
 
 // ---------- Categorias ----------

@@ -6,6 +6,7 @@
 // GET  /api/loja?op=track&slug=x&n=12&code=abc → acompanhamento do pedido pelo cliente
 const db = require("./_db.js");
 const frete = require("./_frete.js");
+const cupom = require("./_cupom.js");
 const { redis, K, send } = db;
 
 const brl = (c) => "R$ " + (c / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -31,6 +32,7 @@ function orderMessage(store, order) {
   }
   L.push("");
   L.push(`Subtotal: ${brl(order.subtotalCents)}`);
+  if (order.couponCode) L.push(`Cupom ${order.couponCode}: ${order.discountCents ? "-" + brl(order.discountCents) : ""}${order.couponFreeShip ? (order.discountCents ? " + " : "") + "frete grátis" : ""}`);
   if (order.shippingInfo) L.push(`Frete: ${order.shippingInfo} — ${order.shippingCents ? brl(order.shippingCents) : "grátis"}`);
   else if (order.shippingCents) L.push(`Entrega: ${brl(order.shippingCents)}`);
   L.push(`*Total: ${brl(order.totalCents)}*`);
@@ -93,7 +95,7 @@ module.exports = async (req, res) => {
         const o = db.parse(raw);
         if (!o || !code || !db.sameStr(code, o.code)) return send(res, 404, { error: "Pedido não encontrado." });
         const s = db.parse(settingsRaw, {});
-        return send(res, 200, { n: o.n, createdAt: o.createdAt, status: o.status, items: o.items, subtotalCents: o.subtotalCents, shippingCents: o.shippingCents, shippingInfo: o.shippingInfo || "", totalCents: o.totalCents, delivery: o.customer.delivery, store: { name: s.name, whatsapp: s.whatsapp, logo: s.logo, color: s.color } });
+        return send(res, 200, { n: o.n, createdAt: o.createdAt, status: o.status, items: o.items, subtotalCents: o.subtotalCents, shippingCents: o.shippingCents, shippingInfo: o.shippingInfo || "", couponCode: o.couponCode || "", discountCents: o.discountCents || 0, totalCents: o.totalCents, delivery: o.customer.delivery, store: { name: s.name, whatsapp: s.whatsapp, logo: s.logo, color: s.color } });
       }
 
       const store = await loadStore(st, slug);
@@ -127,6 +129,20 @@ module.exports = async (req, res) => {
       if (!field) return send(res, 400, { error: "Produto inválido." });
       await redis(st, ["HINCRBY", key, field, "1"], ["EXPIRE", key, String(120 * 86400)], ["INCR", db.K.lim("hit", ip)], ["EXPIRE", db.K.lim("hit", ip), "600"]);
       return send(res, 200, { ok: true });
+    }
+
+    if (body.op === "cupom") {
+      if (await db.overLimit(st, "cupom", ip)) return send(res, 429, { error: "Muitas tentativas de cupom. Tente mais tarde." });
+      await redis(st, ["INCR", K.lim("cupom", ip)], ["EXPIRE", K.lim("cupom", ip), "3600"]);
+      const store = await loadStore(st, slug);
+      if (!store || !db.storeState(store.meta).live) return send(res, 404, { error: "Loja indisponível." });
+      const built = buildLines(store, body.items);
+      if (built.error) return send(res, built.status, { error: built.error });
+      const code = cupom.normCode(body.code);
+      if (!code) return send(res, 400, { error: "Digite o código do cupom." });
+      const r = cupom.evaluate(await cupom.get(st, slug, code), built.lines);
+      if (!r.ok) return send(res, 400, { error: r.error });
+      return send(res, 200, r);
     }
 
     if (body.op === "frete") {
@@ -198,6 +214,18 @@ module.exports = async (req, res) => {
         shippingInfo = frete.describe(opt) + (opt.free ? " · frete grátis" : "");
       } else if (customer.delivery === "entrega" && s.deliveryFeeCents && !(s.freeShippingFromCents && subtotal >= s.freeShippingFromCents)) shipping = s.deliveryFeeCents;
 
+      // Cupom: confere de novo no servidor e gasta uma vez (devolvido se o pedido falhar ou for cancelado).
+      let coupon = null, discount = 0;
+      if (body.coupon) {
+        const c = await cupom.get(st, slug, cupom.normCode(body.coupon));
+        const r = cupom.evaluate(c, lines);
+        if (!r.ok) return send(res, 400, { error: `Cupom ${cupom.normCode(body.coupon)}: ${r.error} Remova o cupom ou use outro.` });
+        if (!(await cupom.consume(st, slug, c))) return send(res, 409, { error: "Este cupom acabou de atingir o limite de usos." });
+        coupon = r; discount = r.discountCents;
+        if (r.freeShipping && customer.delivery === "entrega") { shipping = 0; if (shippingInfo) shippingInfo += " · cupom de frete grátis"; }
+      }
+      const giveBack = () => (coupon ? cupom.giveBack(st, slug, coupon.code, -1) : null);
+
       // Baixa do estoque (relê cada produto logo antes de gravar).
       if (need.size) {
         const ids = [...need.keys()];
@@ -207,7 +235,7 @@ module.exports = async (req, res) => {
           const p = db.parse(fresh[i]); if (!p || !p.stock) continue;
           const m = need.get(ids[i]);
           for (const k in m) if (k in p.stock) {
-            if (p.stock[k] < m[k]) return send(res, 409, { error: `${p.name} acabou de esgotar. Atualize a página.` });
+            if (p.stock[k] < m[k]) { await giveBack(); return send(res, 409, { error: `${p.name} acabou de esgotar. Atualize a página.` }); }
             p.stock[k] -= m[k];
           }
           writes.push(["HSET", K.products(slug), p.id, JSON.stringify(p)]);
@@ -222,7 +250,7 @@ module.exports = async (req, res) => {
       const code = db.newId(4);
       const order = {
         n: Number(n), code, createdAt: Date.now(), status: "novo", items: lines, customer,
-        subtotalCents: subtotal, shippingCents: shipping, shippingInfo, totalCents: subtotal + shipping,
+        subtotalCents: subtotal, shippingCents: shipping, shippingInfo, couponCode: coupon ? coupon.code : "", discountCents: discount, couponFreeShip: !!(coupon && coupon.freeShipping), totalCents: Math.max(0, subtotal - discount) + shipping,
         trackUrl: host ? `${proto}://${host}/${slug}/pedido/${n}-${code}` : "",
       };
       const statKey = K.stat(slug, db.today());

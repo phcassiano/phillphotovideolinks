@@ -52,6 +52,10 @@ Como funciona:
 
 Para testar sem conta: `node catalogo/dev/mock-melhorenvio.js` e rode o servidor com `MELHOR_ENVIO_BASE=http://localhost:3999`; use um token que comece com `teste`.
 
+## Cupons
+
+Aba **Cupons** do painel: porcentagem, valor fixo ou frete grátis, com compra mínima, limite de usos, datas de início e fim e categorias. O cliente aplica no carrinho; o link "Copiar link" (`/loja?cupom=CODIGO`) já deixa o código pronto. O servidor confere o cupom de novo no pedido e conta o uso de forma atômica; cancelar o pedido devolve o uso.
+
 ## Como os dados ficam guardados (Redis)
 
 - `cat:m:<loja>` conta (senha com scrypt, plano, vencimento), `cat:s:<loja>` aparência e dados, `cat:c:<loja>` categorias.
@@ -69,7 +73,7 @@ Abra `http://localhost:3000/admin`, crie uma loja e use **Abrir painel**.
 
 ## Próximos passos (ainda não feitos)
 
-- Cupons de desconto e área de atacado (plano Growth).
+- Área de atacado (plano Growth).
 - Cobrança automática da mensalidade (Asaas ou Mercado Pago) em vez do "+30 dias" manual.
 - Domínio próprio por loja (`loja.seudominio.com.br`).
 - Fotos com fundo de estúdio por IA e cadastro de produtos pelo WhatsApp.
