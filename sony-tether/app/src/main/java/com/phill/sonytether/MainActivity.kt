@@ -1,0 +1,2438 @@
+package com.phill.sonytether
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.app.AlertDialog
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.RectF
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
+import android.hardware.usb.UsbConstants
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbInterface
+import android.hardware.usb.UsbManager
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.OpenableColumns
+import android.text.InputType
+import android.util.TypedValue
+import android.view.Gravity
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
+import android.widget.Button
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.SeekBar
+import android.widget.Switch
+import android.widget.TextView
+import android.widget.Toast
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
+class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener, GalleryServer.Source {
+
+    private lateinit var usb: UsbManager
+    private lateinit var library: PresetLibrary
+    private lateinit var sessions: SessionStore
+    private lateinit var watermark: Watermark
+    private lateinit var brandSettings: BrandSettings
+    private lateinit var license: LicenseManager
+    private lateinit var licenseTitle: TextView
+    private lateinit var licenseDetail: TextView
+    private lateinit var licenseDevice: TextView
+    private lateinit var renewButton: Button
+    private lateinit var presetStrip: PresetStrip
+    private var camera: CameraSession? = null
+    private val main = Handler(Looper.getMainLooper())
+
+    /** Decodificar, aplicar preset e salvar: uma foto por vez, fora da thread da tela. */
+    private val processor = Executors.newSingleThreadExecutor()
+
+    /** Trechos em resolução cheia para o zoom: separado para não esperar fotos sendo reveladas. */
+    private val detailer = Executors.newSingleThreadExecutor()
+    private val latestDetail = AtomicInteger()
+    private var region: PhotoStore.Region? = null
+    private var regionFor: SessionPhoto? = null
+
+    @Volatile
+    private lateinit var shoot: ShootSession
+
+    @Volatile
+    private var look = Look(null, null, "none")
+
+    /** Tabelas dos ajustes do editor, pela assinatura: mexer num slider não refaz as outras. */
+    private val manualLooks = ConcurrentHashMap<String, PresetLook>()
+    private var editor: View? = null
+    private var cropper: View? = null
+    private var copiedEdit: PhotoEdit? = null
+    private val latestRender = AtomicInteger()
+    private var editStart = ""
+    private val fullRender = Runnable { rerenderCurrent() }
+
+    private val ui by lazy { Ui(this) }
+    private lateinit var root: LinearLayout
+    private lateinit var stage: FrameLayout
+    private lateinit var panel: ScrollView
+    private lateinit var viewer: ZoomImageView
+    private lateinit var hint: TextView
+    private lateinit var badge: TextView
+    private lateinit var ratingBar: LinearLayout
+    private lateinit var heart: ImageView
+    private lateinit var stars: List<ImageView>
+    private lateinit var hideButton: ImageView
+    private lateinit var emptyState: LinearLayout
+    private lateinit var topBar: LinearLayout
+    private lateinit var photoTitle: TextView
+    private lateinit var photoInfo: TextView
+    private lateinit var statusDot: View
+    private lateinit var statusTitle: TextView
+    private lateinit var hidePanelButton: Button
+    private lateinit var deletePanelButton: Button
+    private lateinit var editPanelButton: Button
+    private lateinit var cropPanelButton: Button
+    private lateinit var strip: HorizontalScrollView
+    private lateinit var thumbs: LinearLayout
+    private lateinit var lock: ImageView
+    private lateinit var status: TextView
+    private lateinit var connectButton: Button
+    private lateinit var ftpButton: Button
+    private lateinit var sessionButton: Button
+    private lateinit var filterButton: Button
+    private lateinit var presetButton: Button
+    private lateinit var amountLabel: TextView
+    private lateinit var amountBar: SeekBar
+    private lateinit var presetNote: TextView
+    private lateinit var watermarkButton: Button
+    private lateinit var shareButton: Button
+    private lateinit var shareAllButton: Button
+    private lateinit var qrButton: Button
+    private lateinit var counter: TextView
+    private lateinit var frameButton: Button
+    private lateinit var slideshowButton: Button
+    private lateinit var brandButton: Button
+
+    private class Tile(val frame: FrameLayout, val image: ImageView, val marks: TextView)
+
+    private val tiles = HashMap<SessionPhoto, Tile>()
+    private var current: SessionPhoto? = null
+    private var currentOriginal: Bitmap? = null
+    private var currentShown: Bitmap? = null
+    @Volatile
+    private var selecting = 0
+
+    /** Índice em [FILTERS]. */
+    private var filter = 0
+
+    /** O que a galeria do QR code mostra: as fotos do filtro, da mais nova para a mais antiga. */
+    @Volatile
+    private var galleryPhotos: List<SessionPhoto> = emptyList()
+    private var server: GalleryServer? = null
+    private var ftp: FtpServer? = null
+    private val thumbCache = ConcurrentHashMap<String, ByteArray>()
+
+    /** O que o slideshow mostra: favoritas (ou todas), da mais antiga para a mais nova. */
+    @Volatile
+    private var slidePhotos: List<SessionPhoto> = emptyList()
+    private var slideMode = 0
+
+    @Volatile
+    private var logoCache: ByteArray? = null
+
+    /** Para onde volta a escolha do logo: marca d'água ou sua marca. */
+    private var logoFor = REQUEST_LOGO
+    private var frameIndex = 0
+    private var lastAmount = -1
+
+    private var clientMode = false
+
+    // Reconexão automática
+    private var retryDelay = RETRY_MIN_MS
+    private var askedPermissionFor: String? = null
+    private val reconnect = Runnable { tryReconnect() }
+
+    private val usbReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                ACTION_USB_PERMISSION -> {
+                    val device = intent.usbDevice() ?: return
+                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) open(device)
+                    else setStatus("Acesso à câmera não autorizado. Toque em Conectar câmera para pedir de novo.")
+                }
+                UsbManager.ACTION_USB_DEVICE_ATTACHED -> scheduleReconnect(500)
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    val device = intent.usbDevice() ?: return
+                    if (device.deviceName == askedPermissionFor) askedPermissionFor = null
+                    if (device.deviceName == camera?.device?.deviceName) camera?.shutdown()
+                }
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        DiagLog.install(applicationContext)
+        usb = getSystemService(Context.USB_SERVICE) as UsbManager
+        library = PresetLibrary(this)
+        sessions = SessionStore(this)
+        watermark = Watermark(this)
+        brandSettings = BrandSettings(this)
+        license = LicenseManager(this)
+        filter = prefs().getInt(KEY_FILTER, 0).coerceIn(FILTERS.indices)
+        slideMode = prefs().getInt(KEY_SLIDE_MODE, 0)
+        frameIndex = prefs().getInt(KEY_FRAME, 0).coerceIn(Frames.ALL.indices)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        buildUi()
+        applyOrientation(resources.configuration)
+        setLink(LINK_OFF)
+        viewer.frame = frameIndex
+        updateFrameButton()
+        updateBrandButton()
+        presetStrip.rebuild()
+        lookChanged(rerender = false)
+        openSession(sessions.current() ?: sessions.create(SessionNames.DEFAULT_NAME))
+
+        val usbEvents = IntentFilter().apply {
+            addAction(ACTION_USB_PERMISSION)
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        // Antes do Android 13 a flag é ignorada; a partir dele, impede outros apps de mandar esses avisos.
+        registerReceiver(usbReceiver, usbEvents, Context.RECEIVER_NOT_EXPORTED)
+
+        updateLicense()
+        if (!license.state().active) showPaywall()
+        Thread {
+            license.sync()
+            main.post { if (!isDestroyed) updateLicense() }
+        }.start()
+        if (ftpEnabled && license.state().active) startFtp()
+        if (!handleUsbIntent(intent)) tryReconnect()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleUsbIntent(intent)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyOrientation(newConfig)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && clientMode) setFullScreen(true)
+    }
+
+    @Deprecated("Activity sem AndroidX: o botão voltar ainda chega por aqui.")
+    override fun onBackPressed() {
+        if (clientMode) {
+            Toast.makeText(this, "Modo cliente: segure o cadeado por 2 segundos para sair.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
+    }
+
+    override fun onDestroy() {
+        unregisterReceiver(usbReceiver)
+        main.removeCallbacks(reconnect)
+        camera?.shutdown()
+        server?.stop()
+        ftp?.stop()
+        presetStrip.shutdown()
+        processor.shutdownNow()
+        detailer.shutdownNow()
+        super.onDestroy()
+    }
+
+    // ---- Conexão USB ----
+
+    private fun handleUsbIntent(intent: Intent?): Boolean {
+        if (intent?.action != UsbManager.ACTION_USB_DEVICE_ATTACHED) return false
+        val device = intent.usbDevice() ?: return false
+        if (usb.hasPermission(device)) open(device) else requestPermission(device)
+        return true
+    }
+
+    private fun connect() {
+        val device = findCamera()
+        if (device == null) {
+            setStatus("Nenhuma câmera encontrada no cabo. Ligue a Sony, Canon ou Nikon pelo USB (Sony: Conexão USB em PC Remoto).")
+            return
+        }
+        if (usb.hasPermission(device)) open(device) else requestPermission(device)
+    }
+
+    private fun requestPermission(device: UsbDevice) {
+        askedPermissionFor = device.deviceName
+        setStatus("Autorize o acesso à câmera na janela do Android.")
+        val intent = Intent(ACTION_USB_PERMISSION).setPackage(packageName)
+        val flags = PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        usb.requestPermission(device, PendingIntent.getBroadcast(this, 0, intent, flags))
+    }
+
+    private fun scheduleReconnect(delayMs: Long) {
+        main.removeCallbacks(reconnect)
+        main.postDelayed(reconnect, delayMs)
+    }
+
+    /**
+     * Fica de olho na câmera enquanto ela não está conectada: quando o cabo volta ou a câmera
+     * liga de novo, conecta sozinho (pedindo autorização uma vez, se o Android exigir).
+     */
+    private fun tryReconnect() {
+        if (camera != null) return
+        val device = findCamera()
+        when {
+            device == null -> scheduleReconnect(RETRY_MIN_MS)
+            usb.hasPermission(device) -> open(device)
+            askedPermissionFor != device.deviceName -> {
+                requestPermission(device)
+                scheduleReconnect(RETRY_MIN_MS)
+            }
+            else -> scheduleReconnect(RETRY_MIN_MS)
+        }
+    }
+
+    /** Depois de uma falha, espera cada vez mais (até 20 s) para não ficar martelando a câmera. */
+    private fun retryLater(): Long {
+        val delay = retryDelay
+        retryDelay = (retryDelay * 2).coerceAtMost(RETRY_MAX_MS)
+        scheduleReconnect(delay)
+        return delay
+    }
+
+    private fun open(device: UsbDevice) {
+        if (camera != null) return
+        main.removeCallbacks(reconnect)
+        if (!requireLicense(quiet = true)) {
+            setStatus("Assinatura vencida: a câmera não foi conectada. Toque em Assinatura para inserir uma chave.")
+            return
+        }
+        val iface = ptpInterface(device)
+        if (iface == null) {
+            DiagLog.describe(device)
+            DiagLog.add("nenhuma interface PTP")
+            setStatus(
+                if (device.vendorId == Cameras.VENDOR_SONY) "A câmera não está no modo PC Remoto. Mude a Conexão USB para \"PC Remoto\"; o app conecta sozinho."
+                else "A câmera não aparece como câmera no USB. Na Nikon, escolha USB: MTP/PTP; na Canon, desligue o Wi-Fi da câmera. O app conecta sozinho.",
+            )
+            retryLater()
+            return
+        }
+        val connection = usb.openDevice(device)
+        if (connection == null) {
+            setStatus("Não foi possível abrir a conexão USB. Tentando de novo…")
+            retryLater()
+            return
+        }
+        setStatus("Conectando a ${device.productName ?: "câmera"}…")
+        camera = CameraSession(applicationContext, device, connection, iface, this) { shoot.target(it) }.also { it.start() }
+        setLink(LINK_CONNECTING)
+    }
+
+    private fun findCamera(): UsbDevice? =
+        usb.deviceList.values.firstOrNull { it.vendorId in Cameras.VENDORS && ptpInterface(it) != null }
+            ?: usb.deviceList.values.firstOrNull { it.vendorId in Cameras.VENDORS }
+
+    private fun ptpInterface(device: UsbDevice): UsbInterface? {
+        val interfaces = (0 until device.interfaceCount).map { device.getInterface(it) }
+        return interfaces.firstOrNull { it.interfaceClass == UsbConstants.USB_CLASS_STILL_IMAGE }
+            ?: interfaces.firstOrNull { it.interfaceClass == UsbConstants.USB_CLASS_VENDOR_SPEC && it.endpointCount >= 3 }
+    }
+
+    // ---- Avisos da câmera ----
+
+    override fun onStatus(text: String) = setStatus(text)
+
+    override fun onConnected(model: String) {
+        retryDelay = RETRY_MIN_MS
+        setLink(LINK_ON, model)
+        setStatus("Conectada: $model. Fotografe na câmera: cada foto aparece aqui.")
+        if (shoot.photos.isEmpty()) hint.text = "Pronto. Dispare na câmera para ver a primeira foto."
+    }
+
+    override fun onShot(target: ShotTarget, data: ByteArray, original: Uri?) {
+        val s = target.session
+        // No modo RAW+JPEG chegam dois arquivos da mesma foto, com o mesmo número: fica um só, de preferência o JPEG.
+        val twin = s.photos.lastOrNull { it.number == target.number }
+        val photo = when {
+            twin == null -> SessionPhoto(target.number, target.name).also {
+                it.original = original
+                s.photos += it
+                if (s === shoot) addTile(it, atStart = true)
+            }
+            twin.isRaw && !PhotoStore.isRaw(target.name) -> twin.also {
+                it.original?.let(it.extras::add)
+                it.name = target.name
+                it.original = original
+            }
+            else -> {
+                original?.let(twin.extras::add)
+                sessions.save(s)
+                setStatus("${target.name} salva")
+                return
+            }
+        }
+        sessions.save(s)
+        if (s !== shoot) return
+        updateCounter()
+        refreshGallery()
+        develop(photo, data)
+    }
+
+    override fun onDisconnected(session: CameraSession, reason: String?) {
+        if (session !== camera) return
+        camera = null
+        setLink(if (reason != null) LINK_ERROR else LINK_OFF)
+        if (reason != null) {
+            val delay = retryLater()
+            setStatus("Desconectada: $reason. Tentando de novo em ${delay / 1000} s…")
+        } else {
+            setStatus("Câmera desconectada. Ligue o cabo de novo: o app conecta sozinho.")
+            scheduleReconnect(RETRY_MIN_MS)
+        }
+    }
+
+    // ---- Sessões ----
+
+    private fun openSession(s: ShootSession) {
+        shoot = s
+        thumbCache.clear()
+        tiles.clear()
+        thumbs.removeAllViews()
+        current = null
+        currentOriginal = null
+        currentShown = null
+        viewer.setImage(null, 0, resetZoom = true)
+        emptyState.visibility = View.VISIBLE
+        hint.text = if (camera != null) "Pronto. Dispare na câmera para ver a primeira foto." else if (ftp?.running == true) "Pronto. Fotografe: as fotos chegam pelo Wi-Fi." else "Conecte a câmera pelo cabo USB ou pelo Wi-Fi"
+        updateRatingBar()
+        shareButton.isEnabled = false
+        sessionButton.text = "${s.label}"
+        for (p in s.photos) addTile(p, atStart = true)
+        // Miniaturas pelo sistema, sem abrir cada foto inteira.
+        val list = s.photos.toList()
+        processor.execute {
+            for (p in list.asReversed()) {
+                val uri = p.edited ?: p.original ?: continue
+                val thumb = PhotoStore.thumbnail(this, uri, Darkroom.THUMB_PX) ?: continue
+                main.post { if (shoot === s) setThumb(p, thumb) }
+            }
+        }
+        applyFilter()
+        visiblePhotos().firstOrNull()?.let(::select)
+    }
+
+    private fun chooseSession() {
+        val all = sessions.all().filter { it.id != shoot.id }
+        val names = arrayOf("+ Nova sessão…", "${shoot.label} (aberta, ${shoot.photos.size} fotos)") +
+            all.map { "${it.label} (${it.photos.size} fotos)" }
+        AlertDialog.Builder(this)
+            .setTitle("Sessão")
+            .setItems(names) { _, which ->
+                when (which) {
+                    0 -> newSession()
+                    1 -> Unit
+                    else -> all[which - 2].let {
+                        sessions.select(it)
+                        openSession(it)
+                        setStatus("Sessão \"${it.name}\" aberta.")
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun newSession() {
+        val input = EditText(this).apply {
+            hint = "Nome do cliente ou do ensaio"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setSingleLine()
+        }
+        val box = FrameLayout(this).apply {
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Nova sessão")
+            .setMessage("As fotos vão para uma pasta própria e ficam com o nome do cliente (ex.: Maria_001.jpg).")
+            .setView(box)
+            .setPositiveButton("Criar") { _, _ ->
+                val s = sessions.create(input.text.toString())
+                openSession(s)
+                setStatus("Sessão \"${s.name}\" criada. Pasta: Imagens/${PhotoStore.FOLDER}/${s.folder}")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun saveSession() = sessions.save(shoot)
+
+    // ---- Fotos ----
+
+    private fun develop(photo: SessionPhoto, data: ByteArray) {
+        val look = lookFor(photo)
+        val s = shoot
+        setStatus(if (look.preset != null) "Aplicando preset em ${photo.name}…" else "Abrindo ${photo.name}…")
+        processor.execute {
+            val needsJpeg = look.needsJpeg(photo.name)
+            val result = Darkroom.develop(this, s.folder, photo.name, data, look, replacing = if (needsJpeg) photo.edited else null)
+            if (result != null && needsJpeg) {
+                photo.edited = result.edited
+                photo.editedWith = look.signature
+            }
+            main.post {
+                if (result == null) {
+                    setStatus("Não foi possível abrir ${photo.name}")
+                    return@post
+                }
+                if (photo.deleted) {
+                    result.edited?.let { uri -> processor.execute { PhotoStore.delete(this, uri) } }
+                    return@post
+                }
+                photo.width = result.width
+                photo.height = result.height
+                sessions.save(s)
+                if (shoot !== s) return@post
+                setThumb(photo, result.thumb)
+                show(photo, result.original, result.display, resetZoom = true)
+                setStatus("${photo.name} pronta${if (look.preset != null) ", com preset" else ""}")
+            }
+        }
+    }
+
+    private fun select(photo: SessionPhoto) {
+        val uri = photo.original ?: return
+        val look = lookFor(photo)
+        val ticket = ++selecting
+        processor.execute {
+            if (ticket != selecting) return@execute // já pediram outra foto
+            val result = Darkroom.preview(this, uri, look)
+            main.post {
+                if (result == null || ticket != selecting) return@post
+                if (photo.width == 0) {
+                    photo.width = result.width
+                    photo.height = result.height
+                }
+                show(photo, result.original, result.display, resetZoom = true)
+            }
+        }
+    }
+
+    private fun show(photo: SessionPhoto, original: Bitmap, display: Bitmap, resetZoom: Boolean) {
+        if (photo.deleted) return
+        val changed = photo !== current
+        if (changed) {
+            closeEditor()
+            closeCrop()
+        }
+        current = photo
+        currentOriginal = original
+        currentShown = display
+        viewer.setImage(display, viewWidth(photo), resetZoom = resetZoom || changed)
+        if (changed) presetStrip.setPhoto(original)
+        emptyState.visibility = View.GONE
+        highlightTiles()
+        shareButton.isEnabled = true
+        updateRatingBar()
+    }
+
+    /**
+     * Ao trocar de preset, intensidade, marca d'água ou ajuste, a foto da tela é refeita na hora.
+     * [maxPx] menor deixa o arrastar dos sliders do editor fluido; a versão cheia vem logo depois.
+     */
+    private fun rerenderCurrent(maxPx: Int = Darkroom.DISPLAY_PX) {
+        val original = currentOriginal ?: return
+        val photo = current ?: return
+        val base = look
+        val ticket = latestRender.incrementAndGet()
+        processor.execute {
+            if (ticket != latestRender.get()) return@execute // já mudou de novo
+            val display = lookFor(photo, base).apply(PhotoStore.scaled(original, maxPx))
+            main.post {
+                if (current === photo && ticket == latestRender.get()) {
+                    currentShown = display
+                    viewer.setImage(display, viewWidth(photo), resetZoom = false)
+                }
+            }
+        }
+    }
+
+    /**
+     * Arquivo para entregar: o JPEG com o visual atual (refeito se o preset ou a marca mudaram)
+     * ou, sem nada a aplicar, o arquivo da câmera. Roda no [processor].
+     */
+    private fun prepare(photo: SessionPhoto, base: Look, s: ShootSession): Uri? {
+        if (photo.deleted) return null
+        val look = lookFor(photo, base)
+        if (!look.needsJpeg(photo.name)) return photo.original?.takeIf { PhotoStore.canRead(this, it) }
+        if (photo.edited != null && photo.editedWith == look.signature && PhotoStore.canRead(this, photo.edited)) return photo.edited
+        val data = photo.original?.let { PhotoStore.readBytes(this, it) }
+            ?: return listOf(photo.edited, photo.original).firstOrNull { PhotoStore.canRead(this, it) }
+        val result = Darkroom.develop(this, s.folder, photo.name, data, look, replacing = photo.edited) ?: return photo.edited
+        photo.edited = result.edited
+        photo.editedWith = look.signature
+        main.post {
+            sessions.save(s)
+            if (shoot === s) setThumb(photo, result.thumb)
+        }
+        return result.edited ?: photo.original
+    }
+
+    private fun share(list: List<SessionPhoto>) {
+        if (list.isEmpty() || !requireLicense()) return
+        val look = look
+        val s = shoot
+        setStatus("Preparando para compartilhar…")
+        processor.execute {
+            var failed = 0
+            val uris = list.mapIndexedNotNull { i, photo ->
+                if (list.size > 1) main.post { setStatus("Preparando ${i + 1} de ${list.size}…") }
+                // Uma foto com problema (ou sem memória) não pode derrubar o app: compartilha as outras.
+                try {
+                    prepare(photo, look, s)
+                } catch (e: Throwable) {
+                    failed++
+                    DiagLog.add("compartilhar: ${photo.name} falhou (${e.javaClass.simpleName}: ${e.message})")
+                    System.gc()
+                    listOf(photo.edited, photo.original).firstOrNull { PhotoStore.canRead(this, it) }
+                }
+            }
+            val unreadable = list.count { !it.deleted } - uris.size
+            if (unreadable > 0) DiagLog.add("compartilhar: $unreadable foto(s) sem permissão de leitura (salvas antes de reinstalar o app)")
+            main.post {
+                send(uris)
+                if (unreadable > 0) {
+                    Toast.makeText(
+                        this,
+                        "$unreadable foto(s) antiga(s) ficaram de fora: foram salvas antes de reinstalar o app e o Android não deixa mais o app abri-las. Elas continuam na Galeria.",
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+                if (failed > 0) Toast.makeText(this, "$failed foto(s) foram com a versão anterior. Detalhes no Diagnóstico.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun send(uris: List<Uri>) {
+        if (uris.isEmpty()) {
+            setStatus("Nenhuma foto disponível para compartilhar.")
+            Toast.makeText(this, "Nenhuma foto disponível para compartilhar.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = if (uris.size == 1) {
+            Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris[0])
+        } else {
+            Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+        intent.type = "image/*"
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.clipData = ClipData.newUri(contentResolver, "Fotos", uris[0]).apply {
+            uris.drop(1).forEach { addItem(ClipData.Item(it)) }
+        }
+        setStatus(if (uris.size == 1) "Escolha onde compartilhar." else "Escolha onde compartilhar as ${uris.size} fotos.")
+        try {
+            startActivity(Intent.createChooser(intent, "Compartilhar"))
+        } catch (e: Exception) {
+            DiagLog.add("compartilhar: não abriu (${e.javaClass.simpleName}: ${e.message})")
+            setStatus("Não deu para abrir o compartilhamento com ${uris.size} fotos. Tente com menos fotos ou pelo QR code.")
+        }
+    }
+
+    // ---- Editor ----
+
+    /** O visual de uma foto: o geral (preset e marca d'água) mais os ajustes feitos nela no editor. */
+    private fun lookFor(photo: SessionPhoto, base: Look = look): Look {
+        val edit = photo.edit
+        if (edit.isEmpty) return base
+        if (manualLooks.size > 48) manualLooks.clear()
+        val tones = edit.tonesOnly()
+        val manual = if (tones.isEmpty) null else manualLooks.getOrPut(tones.signature) { PresetLook(tones.toPreset(), 1f) }
+        return Look(base.preset, base.stamp, "${base.signature}|${edit.signature}", manual, edit.takeIf { it.hasGeometry })
+    }
+
+    /**
+     * Largura da foto inteira para o zoom. Girada ou recortada, o zoom fica só na imagem da tela
+     * (0 desliga os trechos em resolução cheia, que vêm da foto original).
+     */
+    private fun viewWidth(photo: SessionPhoto) = if (photo.edit.hasGeometry) 0 else photo.width
+
+    private fun toggleEditor() = if (editor != null) closeEditor() else openEditor()
+
+    /** Sliders de luz e cor ao lado da foto; a foto da tela acompanha cada mudança. */
+    private fun openEditor() {
+        val photo = current ?: return
+        if (clientMode || !requireLicense()) return
+        closeEditor()
+        editStart = photo.edit.signature
+        val values = HashMap(photo.edit.values)
+        fun changed() {
+            photo.edit = PhotoEdit(values)
+            updateMarks(photo)
+            rerenderCurrent(EDIT_PREVIEW_PX)
+            main.removeCallbacks(fullRender)
+            main.postDelayed(fullRender, 400)
+        }
+
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+        }
+        column.addView(ui.text("Editar foto", 16f, Color.WHITE, bold = true))
+        column.addView(ui.text("Vai por cima do preset. Toque no número para zerar e segure a foto para ver o original.", 12f, Palette.TEXT2), ui.wrap(4))
+        column.addView(ui.row(R.drawable.ic_crop, "Recortar e girar") { openCrop() }, ui.matchWidth(48, 10))
+        for (s in PhotoEdit.SLIDERS) {
+            val value = ui.text(s.format(values[s.key] ?: 0), 13f, Color.WHITE).apply {
+                gravity = Gravity.END
+                setPadding(dp(12), dp(4), 0, dp(4))
+            }
+            column.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(ui.text(s.label, 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(value)
+            }, ui.wrap(8))
+            var ready = false
+            val bar = slider(s.min, s.max, values[s.key] ?: 0) { v ->
+                value.text = s.format(v)
+                if (ready && (values[s.key] ?: 0) != v) {
+                    values[s.key] = v
+                    changed()
+                }
+            }
+            ready = true
+            value.setOnClickListener { bar.progress = -s.min }
+            column.addView(bar)
+        }
+
+        fun action(text: String, onClick: () -> Unit) = ui.text(text, 13f, Palette.GOLD, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(4), dp(12), dp(4), dp(12))
+            background = ui.ripple(null, 8)
+            setOnClickListener { onClick() }
+        }
+        column.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(action("Zerar") { setEdit(photo, photo.edit.geometryOnly()) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Copiar") {
+                copiedEdit = PhotoEdit(values).tonesOnly()
+                Toast.makeText(this@MainActivity, "Luz e cor copiadas (o recorte não vai junto). Abra outra foto e toque em Colar.", Toast.LENGTH_SHORT).show()
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Colar") {
+                copiedEdit?.let { setEdit(photo, withTones(photo, it)) }
+                    ?: Toast.makeText(this@MainActivity, "Copie os ajustes de uma foto primeiro.", Toast.LENGTH_SHORT).show()
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(action("Em todas") { editAll(PhotoEdit(values).tonesOnly()) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }, ui.wrap(8))
+        column.addView(ui.primary(null, "Pronto") { closeEditor() }, ui.matchWidth(48, 6))
+
+        val panel = ScrollView(this).apply {
+            background = ui.rounded(0xF01B1B21.toInt(), 16, 0x26FFFFFF)
+            isVerticalScrollBarEnabled = false
+            addView(column)
+        }
+        val width = if (stage.width > 0) minOf(dp(320), stage.width * 9 / 10) else dp(320)
+        stage.addView(panel, FrameLayout.LayoutParams(width, MATCH_PARENT, Gravity.END).apply {
+            setMargins(0, dp(76), dp(12), dp(112))
+        })
+        editor = panel
+    }
+
+    /** Fecha o editor; se algo mudou, salva e refaz a foto em tamanho cheio e a miniatura. */
+    private fun closeEditor() {
+        val panel = editor ?: return
+        editor = null
+        stage.removeView(panel)
+        main.removeCallbacks(fullRender)
+        val photo = current ?: return
+        if (photo.edit.signature == editStart) return
+        rerenderCurrent()
+        refreshThumb(photo)
+        saveSession()
+    }
+
+    /** Troca os ajustes de uma vez (zerar, colar) e reabre o editor com os sliders no lugar. */
+    private fun setEdit(photo: SessionPhoto, edit: PhotoEdit) {
+        val start = editStart
+        photo.edit = edit
+        updateMarks(photo)
+        closeEditor()
+        openEditor()
+        editStart = start
+        rerenderCurrent()
+    }
+
+    /** A luz e a cor de [tones] com o recorte que a foto já tinha. */
+    private fun withTones(photo: SessionPhoto, tones: PhotoEdit) = PhotoEdit(photo.edit.geometryOnly().values + tones.values)
+
+    private fun editAll(edit: PhotoEdit) {
+        val list = visiblePhotos()
+        AlertDialog.Builder(this)
+            .setTitle("Usar em todas?")
+            .setMessage("A luz e a cor desta foto vão para as ${list.size} fotos do filtro \"${FILTERS[filter]}\". Os ajustes de luz e cor que elas já tinham são trocados; o recorte de cada uma continua.")
+            .setPositiveButton("Usar em todas") { _, _ ->
+                for (p in list) {
+                    p.edit = withTones(p, edit)
+                    updateMarks(p)
+                    if (p !== current) refreshThumb(p)
+                }
+                saveSession()
+                setStatus("Ajustes aplicados em ${list.size} fotos.")
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    /**
+     * Tela de recorte por cima da foto: girar 90°, endireitar, proporção e a moldura para arrastar.
+     * A prévia sai da imagem da tela com cor e luz, sem o recorte, para dar para aumentar de novo.
+     */
+    private fun openCrop() {
+        val photo = current ?: return
+        val original = currentOriginal ?: return
+        if (clientMode || !requireLicense()) return
+        closeEditor()
+        closeCrop()
+        var quarters = photo.edit.quarters
+        var straighten = photo.edit.straighten
+        val view = CropView(this).apply { crop = photo.edit.crop }
+        val base = look
+        val renders = AtomicInteger()
+        var toned: Bitmap? = null
+        fun render() {
+            val ticket = renders.incrementAndGet()
+            val q = quarters
+            val st = straighten
+            processor.execute {
+                if (ticket != renders.get()) return@execute
+                val source = toned ?: lookFor(photo, base).tones(PhotoStore.scaled(original, CROP_PREVIEW_PX)).also { toned = it }
+                val shaped = PhotoEdit.NONE.withGeometry(q, st, RectF(0f, 0f, 1f, 1f)).shape(source, cropped = false)
+                main.post { if (ticket == renders.get() && cropper != null) view.setImage(shaped) }
+            }
+        }
+
+        val angleLabel = ui.text("", 13f, Color.WHITE)
+        fun showAngle() {
+            angleLabel.text = String.format(java.util.Locale("pt", "BR"), "%+.1f°", straighten / 10f)
+        }
+        showAngle()
+        var ready = false
+        val angleBar = slider(-PhotoEdit.MAX_STRAIGHTEN, PhotoEdit.MAX_STRAIGHTEN, straighten) { v ->
+            if (ready && v != straighten) {
+                straighten = v
+                showAngle()
+                render()
+            }
+        }
+        ready = true
+        angleLabel.setPadding(dp(12), dp(4), 0, dp(4))
+        angleLabel.setOnClickListener { angleBar.progress = PhotoEdit.MAX_STRAIGHTEN }
+
+        val aspects = linkedMapOf<String, () -> Float?>(
+            "Livre" to { null },
+            "Original" to { view.imageAspect },
+            "1:1" to { 1f },
+            "4:5" to { 4f / 5f },
+            "3:2" to { if (view.imageAspect >= 1f) 3f / 2f else 2f / 3f },
+            "16:9" to { if (view.imageAspect >= 1f) 16f / 9f else 9f / 16f },
+        )
+        var aspectName = "Livre"
+        val chips = ArrayList<TextView>()
+        fun chip(text: String, onClick: () -> Unit) = ui.text(text, 13f, Color.WHITE, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(14), dp(9), dp(14), dp(9))
+            background = ui.rounded(0x26FFFFFF, 18)
+            setOnClickListener { onClick() }
+        }
+        fun paintChips() = chips.forEach {
+            val on = it.text == aspectName
+            it.setTextColor(if (on) 0xFF1A1307.toInt() else Color.WHITE)
+            it.background = ui.rounded(if (on) Palette.GOLD else 0x26FFFFFF, 18)
+        }
+        val chipRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        chipRow.addView(chip("⟳ Girar 90°") {
+            quarters = (quarters + 1) % 4
+            aspectName = "Livre"
+            paintChips()
+            view.aspect = null
+            view.crop = RectF(0f, 0f, 1f, 1f)
+            render()
+        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(16) })
+        for ((name, ratio) in aspects) {
+            chips += chip(name) {
+                aspectName = name
+                paintChips()
+                view.aspect = ratio()
+            }.also { chipRow.addView(it, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { marginEnd = dp(8) }) }
+        }
+        paintChips()
+
+        fun button(text: String, primary: Boolean, onClick: () -> Unit): View =
+            if (primary) ui.primary(null, text, onClick) else ui.text(text, 14f, Color.WHITE, bold = true).apply {
+                gravity = Gravity.CENTER
+                background = ui.rounded(Palette.ROW, 12, Palette.STROKE)
+                setOnClickListener { onClick() }
+            }
+        val controls = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Palette.PANEL)
+            setPadding(dp(16), dp(10), dp(16), dp(14))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(ui.text("Endireitar", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(angleLabel)
+            })
+            addView(angleBar)
+            addView(HorizontalScrollView(this@MainActivity).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(chipRow)
+            }, ui.wrap(6))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(button("Desfazer recorte", false) {
+                    quarters = 0
+                    straighten = 0
+                    angleBar.progress = PhotoEdit.MAX_STRAIGHTEN
+                    aspectName = "Livre"
+                    paintChips()
+                    view.aspect = null
+                    view.crop = RectF(0f, 0f, 1f, 1f)
+                    render()
+                }, LinearLayout.LayoutParams(0, dp(48), 1f))
+                addView(button("Cancelar", false) { closeCrop() }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+                addView(button("Aplicar", true) {
+                    val edit = photo.edit.withGeometry(quarters, straighten, view.crop)
+                    closeCrop()
+                    if (edit.signature == photo.edit.signature) return@button
+                    photo.edit = edit
+                    updateMarks(photo)
+                    rerenderCurrent()
+                    refreshThumb(photo)
+                    saveSession()
+                }, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+            }, ui.wrap(10))
+        }
+        val overlay = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.BLACK)
+            isClickable = true
+            addView(view, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+            addView(controls)
+        }
+        stage.addView(overlay, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+        cropper = overlay
+        render()
+    }
+
+    private fun closeCrop() {
+        val overlay = cropper ?: return
+        cropper = null
+        stage.removeView(overlay)
+    }
+
+    /** Miniatura da faixa refeita com o visual atual da foto (depois de editar). */
+    private fun refreshThumb(photo: SessionPhoto) {
+        val uri = photo.original ?: return
+        val base = look
+        processor.execute {
+            if (photo.deleted) return@execute
+            val thumb = PhotoStore.thumbnail(this, uri, Darkroom.THUMB_PX) ?: return@execute
+            val shown = runCatching { lookFor(photo, base).apply(thumb) }.getOrNull() ?: return@execute
+            main.post { setThumb(photo, shown) }
+        }
+    }
+
+    // ---- Zoom ----
+
+    override fun onDetailNeeded(rect: RectF, widthPx: Int, token: Int) {
+        val photo = current ?: return
+        val uri = photo.original ?: return
+        if (photo.edit.hasGeometry) return
+        val look = lookFor(photo)
+        val ticket = latestDetail.incrementAndGet()
+        detailer.execute {
+            if (ticket != latestDetail.get()) return@execute
+            if (regionFor !== photo) {
+                region?.close()
+                region = PhotoStore.readBytes(this, uri)?.let(PhotoStore::region)
+                regionFor = photo
+            }
+            val bitmap = region?.let { runCatching { Darkroom.detail(it, rect, widthPx, look) }.getOrNull() } ?: return@execute
+            main.post { if (current === photo) viewer.setDetail(bitmap, rect, token) }
+        }
+    }
+
+    override fun onHold(holding: Boolean) {
+        val original = currentOriginal ?: return
+        val photo = current ?: return
+        if (!lookFor(photo).changesPhoto) return
+        viewer.swapImage(if (holding) original else currentShown)
+        badge.visibility = if (holding) View.VISIBLE else View.GONE
+    }
+
+    override fun onSwipe(direction: Int) {
+        val list = visiblePhotos()
+        if (list.isEmpty()) return
+        val index = list.indexOf(current)
+        val next = list.getOrNull(if (index < 0) 0 else index + direction) ?: return
+        select(next)
+        tiles[next]?.frame?.let { strip.smoothScrollTo((it.left - strip.width / 2 + it.width / 2).coerceAtLeast(0), 0) }
+    }
+
+    // ---- Estrelas, favoritas e filtro ----
+
+    /** As escondidas só aparecem no filtro "Escondidas". */
+    private fun matches(p: SessionPhoto) = when (filter) {
+        FILTER_HIDDEN -> p.hidden
+        1 -> !p.hidden && p.favorite
+        2 -> !p.hidden && p.rating >= 3
+        3 -> !p.hidden && p.rating >= 5
+        else -> !p.hidden
+    }
+
+    /** Fotos do filtro, na ordem das miniaturas (a mais nova primeiro). */
+    private fun visiblePhotos() = shoot.photos.asReversed().filter(::matches)
+
+    private fun rate(stars: Int) {
+        val photo = current ?: return
+        photo.rating = if (photo.rating == stars) 0 else stars
+        ratingChanged(photo)
+    }
+
+    private fun toggleFavorite() {
+        val photo = current ?: return
+        photo.favorite = !photo.favorite
+        ratingChanged(photo)
+    }
+
+    private fun toggleHidden(photo: SessionPhoto? = current) {
+        photo ?: return
+        val before = visiblePhotos()
+        photo.hidden = !photo.hidden
+        ratingChanged(photo)
+        if (photo.hidden) {
+            Toast.makeText(this, "${photo.name} escondida. Para ver de novo: Mostrar → Escondidas.", Toast.LENGTH_SHORT).show()
+        }
+        if (photo === current && !matches(photo)) showNeighbor(photo, before)
+    }
+
+    private fun confirmDelete(photo: SessionPhoto? = current) {
+        photo ?: return
+        val files = 1 + (if (photo.edited != null) 1 else 0) + photo.extras.size
+        AlertDialog.Builder(this)
+            .setTitle("Apagar ${photo.name}?")
+            .setMessage(
+                "Apaga do tablet o arquivo da câmera e a versão com preset ($files ${if (files == 1) "arquivo" else "arquivos"}). " +
+                    "A cópia no cartão da câmera não é apagada. Não dá para desfazer.",
+            )
+            .setPositiveButton("Apagar") { _, _ -> delete(photo) }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun delete(photo: SessionPhoto) {
+        if (current === photo) {
+            closeEditor()
+            closeCrop()
+        }
+        val s = shoot
+        val before = visiblePhotos()
+        photo.deleted = true
+        s.photos.remove(photo)
+        tiles.remove(photo)?.let { thumbs.removeView(it.frame) }
+        saveSession()
+        thumbCache.clear()
+        updateCounter()
+        refreshGallery()
+        if (current === photo) showNeighbor(photo, before)
+        // No processador: espera o que já estava sendo feito com a foto (preset, compartilhar) terminar antes.
+        processor.execute {
+            val uris = listOfNotNull(photo.original, photo.edited) + photo.extras
+            val failed = uris.count { !PhotoStore.delete(this, it) }
+            main.post {
+                setStatus(
+                    if (failed == 0) "${photo.name} apagada."
+                    else "${photo.name} saiu da sessão, mas $failed arquivo(s) não puderam ser apagados (o app foi reinstalado?). Apague pela Galeria.",
+                )
+            }
+        }
+    }
+
+    /** Depois de esconder ou apagar: mostra a próxima foto do filtro (ou a anterior, se era a última). */
+    private fun showNeighbor(photo: SessionPhoto, before: List<SessionPhoto>) {
+        val after = visiblePhotos().toSet()
+        val i = before.indexOf(photo)
+        val next = before.drop(i + 1).firstOrNull { it in after } ?: before.take(maxOf(i, 0)).lastOrNull { it in after }
+        if (next != null) {
+            select(next)
+            return
+        }
+        selecting++
+        current = null
+        currentOriginal = null
+        currentShown = null
+        viewer.setImage(null, 0, resetZoom = true)
+        hint.text = "Nenhuma foto neste filtro."
+        emptyState.visibility = View.VISIBLE
+        shareButton.isEnabled = false
+        updateRatingBar()
+    }
+
+    private fun ratingChanged(photo: SessionPhoto) {
+        saveSession()
+        updateRatingBar()
+        updateMarks(photo)
+        applyFilter()
+    }
+
+    private fun updateRatingBar() {
+        updatePhotoButtons()
+        val photo = current
+        updatePhotoInfo()
+        if (photo == null) return
+        heart.setImageResource(if (photo.favorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border)
+        heart.imageTintList = ColorStateList.valueOf(if (photo.favorite) Palette.PINK else Color.WHITE)
+        stars.forEachIndexed { i, star ->
+            star.setImageResource(if (i < photo.rating) R.drawable.ic_star else R.drawable.ic_star_border)
+            star.imageTintList = ColorStateList.valueOf(if (i < photo.rating) Palette.GOLD else Color.WHITE)
+        }
+        hideButton.setImageResource(if (photo.hidden) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
+        hideButton.contentDescription = if (photo.hidden) "Mostrar de novo" else "Esconder"
+    }
+
+    /** Botões do painel para a foto da tela; ficam desligados sem foto. */
+    private fun updatePhotoButtons() {
+        val photo = current
+        hidePanelButton.isEnabled = photo != null
+        deletePanelButton.isEnabled = photo != null
+        editPanelButton.isEnabled = photo != null
+        cropPanelButton.isEnabled = photo != null
+        hidePanelButton.text = if (photo?.hidden == true) "Mostrar" else "Esconder"
+        ui.setIcon(hidePanelButton, if (photo?.hidden == true) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
+    }
+
+    /** Segurar uma miniatura: esconder ou apagar sem precisar abrir a foto. */
+    private fun photoMenu(photo: SessionPhoto) {
+        AlertDialog.Builder(this)
+            .setTitle(photo.name)
+            .setItems(arrayOf(if (photo.hidden) "👁  Mostrar de novo" else "⊘  Esconder", "🗑  Apagar…")) { _, which ->
+                if (which == 0) toggleHidden(photo) else confirmDelete(photo)
+            }
+            .show()
+    }
+
+    private fun updateMarks(photo: SessionPhoto) {
+        val marks = tiles[photo]?.marks ?: return
+        val text = listOfNotNull(
+            if (photo.hidden) "⊘" else null,
+            if (photo.favorite) "♥" else null,
+            if (photo.rating > 0) "${photo.rating}★" else null,
+            if (!photo.edit.isEmpty) "✎" else null,
+        ).joinToString(" ")
+        marks.text = text
+        marks.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    private fun chooseFilter() {
+        AlertDialog.Builder(this)
+            .setTitle("Mostrar")
+            .setSingleChoiceItems(FILTERS, filter) { dialog, which ->
+                filter = which
+                prefs().edit().putInt(KEY_FILTER, which).apply()
+                applyFilter()
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun applyFilter() {
+        for ((p, tile) in tiles) tile.frame.visibility = if (matches(p)) View.VISIBLE else View.GONE
+        filterButton.text = "Mostrar: ${FILTERS[filter]}"
+        updateCounter()
+        refreshGallery()
+    }
+
+    // ---- Galeria do cliente (QR code) ----
+
+    private fun refreshGallery() {
+        galleryPhotos = visiblePhotos()
+        slidePhotos = shoot.photos.filter { !it.hidden && (slideMode == 1 || it.favorite) }
+    }
+
+    override val galleryTitle: String get() = shoot.name
+
+    override fun items(): List<Pair<Int, String>> = galleryPhotos.map { it.number to it.name }
+
+    /** Prepara no [processor] (o mesmo que revela as fotos) e espera; roda numa thread do servidor. */
+    private fun sharedPhoto(number: Int) = galleryPhotos.firstOrNull { it.number == number } ?: slidePhotos.firstOrNull { it.number == number }
+
+    private fun preparedUri(number: Int): Uri? {
+        val photo = sharedPhoto(number) ?: return null
+        val look = look
+        val s = shoot
+        return runCatching { processor.submit<Uri?> { prepare(photo, look, s) }.get(2, TimeUnit.MINUTES) }.getOrNull()
+    }
+
+    override fun photo(number: Int): ByteArray? = preparedUri(number)?.let { PhotoStore.readBytes(this, it) }
+
+    override fun thumbnail(number: Int): ByteArray? {
+        val key = "$number|${look.signature}|${sharedPhoto(number)?.edit?.signature}"
+        thumbCache[key]?.let { return it }
+        val uri = preparedUri(number) ?: return null
+        val bitmap = PhotoStore.thumbnail(this, uri, GALLERY_THUMB_PX) ?: return null
+        val bytes = ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 82, it) }.toByteArray()
+        thumbCache[key] = bytes
+        return bytes
+    }
+
+    private fun showQr() {
+        if (!requireLicense()) return
+        val server = startServer() ?: return
+        val local = server.url() ?: return
+        val qr = qrImage(local)
+        val urlText = label(local, 15f, Color.WHITE).apply {
+            gravity = Gravity.CENTER
+            setTextIsSelectable(true)
+            setPadding(0, dp(12), 0, dp(8))
+        }
+        val localHelp = "O cliente aponta a câmera do celular para o código. O celular precisa estar no mesmo Wi-Fi do " +
+            "tablet (ou no ponto de acesso dele); não precisa de internet. A página mostra as fotos do " +
+            "filtro \"${FILTERS[filter]}\" (${galleryPhotos.size}), com preset, marca d'água e a sua marca."
+        val help = label(localHelp, 13f, MUTED)
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(12), dp(20), dp(4))
+            addView(qr, LinearLayout.LayoutParams(MATCH_PARENT, dp(300)))
+            addView(urlText)
+            addView(help)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Galeria para o cliente")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .setNegativeButton("Desligar galeria") { _, _ ->
+                server.stop()
+                this.server = null
+                updateQrButton()
+                setStatus("Galeria do cliente e slideshow desligados.")
+            }
+            .show()
+    }
+
+    private fun updateQrButton() {
+        val on = server?.running == true
+        qrButton.text = if (on) "QR code para o cliente (no ar)" else "QR code para o cliente"
+        slideshowButton.text = if (on) "Slideshow para TV (no ar)" else "Slideshow para TV"
+    }
+
+    // ---- Slideshow, marca e moldura ----
+
+    override val brand: GalleryServer.Brand
+        get() = GalleryServer.Brand(brandSettings.studio, brandSettings.instagram, brandSettings.whatsapp, brandSettings.useLogo && watermark.hasLogo)
+
+    override fun slideshowItems(): List<Int> = slidePhotos.map { it.number }
+
+    override fun screen(number: Int): ByteArray? {
+        val key = "s$number|${look.signature}|${sharedPhoto(number)?.edit?.signature}"
+        thumbCache[key]?.let { return it }
+        val uri = preparedUri(number) ?: return null
+        val data = PhotoStore.readBytes(this, uri) ?: return null
+        val bitmap = PhotoStore.decodePreview(data, SCREEN_PX) ?: return null
+        val bytes = ByteArrayOutputStream().also { PhotoStore.scaled(bitmap, SCREEN_PX).compress(Bitmap.CompressFormat.JPEG, 86, it) }.toByteArray()
+        thumbCache[key] = bytes
+        return bytes
+    }
+
+    override fun logo(): ByteArray? = if (brandSettings.useLogo) logoCache ?: watermark.logoPng().also { logoCache = it } else null
+
+    /** O servidor local, ligado na primeira vez que a galeria ou o slideshow são abertos. */
+    private fun startServer(): GalleryServer? {
+        val server = server ?: GalleryServer(this).also { server = it }
+        try {
+            server.start()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Não foi possível abrir a galeria: ${e.message}", Toast.LENGTH_LONG).show()
+            return null
+        }
+        updateQrButton()
+        if (server.url() == null) {
+            AlertDialog.Builder(this)
+                .setTitle("Sem rede Wi-Fi")
+                .setMessage("Ligue o Wi-Fi do tablet (na mesma rede do celular ou da TV) ou o ponto de acesso do tablet e tente de novo. Não precisa de internet.")
+                .setPositiveButton("OK", null)
+                .show()
+            return null
+        }
+        return server
+    }
+
+    private fun qrImage(text: String) = ImageView(this).apply {
+        setImageBitmap(QrCode.encode(text).toBitmap(12))
+        scaleType = ImageView.ScaleType.FIT_CENTER
+    }
+
+    private fun showSlideshow() {
+        if (!requireLicense()) return
+        val server = startServer() ?: return
+        val url = server.slideshowUrl() ?: return
+        val modes = arrayOf("Só as favoritas ♥ (você aprova cada foto com o coração)", "Todas as fotos (menos as escondidas)")
+        val group = android.widget.RadioGroup(this)
+        modes.forEachIndexed { i, text ->
+            group.addView(android.widget.RadioButton(this).apply {
+                id = i + 1
+                this.text = text
+                setTextColor(Palette.TEXT)
+                isChecked = slideMode == i
+            })
+        }
+        group.setOnCheckedChangeListener { _, id ->
+            slideMode = id - 1
+            prefs().edit().putInt(KEY_SLIDE_MODE, slideMode).apply()
+            refreshGallery()
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+            addView(label("No navegador da TV ou do notebook, digite:", 13f, MUTED))
+            addView(ui.text(url, 20f, Palette.GOLD, bold = true).apply {
+                setTextIsSelectable(true)
+                setPadding(0, dp(8), 0, dp(12))
+            })
+            addView(qrImage(url), LinearLayout.LayoutParams(MATCH_PARENT, dp(220)))
+            addView(label("Ou aponte a câmera de um celular ou tablet para o código. A TV precisa estar no mesmo Wi-Fi do tablet.", 13f, MUTED).apply {
+                setPadding(0, dp(10), 0, dp(14))
+            })
+            addView(ui.text("O que aparece no telão", 13f, Palette.TEXT, bold = true))
+            addView(group)
+            addView(label("As fotos novas entram na hora; as outras se revezam a cada 7 segundos. Clique na tela da TV para tela cheia.", 12f, MUTED).apply {
+                setPadding(0, dp(8), 0, 0)
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Slideshow para TV")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .show()
+    }
+
+    private fun editBrand() {
+        fun field(hint: String, value: String, type: Int) = EditText(this).apply {
+            this.hint = hint
+            setText(value)
+            inputType = type
+            setSingleLine()
+        }
+        val studio = field("Nome do estúdio ou fotógrafo", brandSettings.studio, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS)
+        val instagram = field("Instagram (ex.: @seuestudio)", brandSettings.instagram, InputType.TYPE_CLASS_TEXT)
+        val whatsapp = field("WhatsApp com DDD (ex.: 11 98765-4321)", brandSettings.whatsapp, InputType.TYPE_CLASS_PHONE)
+        val useLogo = Switch(this).apply {
+            text = if (watermark.hasLogo) "Mostrar meu logo" else "Mostrar meu logo (escolha um abaixo)"
+            isChecked = brandSettings.useLogo
+            setTextColor(Palette.TEXT)
+            setPadding(0, dp(12), 0, dp(4))
+        }
+        lateinit var dialog: AlertDialog
+        fun save() {
+            brandSettings.studio = studio.text.toString()
+            brandSettings.instagram = instagram.text.toString()
+            brandSettings.whatsapp = whatsapp.text.toString()
+            brandSettings.useLogo = useLogo.isChecked
+            logoCache = null
+            updateBrandButton()
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label("Aparece no topo da galeria do cliente (QR code), com botões de WhatsApp e Instagram, e no canto do slideshow.", 13f, MUTED).apply {
+                setPadding(0, 0, 0, dp(8))
+            })
+            addView(studio)
+            addView(instagram)
+            addView(whatsapp)
+            addView(useLogo)
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                text = if (watermark.hasLogo) "Trocar logo…" else "Escolher logo (PNG)…"
+                setOnClickListener {
+                    save()
+                    dialog.dismiss()
+                    logoFor = REQUEST_BRAND
+                    chooseLogo()
+                }
+            })
+            addView(label("O logo é o mesmo da marca d'água.", 12f, MUTED))
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Sua marca")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Salvar") { _, _ -> save() }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun updateBrandButton() {
+        brandButton.text = brandSettings.studio.ifEmpty { "Sua marca na galeria" }
+    }
+
+    private fun chooseFrame() {
+        AlertDialog.Builder(this)
+            .setTitle("Moldura de recorte")
+            .setSingleChoiceItems(Frames.NAMES, frameIndex) { d, which ->
+                frameIndex = which
+                prefs().edit().putInt(KEY_FRAME, which).apply()
+                viewer.frame = if (clientMode) 0 else which
+                updateFrameButton()
+                d.dismiss()
+            }
+            .show()
+    }
+
+    private fun updateFrameButton() {
+        frameButton.text = "Moldura: ${Frames.ALL[frameIndex].name}"
+    }
+
+    // ---- Wi-Fi (FTP) ----
+
+    private fun ftpPrefs() = prefs()
+
+    private var ftpUser: String
+        get() = ftpPrefs().getString("ftp.user", "camera") ?: "camera"
+        set(value) = ftpPrefs().edit().putString("ftp.user", value).apply()
+
+    /** Senha de 6 números, criada na primeira vez (a câmera digita com os botões, então curta). */
+    private var ftpPassword: String
+        get() = ftpPrefs().getString("ftp.password", null) ?: newFtpPassword().also { ftpPassword = it }
+        set(value) = ftpPrefs().edit().putString("ftp.password", value).apply()
+
+    private var ftpEnabled: Boolean
+        get() = ftpPrefs().getBoolean("ftp.on", false)
+        set(value) = ftpPrefs().edit().putBoolean("ftp.on", value).apply()
+
+    private fun newFtpPassword() = (100000 + java.security.SecureRandom().nextInt(900000)).toString()
+
+    private fun startFtp() {
+        if (ftp?.running == true) return
+        if (!requireLicense()) {
+            updateFtpButton()
+            return
+        }
+        val server = FtpServer(ftpUser, ftpPassword, object : FtpServer.Listener {
+            override fun onFile(name: String, data: ByteArray, from: String) = receiveFromWifi(name, data)
+
+            override fun onLog(text: String) {
+                DiagLog.add(text)
+                main.post {
+                    if (isDestroyed) return@post
+                    setStatus(text.removePrefix("FTP: ").replaceFirstChar { it.uppercase() })
+                    if (text.contains("entrou")) updateFtpButton()
+                }
+            }
+
+            override fun onTrace(text: String) = DiagLog.add(text)
+        })
+        try {
+            server.start()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Não foi possível ligar o FTP: ${e.message}", Toast.LENGTH_LONG).show()
+            return
+        }
+        ftp = server
+        DiagLog.add("FTP ligado na porta ${server.port}")
+        updateFtpButton()
+    }
+
+    private fun stopFtp() {
+        ftp?.stop()
+        ftp = null
+        updateFtpButton()
+    }
+
+    /** Foto que chegou pelo Wi-Fi: mesmo caminho de uma foto do cabo. Roda na thread da conexão FTP. */
+    private fun receiveFromWifi(name: String, data: ByteArray) {
+        val to = shoot.target(name)
+        DiagLog.add("foto por Wi-Fi $name → ${to.name}, ${data.size} bytes")
+        val uri = PhotoStore.saveOriginal(applicationContext, to.session.folder, to.name, data)
+        main.post {
+            if (isDestroyed) return@post
+            setStatus("Foto recebida pelo Wi-Fi: ${to.name}")
+            onShot(to, data, uri)
+        }
+    }
+
+    private fun updateFtpButton() {
+        val server = ftp
+        ftpButton.text = if (server?.running == true) {
+            "Wi-Fi (FTP): ${server.cameraAddress ?: GalleryServer.localAddress() ?: "sem rede"}:${server.port}"
+        } else {
+            "Receber pelo Wi-Fi (FTP)"
+        }
+        if (camera == null) setLink(LINK_OFF)
+        if (server?.running == true && camera == null && shoot.photos.isEmpty()) hint.text = "Pronto. Fotografe: as fotos chegam pelo Wi-Fi."
+    }
+
+    private fun ftpDialog() {
+        val enabled = Switch(this).apply {
+            text = "Receber fotos pelo Wi-Fi"
+            isChecked = ftp?.running == true
+            setTextColor(Palette.TEXT)
+            textSize = 16f
+        }
+        val ip = ftp?.cameraAddress ?: GalleryServer.localAddress()
+        fun field(label: String, value: String) = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(6), 0, dp(6))
+            addView(ui.text(label, 14f, Palette.TEXT2), LinearLayout.LayoutParams(dp(150), WRAP_CONTENT))
+            addView(ui.text(value, 16f, Palette.GOLD, bold = true).apply { setTextIsSelectable(true) }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        lateinit var dialog: AlertDialog
+        val port = ftp?.port?.takeIf { it > 0 } ?: FtpServer.DEFAULT_PORT
+        val details = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = ui.rounded(Palette.ROW, 12)
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            addView(field("Servidor (host)", ip ?: "ligue o Wi-Fi do tablet"))
+            addView(field("Porta", port.toString()))
+            addView(field("Usuário", ftpUser))
+            addView(field("Senha", ftpPassword))
+            addView(field("Modo passivo", "Ligado"))
+            addView(field("Protocolo seguro", "Desligado"))
+            addView(field("Pasta", "deixe vazia"))
+        }
+        val steps = label(
+            "A câmera e o tablet precisam estar no mesmo Wi-Fi, ou a câmera conectada ao ponto de acesso " +
+                "do tablet (funciona sem internet). Deixe o app aberto.\n\n" +
+                "SONY (A7R III, A7 III, A9, A7 IV, A1…): MENU → Rede → Função de transferência FTP → " +
+                "Configurações do servidor: Destino/Host = servidor acima, Porta, Protocolo seguro desligado, " +
+                "Usuário e senha. Depois ligue a Função FTP e a Transferência automática (nomes variam por modelo).\n\n" +
+                "CANON (R3, R5, R6 Mark II, R7, R10, R8, 1D X Mark III…): Menu Rede → Configurações de transferência " +
+                "FTP → assistente de conexão: Modo FTP, endereço do servidor, porta, Modo passivo ativado, sem proxy, " +
+                "login com usuário e senha, pasta raiz. Depois ative a Transferência automática.\n\n" +
+                "NIKON (Z6III, Z8, Z9, Zf, ou Z6/Z7 II e D850/D780 com WT-7): Menu Rede → Conectar ao servidor FTP → " +
+                "Configurações de rede → Criar perfil: tipo FTP, endereço, porta, PASV ligado, usuário e senha. " +
+                "Depois, em Opções, ligue o Upload automático.",
+            13f, MUTED,
+        )
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(enabled)
+            addView(label("Para câmeras com transferência FTP pelo Wi-Fi: cada foto chega aqui sozinha, sem cabo. Configure a câmera com estes dados:", 13f, MUTED).apply {
+                setPadding(0, dp(10), 0, dp(10))
+            })
+            addView(details)
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                text = "Gerar outra senha"
+                setOnClickListener {
+                    ftpPassword = newFtpPassword()
+                    if (ftp?.running == true) {
+                        stopFtp()
+                        startFtp()
+                    }
+                    Toast.makeText(this@MainActivity, "Senha nova: $ftpPassword (troque também na câmera)", Toast.LENGTH_LONG).show()
+                    dialog.dismiss()
+                    ftpDialog()
+                }
+            }, ui.wrap(8))
+            addView(steps, ui.wrap(12))
+        }
+        enabled.setOnCheckedChangeListener { _, on ->
+            ftpEnabled = on
+            if (on) startFtp() else stopFtp()
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Receber pelo Wi-Fi (FTP)")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .show()
+    }
+
+    // ---- Assinatura ----
+
+    private var paywallShown = false
+
+    /**
+     * Libera as funções pagas (receber fotos, entregar). Sem assinatura ativa, mostra o aviso
+     * (uma vez por abertura do app quando [quiet], para a reconexão automática não insistir).
+     */
+    private fun requireLicense(quiet: Boolean = false): Boolean {
+        val state = license.state()
+        if (state.active) return true
+        if (!quiet || !paywallShown) showPaywall(state)
+        return false
+    }
+
+    private fun updateLicense() {
+        val state = license.state()
+        val (title, detail, color) = when (state) {
+            is LicenseManager.State.Trial -> Triple(
+                "Teste grátis",
+                if (state.daysLeft == 0L) "Último dia de teste." else "${state.daysLeft + 1} dias restantes de teste.",
+                if (state.daysLeft <= 2) Palette.GOLD else Palette.TEXT2,
+            )
+            is LicenseManager.State.Licensed -> Triple(
+                "Plano ${state.license.plan}",
+                "Válida até ${LicenseManager.format(state.license.until)}" + (state.license.name.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "") +
+                    if (state.daysLeft <= 7) ". Renove para não parar." else ".",
+                if (state.daysLeft <= 7) Palette.GOLD else Palette.TEXT2,
+            )
+            is LicenseManager.State.Expired -> Triple(
+                "Assinatura vencida",
+                state.license?.let { "Venceu em ${LicenseManager.format(it.until)}. Insira uma chave nova." } ?: "O teste grátis acabou. Assine para continuar recebendo fotos.",
+                Palette.RED,
+            )
+            is LicenseManager.State.Revoked -> Triple("Chave cancelada", "Fale com o suporte do Revela.", Palette.RED)
+        }
+        licenseTitle.text = title
+        licenseDetail.text = detail
+        licenseDetail.setTextColor(color)
+        licenseDevice.text = "Código deste tablet: ${license.deviceCode}"
+        renewButton.text = if (state is LicenseManager.State.Licensed) "Renovar assinatura" else "Assinar o Revela"
+    }
+
+    private fun showPaywall(state: LicenseManager.State = license.state()) {
+        paywallShown = true
+        val (title, message) = when (state) {
+            is LicenseManager.State.Revoked -> "Chave cancelada" to "Esta chave foi cancelada. Fale com o suporte do Revela."
+            is LicenseManager.State.Expired -> if (state.license != null) {
+                "Sua assinatura venceu" to "Ela valeu até ${LicenseManager.format(state.license.until)}. Renove e insira a chave nova para voltar a receber e entregar fotos."
+            } else {
+                "O teste grátis acabou" to "Assine o Revela para continuar recebendo fotos da câmera e entregando para os clientes."
+            }
+            else -> return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage("$message\n\nSuas sessões e fotos continuam aqui. Código deste tablet: ${license.deviceCode}")
+            .setPositiveButton("Inserir chave") { _, _ -> enterKey() }
+            .setNeutralButton("Assinar") { _, _ -> openSubscribe() }
+            .setNegativeButton("Agora não", null)
+            .show()
+    }
+
+    private fun openSubscribe() {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("${LicenseManager.SUBSCRIBE_URL}?aparelho=${license.deviceCode}"))) }
+    }
+
+    private fun enterKey() {
+        val input = EditText(this).apply {
+            hint = "Cole aqui a chave (começa com REVELA-)"
+            minLines = 3
+            maxLines = 6
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            textSize = 13f
+        }
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.primaryClip?.getItemAt(0)?.text?.toString()?.takeIf { it.contains(LicenseVerifier.PREFIX) }?.let {
+            input.setText(it.substring(it.indexOf(LicenseVerifier.PREFIX)).substringBefore("\n\n").trim())
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(label("Você recebe a chave depois de assinar. Para ela valer neste tablet, informe este código:", 13f, MUTED))
+            addView(ui.text(license.deviceCode, 26f, Palette.GOLD, bold = true).apply {
+                letterSpacing = 0.15f
+                setTextIsSelectable(true)
+                setPadding(0, dp(10), 0, dp(12))
+            })
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Inserir chave de ativação")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Ativar") { _, _ ->
+                val text = input.text.toString()
+                setStatus("Ativando a chave…")
+                // A chave da Kiwify é ativada pela internet: fora da thread da tela.
+                Thread {
+                    val error = license.activate(text)
+                    main.post { if (!isDestroyed) keyActivated(error) }
+                }.start()
+            }
+            .setNeutralButton("Copiar código") { _, _ ->
+                clipboard.setPrimaryClip(ClipData.newPlainText("Código do tablet", license.deviceCode))
+                Toast.makeText(this, "Código ${license.deviceCode} copiado", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun keyActivated(error: String?) {
+        if (error != null) {
+            AlertDialog.Builder(this)
+                .setTitle("A chave não foi aceita")
+                .setMessage(error)
+                .setPositiveButton("Tentar de novo") { _, _ -> enterKey() }
+                .setNegativeButton("Fechar", null)
+                .show()
+        } else {
+            updateLicense()
+            Toast.makeText(this, "Revela ativado. Bom trabalho!", Toast.LENGTH_LONG).show()
+            paywallShown = false
+            if (ftpEnabled) startFtp()
+            tryReconnect()
+        }
+    }
+
+    // ---- Modo cliente ----
+
+    private val exitClientMode = Runnable { setClientMode(false) }
+
+    private fun setClientMode(on: Boolean) {
+        if (on) {
+            closeEditor()
+            closeCrop()
+        }
+        clientMode = on
+        panel.visibility = if (on) View.GONE else View.VISIBLE
+        strip.visibility = if (on) View.GONE else View.VISIBLE
+        lock.visibility = if (on) View.VISIBLE else View.GONE
+        viewer.frame = if (on) 0 else frameIndex
+        updateRatingBar()
+        setFullScreen(on)
+        if (on) Toast.makeText(this, "Modo cliente. Para sair, segure o cadeado por 2 segundos.", Toast.LENGTH_LONG).show()
+    }
+
+    private fun setFullScreen(on: Boolean) {
+        if (Build.VERSION.SDK_INT >= 30) {
+            val controller = window.insetsController ?: return
+            if (on) {
+                controller.hide(WindowInsets.Type.systemBars())
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                controller.show(WindowInsets.Type.systemBars())
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = if (on) {
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN
+            } else {
+                0
+            }
+        }
+    }
+
+    // ---- Presets e marca d'água ----
+
+    private fun presetSignature(): String = library.activeFile?.let { "$it@${library.amount}" } ?: "none"
+
+    private fun lookChanged(rerender: Boolean = true) {
+        val entry = library.active()
+        val stamp = watermark.snapshot()
+        look = Look(entry?.let { PresetLook(it.preset, library.amount / 100f) }, stamp, "${presetSignature()}|${stamp?.signature ?: "-"}")
+        presetButton.text = entry?.preset?.name?.let { "$it" } ?: "Sem preset"
+        amountBar.isEnabled = entry != null
+        amountLabel.text = "${library.amount}%"
+        val ignored = entry?.preset?.ignored.orEmpty()
+        presetNote.text = if (ignored.isEmpty()) "" else "Não reproduzido neste app: ${ignored.joinToString(", ")}"
+        presetNote.visibility = if (ignored.isEmpty()) View.GONE else View.VISIBLE
+        watermarkButton.text = when {
+            stamp == null && watermark.enabled -> "Ligada, mas sem logo nem texto"
+            stamp == null -> "Desligada"
+            watermark.hasLogo -> "Ligada: logo"
+            else -> "Ligada: \"${watermark.text.trim()}\""
+        }
+        presetStrip.highlight()
+        if (lastAmount != library.amount) {
+            if (lastAmount >= 0) presetStrip.refresh()
+            lastAmount = library.amount
+        }
+        if (rerender) rerenderCurrent()
+    }
+
+    private fun choosePreset() {
+        val entries = library.all()
+        val names = arrayOf("Sem preset") + entries.map { it.preset.name }
+        val selected = entries.indexOfFirst { it.file == library.activeFile } + 1
+        AlertDialog.Builder(this)
+            .setTitle("Preset")
+            .setSingleChoiceItems(names, selected) { dialog, which ->
+                library.activeFile = if (which == 0) null else entries[which - 1].file
+                lookChanged()
+                dialog.dismiss()
+            }
+            .setNeutralButton("Importar…") { _, _ -> importPreset() }
+            .setNegativeButton("Remover o atual") { _, _ ->
+                library.activeFile?.let {
+                    library.remove(it)
+                    presetStrip.rebuild()
+                    lookChanged()
+                }
+            }
+            .show()
+    }
+
+    private fun importPreset() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType("*/*")
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_IMPORT)
+    }
+
+    private fun chooseLogo() {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*")
+        @Suppress("DEPRECATION")
+        startActivityForResult(intent, REQUEST_LOGO)
+    }
+
+    private fun editWatermark() {
+        val enabled = Switch(this).apply {
+            text = "Usar marca d'água"
+            isChecked = watermark.enabled
+            setTextColor(Color.WHITE)
+            textSize = 16f
+        }
+        val text = EditText(this).apply {
+            hint = "Texto, usado quando não há logo (ex.: @seuestudio)"
+            setText(watermark.text)
+            setSingleLine()
+        }
+        var position = watermark.position
+        val positionButton = Button(this).apply { isAllCaps = false }
+        fun showPosition() {
+            positionButton.text = "Posição: ${Watermark.POSITIONS[position]}  ▾"
+        }
+        showPosition()
+        positionButton.setOnClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Posição")
+                .setSingleChoiceItems(Watermark.POSITIONS, position) { d, which ->
+                    position = which
+                    showPosition()
+                    d.dismiss()
+                }
+                .show()
+        }
+        val sizeLabel = label("", 14f, MUTED)
+        val size = slider(5, 50, watermark.size) { sizeLabel.text = "Tamanho: $it% do lado menor da foto" }
+        val opacityLabel = label("", 14f, MUTED)
+        val opacity = slider(10, 100, watermark.opacity) { opacityLabel.text = "Opacidade: $it%" }
+
+        lateinit var dialog: AlertDialog
+        fun save() {
+            watermark.enabled = enabled.isChecked
+            watermark.text = text.text.toString()
+            watermark.position = position
+            watermark.size = size.progress + 5
+            watermark.opacity = opacity.progress + 10
+        }
+        val logoRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                this.text = if (watermark.hasLogo) "Trocar logo…" else "Escolher logo (PNG)…"
+                setOnClickListener {
+                    save()
+                    dialog.dismiss()
+                    chooseLogo()
+                }
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            if (watermark.hasLogo) addView(Button(this@MainActivity).apply {
+                isAllCaps = false
+                this.text = "Remover logo"
+                setOnClickListener {
+                    watermark.setLogo(null)
+                    save()
+                    dialog.dismiss()
+                    lookChanged()
+                    editWatermark()
+                }
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(enabled)
+            addView(label(if (watermark.hasLogo) "Logo escolhido. O texto só é usado sem logo." else "Sem logo: use um PNG com fundo transparente, ou escreva um texto.", 13f, MUTED).apply {
+                setPadding(0, dp(12), 0, dp(4))
+            })
+            addView(logoRow)
+            addView(text)
+            addView(positionButton)
+            addView(sizeLabel.apply { setPadding(0, dp(12), 0, 0) })
+            addView(size)
+            addView(opacityLabel.apply { setPadding(0, dp(8), 0, 0) })
+            addView(opacity)
+            addView(label("Vai nas fotos compartilhadas e na galeria do cliente. Os originais ficam sem marca.", 12f, MUTED).apply {
+                setPadding(0, dp(12), 0, 0)
+            })
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Marca d'água")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Aplicar") { _, _ ->
+                save()
+                lookChanged()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
+
+    private fun slider(min: Int, max: Int, value: Int, onChange: (Int) -> Unit) = SeekBar(this).apply {
+        ui.styleSlider(this)
+        setPadding(dp(11), dp(12), dp(11), dp(12))
+        this.max = max - min
+        progress = (value - min).coerceIn(0, max - min)
+        onChange(progress + min)
+        setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar, p: Int, fromUser: Boolean) = onChange(p + min)
+            override fun onStartTrackingTouch(bar: SeekBar) {}
+            override fun onStopTrackingTouch(bar: SeekBar) {}
+        })
+    }
+
+    @Deprecated("Activity sem AndroidX: o retorno do seletor de arquivos ainda chega por aqui.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != RESULT_OK || data == null) {
+            if (requestCode == REQUEST_LOGO) if (logoFor == REQUEST_BRAND) editBrand() else editWatermark()
+            return
+        }
+        when (requestCode) {
+            REQUEST_IMPORT -> importedPresets(data)
+            REQUEST_LOGO -> {
+                val bytes = data.data?.let { PhotoStore.readBytes(this, it) }
+                val forBrand = logoFor == REQUEST_BRAND
+                logoFor = REQUEST_LOGO
+                if (bytes != null && watermark.setLogo(bytes)) {
+                    logoCache = null
+                    if (forBrand) brandSettings.useLogo = true else watermark.enabled = true
+                    lookChanged()
+                } else {
+                    Toast.makeText(this, "Não consegui abrir essa imagem.", Toast.LENGTH_LONG).show()
+                }
+                if (forBrand) editBrand() else editWatermark()
+            }
+        }
+    }
+
+    private fun importedPresets(data: Intent) {
+        val uris = data.clipData?.let { clip -> (0 until clip.itemCount).map { clip.getItemAt(it).uri } }
+            ?: listOfNotNull(data.data)
+        val imported = ArrayList<PresetLibrary.Entry>()
+        var failed = 0
+        for (uri in uris) {
+            val bytes = PhotoStore.readBytes(this, uri)
+            val found = bytes?.let { library.import(displayName(uri), it) }.orEmpty()
+            if (found.isEmpty()) failed++ else imported += found
+        }
+        imported.lastOrNull()?.let {
+            library.activeFile = it.file
+            presetStrip.rebuild()
+            lookChanged()
+        }
+        val message = when {
+            imported.isEmpty() -> "Não reconheci esse arquivo como preset do Lightroom (.xmp, .lrtemplate, .dng ou .zip)."
+            imported.size == 1 -> "Preset \"${imported[0].preset.name}\" importado."
+            else -> "${imported.size} presets importados. Ativo: \"${imported.last().preset.name}\"."
+        } + if (imported.isNotEmpty() && failed > 0) " $failed arquivo(s) não reconhecido(s)." else ""
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun displayName(uri: Uri): String =
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: uri.lastPathSegment ?: "preset"
+
+    // ---- Tela ----
+
+    private fun prefs() = getSharedPreferences("sony-tether", Context.MODE_PRIVATE)
+
+    private fun setStatus(text: String) {
+        status.text = text
+        status.visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+    }
+
+    /** Estado da conexão no cartão do topo: bolinha colorida, título e o botão de conectar. */
+    private fun setLink(state: Int, model: String? = null) {
+        connectButton.visibility = if (state == LINK_ON || state == LINK_CONNECTING) View.GONE else View.VISIBLE
+        ui.setDotColor(statusDot, when (state) {
+            LINK_ON -> Palette.GREEN
+            LINK_CONNECTING -> Palette.GOLD
+            LINK_ERROR -> Palette.RED
+            else -> if (ftp?.running == true) Palette.GREEN else Palette.TEXT3
+        })
+        statusTitle.text = when (state) {
+            LINK_ON -> model ?: "Câmera conectada"
+            LINK_CONNECTING -> "Conectando…"
+            LINK_ERROR -> "Conexão interrompida"
+            else -> if (ftp?.running == true) "Esperando fotos pelo Wi-Fi" else "Câmera desconectada"
+        }
+    }
+
+    private fun updateCounter() {
+        val n = shoot.photos.size
+        val shown = visiblePhotos().size
+        val hidden = shoot.photos.count { it.hidden }
+        val inFilter = if (filter == 0) "" else " · $shown no filtro"
+        val hiddenText = if (hidden == 0) "" else " · $hidden ${if (hidden == 1) "escondida" else "escondidas"}"
+        counter.text = "$n ${if (n == 1) "foto" else "fotos"}$inFilter$hiddenText\nImagens/${PhotoStore.FOLDER}/${shoot.folder}"
+        shareAllButton.text = if (filter == 0) "Compartilhar todas ($shown)" else "Compartilhar as do filtro ($shown)"
+        shareAllButton.isEnabled = shown > 0
+        updatePhotoInfo()
+    }
+
+    /** Nome e posição da foto da tela, na faixa de cima. */
+    private fun updatePhotoInfo() {
+        val photo = current
+        topBar.visibility = if (photo == null || clientMode) View.GONE else View.VISIBLE
+        if (photo == null) return
+        photoTitle.text = photo.name
+        val list = visiblePhotos()
+        val index = list.indexOf(photo)
+        val position = if (index >= 0) "${index + 1} de ${list.size}" else "fora do filtro"
+        val mp = photo.width.toLong() * photo.height / 1_000_000
+        photoInfo.text = if (mp > 0) "$position  ·  $mp MP  ·  ${photo.width} × ${photo.height}" else position
+    }
+
+    private fun highlightTiles() {
+        for ((p, tile) in tiles) {
+            val selected = p === current
+            tile.frame.alpha = if (selected) 1f else 0.6f
+            tile.frame.foreground = if (selected) ui.rounded(Color.TRANSPARENT, 8, Palette.GOLD, 2) else null
+        }
+    }
+
+    private fun addTile(photo: SessionPhoto, atStart: Boolean) {
+        val image = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(Palette.ROW)
+        }
+        val marks = ui.text("", 10f, Color.WHITE, bold = true).apply {
+            background = ui.rounded(0xB3000000.toInt(), 6)
+            setPadding(dp(5), dp(2), dp(5), dp(2))
+            visibility = View.GONE
+        }
+        val frame = FrameLayout(this).apply {
+            background = ui.rounded(Palette.ROW, 8)
+            clipToOutline = true
+            addView(image, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(marks, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.BOTTOM or Gravity.START).apply {
+                setMargins(dp(4), 0, 0, dp(4))
+            })
+            layoutParams = LinearLayout.LayoutParams(dp(THUMB_H * 3 / 2), dp(THUMB_H)).apply { marginEnd = dp(8) }
+            contentDescription = photo.name
+            setOnClickListener { select(photo) }
+            setOnLongClickListener {
+                photoMenu(photo)
+                true
+            }
+        }
+        tiles[photo] = Tile(frame, image, marks)
+        if (atStart) thumbs.addView(frame, 0) else thumbs.addView(frame)
+        frame.visibility = if (matches(photo)) View.VISIBLE else View.GONE
+        updateMarks(photo)
+        highlightTiles()
+    }
+
+    private fun setThumb(photo: SessionPhoto, bitmap: Bitmap) {
+        val tile = tiles[photo] ?: return
+        tile.image.setImageBitmap(bitmap)
+        tile.frame.layoutParams = LinearLayout.LayoutParams(dp(THUMB_H) * bitmap.width / maxOf(1, bitmap.height), dp(THUMB_H)).apply {
+            marginEnd = dp(8)
+        }
+    }
+
+    /** Botão redondo de ícone, para a barra de cima da foto. */
+    private fun iconButton(res: Int, description: String, onClick: () -> Unit) = ImageView(this).apply {
+        setImageResource(res)
+        imageTintList = ColorStateList.valueOf(Color.WHITE)
+        contentDescription = description
+        setPadding(dp(8), dp(8), dp(8), dp(8))
+        background = ui.ripple(null, 20)
+        layoutParams = LinearLayout.LayoutParams(dp(40), dp(40))
+        setOnClickListener { onClick() }
+    }
+
+    @SuppressLint("ClickableViewAccessibility")
+    private fun buildUi() {
+        viewer = ZoomImageView(this).apply { listener = this@MainActivity }
+
+        // Sem foto: ícone, título e o que fazer.
+        hint = ui.text("Conecte a câmera pelo cabo USB ou pelo Wi-Fi", 20f, Palette.TEXT, bold = true).apply { gravity = Gravity.CENTER }
+        emptyState = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(32), 0, dp(32), dp(40))
+            addView(FrameLayout(this@MainActivity).apply {
+                background = ui.rounded(Palette.CARD, 48, Palette.STROKE)
+                addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 44), FrameLayout.LayoutParams(dp(44), dp(44), Gravity.CENTER))
+            }, LinearLayout.LayoutParams(dp(96), dp(96)))
+            addView(hint, ui.wrap(24))
+            addView(ui.text(
+                "Sony, Canon ou Nikon pelo cabo USB, ou qualquer câmera com FTP pelo Wi-Fi.\nCada foto aparece aqui assim que você dispara.",
+                14f, Palette.TEXT2,
+            ).apply { gravity = Gravity.CENTER }, ui.wrap(10))
+        }
+
+        badge = ui.pill("ORIGINAL", 0xFF1A1307.toInt(), Palette.GOLD).apply { visibility = View.GONE }
+
+        heart = iconButton(R.drawable.ic_favorite_border, "Favorita") { toggleFavorite() }
+        stars = (1..5).map { n -> iconButton(R.drawable.ic_star_border, "$n estrelas") { rate(n) }.apply { setPadding(dp(9), dp(9), dp(9), dp(9)) } }
+        hideButton = iconButton(R.drawable.ic_visibility_off, "Esconder") { toggleHidden() }
+        val trash = iconButton(R.drawable.ic_delete_outline, "Apagar") { confirmDelete() }
+        val edit = iconButton(R.drawable.ic_tune, "Editar foto") { toggleEditor() }
+        ratingBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = ui.rounded(0xB31B1B21.toInt(), 24, 0x26FFFFFF)
+            setPadding(dp(4), dp(2), dp(4), dp(2))
+            addView(heart)
+            stars.forEach { addView(it) }
+            addView(View(this@MainActivity).apply { setBackgroundColor(0x33FFFFFF) }, LinearLayout.LayoutParams(dp(1), dp(22)).apply {
+                marginStart = dp(6)
+                marginEnd = dp(6)
+            })
+            addView(edit)
+            addView(hideButton)
+            addView(trash)
+        }
+        photoTitle = ui.text("", 16f, Color.WHITE, bold = true).apply { isSingleLine = true }
+        photoInfo = ui.text("", 12f, 0xCCFFFFFF.toInt()).apply { isSingleLine = true }
+        topBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = ui.gradient(GradientDrawable.Orientation.TOP_BOTTOM, 0xB3000000.toInt(), 0x00000000)
+            setPadding(dp(20), dp(14), dp(14), dp(32))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(photoTitle)
+                addView(photoInfo, ui.wrap(4))
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(ratingBar)
+            visibility = View.GONE
+        }
+
+        thumbs = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(16), dp(28), dp(8), dp(14))
+        }
+        strip = HorizontalScrollView(this).apply {
+            background = ui.gradient(GradientDrawable.Orientation.BOTTOM_TOP, 0xE6000000.toInt(), 0x00000000)
+            isHorizontalScrollBarEnabled = false
+            addView(thumbs)
+        }
+        lock = ImageView(this).apply {
+            setImageResource(R.drawable.ic_lock)
+            imageTintList = ColorStateList.valueOf(Color.WHITE)
+            contentDescription = "Sair do modo cliente (segure)"
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+            background = ui.rounded(0x80000000.toInt(), 26, 0x33FFFFFF)
+            alpha = 0.5f
+            visibility = View.GONE
+            setOnTouchListener { _, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        alpha = 1f
+                        main.postDelayed(exitClientMode, 2000)
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        alpha = 0.5f
+                        if (clientMode) {
+                            main.removeCallbacks(exitClientMode)
+                            Toast.makeText(this@MainActivity, "Segure o cadeado por 2 segundos para sair.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                true
+            }
+        }
+
+        stage = FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(viewer, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(emptyState, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            addView(topBar, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.TOP))
+            addView(badge, FrameLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
+                topMargin = dp(84)
+            })
+            addView(strip, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT, Gravity.BOTTOM))
+            addView(lock, FrameLayout.LayoutParams(dp(52), dp(52), Gravity.BOTTOM or Gravity.END).apply {
+                setMargins(0, 0, dp(20), dp(20))
+            })
+        }
+
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(20), dp(16), dp(24))
+        }
+
+        // Cabeçalho: marca, nome e versão.
+        column.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), 0, dp(4), dp(18))
+            addView(FrameLayout(this@MainActivity).apply {
+                background = ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2A2214.toInt(), 0xFF16130D.toInt(), radiusDp = 12)
+                addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 24), FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
+            }, LinearLayout.LayoutParams(dp(42), dp(42)))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(12), 0, 0, 0)
+                addView(ui.text("Revela", 19f, Palette.TEXT, bold = true))
+                addView(ui.text("Sony · Canon · Nikon · Wi-Fi", 12f, Palette.TEXT3), ui.wrap(3))
+            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(ui.pill(BuildConfig.VERSION_NAME.replace("-beta", " BETA"), Palette.GOLD, 0x14E9B45A, 0x55E9B45A))
+        })
+
+        // Câmera: estado da conexão.
+        statusDot = ui.dot(Palette.TEXT3)
+        statusTitle = ui.text("Câmera desconectada", 16f, Palette.TEXT, bold = true)
+        status = ui.text("Ligue a câmera pelo cabo USB ou ative o Wi-Fi (FTP).", 13f, Palette.TEXT2)
+        ftpButton = ui.row(R.drawable.ic_wifi, "Receber pelo Wi-Fi (FTP)") { ftpDialog() }
+        connectButton = ui.primary(R.drawable.ic_usb, "Conectar câmera") {
+            askedPermissionFor = null
+            connect()
+        }
+        column.addView(ui.card().apply {
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(statusDot)
+                addView(statusTitle, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(10) })
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_bug_report)
+                    imageTintList = ColorStateList.valueOf(Palette.TEXT3)
+                    contentDescription = "Diagnóstico"
+                    setPadding(dp(6), dp(6), dp(6), dp(6))
+                    background = ui.ripple(null, 16)
+                    setOnClickListener { showDiagnostics() }
+                }, LinearLayout.LayoutParams(dp(32), dp(32)))
+            })
+            addView(status, ui.wrap(8))
+            addView(connectButton, ui.matchWidth(48, 14))
+            addView(ftpButton, ui.matchWidth(48, 8))
+        }, ui.wrap())
+
+        // Sessão
+        sessionButton = ui.row(R.drawable.ic_folder, "") { chooseSession() }
+        filterButton = ui.row(R.drawable.ic_filter_list, "") { chooseFilter() }
+        counter = ui.text("Nenhuma foto ainda", 12f, Palette.TEXT3)
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_photo_library, "Sessão"))
+            addView(sessionButton, ui.matchWidth(48))
+            addView(filterButton, ui.matchWidth(48, 8))
+            addView(counter, ui.wrap(12))
+        }, ui.wrap(12))
+
+        // Preset
+        presetStrip = PresetStrip(this, ui, library) { file ->
+            library.activeFile = file
+            lookChanged()
+        }
+        presetButton = ui.row(R.drawable.ic_tune, "Sem preset") { choosePreset() }
+        amountLabel = ui.text("", 13f, Palette.GOLD, bold = true)
+        amountBar = SeekBar(this).apply {
+            max = 100
+            progress = library.amount
+            ui.styleSlider(this)
+            setPadding(dp(11), dp(12), dp(11), dp(12))
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar, value: Int, fromUser: Boolean) {
+                    amountLabel.text = "$value%"
+                }
+
+                override fun onStartTrackingTouch(bar: SeekBar) {}
+
+                override fun onStopTrackingTouch(bar: SeekBar) {
+                    library.amount = bar.progress
+                    lookChanged()
+                }
+            })
+        }
+        presetNote = ui.text("", 12f, Palette.TEXT3)
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Preset do Lightroom"))
+            addView(presetStrip.view, ui.wrap(2).apply { bottomMargin = dp(12) })
+            addView(presetButton, ui.matchWidth(48))
+            addView(ui.row(R.drawable.ic_upload_file, "Importar preset…", chevron = false) { importPreset() }, ui.matchWidth(48, 8))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(ui.text("Intensidade", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                addView(amountLabel)
+            }, ui.wrap(16))
+            addView(amountBar, ui.wrap(4))
+            addView(presetNote, ui.wrap(4))
+        }, ui.wrap(12))
+
+        // Marca d'água
+        watermarkButton = ui.row(R.drawable.ic_branding_watermark, "Desligada") { editWatermark() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_branding_watermark, "Marca d'água"))
+            addView(watermarkButton, ui.matchWidth(48))
+        }, ui.wrap(12))
+
+        // Foto da tela
+        frameButton = ui.row(R.drawable.ic_crop, "Moldura: Nenhuma") { chooseFrame() }
+        editPanelButton = ui.row(R.drawable.ic_tune, "Editar foto: luz e cor") { toggleEditor() }
+        cropPanelButton = ui.row(R.drawable.ic_crop, "Recortar e girar") { openCrop() }
+        hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
+        deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_photo_camera, "Foto da tela"))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                addView(hidePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+                addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+            })
+            addView(editPanelButton, ui.matchWidth(48, 8))
+            addView(cropPanelButton, ui.matchWidth(48, 8))
+            addView(frameButton, ui.matchWidth(48, 8))
+        }, ui.wrap(12))
+
+        // Entregar
+        shareButton = ui.primary(R.drawable.ic_share, "Compartilhar esta foto") { current?.let { share(listOf(it)) } }
+        shareButton.isEnabled = false
+        shareAllButton = ui.row(R.drawable.ic_photo_library, "Compartilhar todas (0)", chevron = false) { share(visiblePhotos()) }
+        shareAllButton.isEnabled = false
+        qrButton = ui.row(R.drawable.ic_qr_code_2, "QR code para o cliente") { showQr() }
+        slideshowButton = ui.row(R.drawable.ic_tv, "Slideshow para TV") { showSlideshow() }
+        brandButton = ui.row(R.drawable.ic_storefront, "Sua marca na galeria") { editBrand() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_share, "Entregar"))
+            addView(shareButton, ui.matchWidth(50))
+            addView(shareAllButton, ui.matchWidth(48, 8))
+            addView(qrButton, ui.matchWidth(48, 8))
+            addView(slideshowButton, ui.matchWidth(48, 8))
+            addView(brandButton, ui.matchWidth(48, 8))
+            addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
+        }, ui.wrap(12))
+
+        // Assinatura
+        licenseTitle = ui.text("", 16f, Palette.TEXT, bold = true)
+        licenseDetail = ui.text("", 13f, Palette.TEXT2)
+        licenseDevice = ui.text("", 12f, Palette.TEXT3).apply { setTextIsSelectable(true) }
+        renewButton = ui.row(R.drawable.ic_workspace_premium, "Assinar o Revela") { openSubscribe() }
+        column.addView(ui.card().apply {
+            addView(ui.cardTitle(R.drawable.ic_workspace_premium, "Assinatura"))
+            addView(licenseTitle)
+            addView(licenseDetail, ui.wrap(4))
+            addView(ui.row(R.drawable.ic_key, "Inserir chave de ativação") { enterKey() }, ui.matchWidth(48, 14))
+            addView(renewButton, ui.matchWidth(48, 8))
+            addView(licenseDevice, ui.wrap(10))
+        }, ui.wrap(12))
+
+        column.addView(ui.text(
+            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · " +
+                "segure para ver sem o preset · segure uma miniatura para esconder ou apagar",
+            12f, Palette.TEXT3,
+        ).apply { setPadding(dp(4), 0, dp(4), 0) }, ui.wrap(16))
+
+        panel = ScrollView(this).apply {
+            setBackgroundColor(Palette.PANEL)
+            isVerticalScrollBarEnabled = false
+            addView(column)
+        }
+        root = LinearLayout(this).apply {
+            setBackgroundColor(Palette.PANEL)
+            addView(stage)
+            addView(panel)
+        }
+        setContentView(root)
+    }
+
+    private fun showDiagnostics() {
+        val text = DiagLog.text()
+        val view = label(text, 11f, Color.WHITE).apply {
+            typeface = Typeface.MONOSPACE
+            setTextIsSelectable(true)
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Diagnóstico")
+            .setView(ScrollView(this).apply { addView(view) })
+            .setPositiveButton("Copiar") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Revela", text))
+                Toast.makeText(this, "Diagnóstico copiado", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("Compartilhar") { _, _ ->
+                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
+                startActivity(Intent.createChooser(send, "Enviar diagnóstico"))
+            }
+            .setNegativeButton("Fechar", null)
+            .show()
+    }
+
+    private fun applyOrientation(config: Configuration) {
+        if (config.orientation == Configuration.ORIENTATION_PORTRAIT) {
+            root.orientation = LinearLayout.VERTICAL
+            stage.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1.2f)
+            panel.layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
+        } else {
+            root.orientation = LinearLayout.HORIZONTAL
+            stage.layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 1f)
+            panel.layoutParams = LinearLayout.LayoutParams(dp(340), MATCH_PARENT)
+        }
+    }
+
+    private fun label(text: String, sp: Float, color: Int) = TextView(this).apply {
+        this.text = text
+        setTextColor(color)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, sp)
+    }
+
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
+    @Suppress("DEPRECATION")
+    private fun Intent.usbDevice(): UsbDevice? =
+        if (Build.VERSION.SDK_INT >= 33) getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+        else getParcelableExtra(UsbManager.EXTRA_DEVICE)
+
+    private companion object {
+        const val ACTION_USB_PERMISSION = "com.phill.sonytether.USB_PERMISSION"
+        const val REQUEST_IMPORT = 1
+        const val REQUEST_LOGO = 2
+        const val REQUEST_BRAND = 4
+        const val KEY_SLIDE_MODE = "slideMode"
+        const val KEY_FRAME = "frame"
+        const val SCREEN_PX = 1920
+
+        /** Enquanto um slider do editor é arrastado, a prévia sai menor para acompanhar o dedo. */
+        const val EDIT_PREVIEW_PX = 1024
+        const val CROP_PREVIEW_PX = 1600
+        const val KEY_FILTER = "filter"
+        const val RETRY_MIN_MS = 3000L
+        const val RETRY_MAX_MS = 20000L
+        const val GALLERY_THUMB_PX = 480
+        val FILTERS = arrayOf("Todas", "Favoritas", "3★ ou mais", "5★", "Escondidas")
+        const val FILTER_HIDDEN = 4
+        const val MUTED = Palette.TEXT2
+        const val THUMB_H = 64
+        const val LINK_OFF = 0
+        const val LINK_CONNECTING = 1
+        const val LINK_ON = 2
+        const val LINK_ERROR = 3
+    }
+}
