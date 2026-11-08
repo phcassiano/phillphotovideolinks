@@ -62,10 +62,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private lateinit var watermark: Watermark
     private lateinit var brandSettings: BrandSettings
     private lateinit var license: LicenseManager
-    private lateinit var licenseTitle: TextView
-    private lateinit var licenseDetail: TextView
-    private lateinit var licenseDevice: TextView
-    private lateinit var renewButton: Button
+    private lateinit var licenseBanner: TextView
     private lateinit var presetStrip: PresetStrip
     private var camera: CameraSession? = null
     private val main = Handler(Looper.getMainLooper())
@@ -97,22 +94,23 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
     private val ui by lazy { Ui(this) }
     private lateinit var root: LinearLayout
     private lateinit var stage: FrameLayout
-    private lateinit var panel: ScrollView
+    private lateinit var panel: LinearLayout
+    private lateinit var pageScroll: ScrollView
+    private val tabs = ArrayList<TextView>()
+    private val pages = ArrayList<LinearLayout>()
     private lateinit var viewer: ZoomImageView
     private lateinit var hint: TextView
     private lateinit var badge: TextView
     private lateinit var ratingBar: LinearLayout
     private lateinit var heart: ImageView
     private lateinit var stars: List<ImageView>
-    private lateinit var hideButton: ImageView
+    private lateinit var moreButton: ImageView
     private lateinit var emptyState: LinearLayout
     private lateinit var topBar: LinearLayout
     private lateinit var photoTitle: TextView
     private lateinit var photoInfo: TextView
     private lateinit var statusDot: View
     private lateinit var statusTitle: TextView
-    private lateinit var hidePanelButton: Button
-    private lateinit var deletePanelButton: Button
     private lateinit var editPanelButton: Button
     private lateinit var cropPanelButton: Button
     private lateinit var strip: HorizontalScrollView
@@ -1124,19 +1122,31 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             star.setImageResource(if (i < photo.rating) R.drawable.ic_star else R.drawable.ic_star_border)
             star.imageTintList = ColorStateList.valueOf(if (i < photo.rating) Palette.GOLD else Color.WHITE)
         }
-        hideButton.setImageResource(if (photo.hidden) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
-        hideButton.contentDescription = if (photo.hidden) "Mostrar de novo" else "Esconder"
     }
 
     /** Botões do painel para a foto da tela; ficam desligados sem foto. */
     private fun updatePhotoButtons() {
         val photo = current
-        hidePanelButton.isEnabled = photo != null
-        deletePanelButton.isEnabled = photo != null
         editPanelButton.isEnabled = photo != null
         cropPanelButton.isEnabled = photo != null
-        hidePanelButton.text = if (photo?.hidden == true) "Mostrar" else "Esconder"
-        ui.setIcon(hidePanelButton, if (photo?.hidden == true) R.drawable.ic_visibility else R.drawable.ic_visibility_off)
+    }
+
+    /** "⋯" da barra da foto: o que se usa menos (recortar, esconder, apagar). */
+    private fun photoMore(anchor: View) {
+        val photo = current ?: return
+        android.widget.PopupMenu(this, anchor).apply {
+            menu.add(0, 1, 0, "Recortar e girar")
+            menu.add(0, 2, 1, if (photo.hidden) "Mostrar de novo" else "Esconder")
+            menu.add(0, 3, 2, "Apagar…")
+            setOnMenuItemClickListener {
+                when (it.itemId) {
+                    1 -> openCrop()
+                    2 -> toggleHidden(photo)
+                    else -> confirmDelete(photo)
+                }
+                true
+            }
+        }.show()
     }
 
     /** Segurar uma miniatura: esconder ou apagar sem precisar abrir a foto. */
@@ -1595,7 +1605,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val (title, detail, color) = when (state) {
             is LicenseManager.State.Trial -> Triple(
                 "Teste grátis",
-                if (state.daysLeft == 0L) "Último dia de teste." else "${state.daysLeft + 1} dias restantes de teste.",
+                if (state.daysLeft == 0L) "último dia" else "${state.daysLeft + 1} dias restantes",
                 if (state.daysLeft <= 2) Palette.GOLD else Palette.TEXT2,
             )
             is LicenseManager.State.Licensed -> Triple(
@@ -1611,11 +1621,49 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             )
             is LicenseManager.State.Revoked -> Triple("Chave cancelada", "Fale com o suporte do Revela.", Palette.RED)
         }
-        licenseTitle.text = title
-        licenseDetail.text = detail
-        licenseDetail.setTextColor(color)
-        licenseDevice.text = "Código deste tablet: ${license.deviceCode}"
-        renewButton.text = if (state is LicenseManager.State.Licensed) "Renovar assinatura" else "Assinar o Revela"
+        // Só aparece quando pede atenção: teste, vencendo, vencida ou cancelada.
+        val attention = state !is LicenseManager.State.Licensed || state.daysLeft <= 7
+        licenseBanner.visibility = if (attention) View.VISIBLE else View.GONE
+        licenseBanner.text = "$title · ${detail.trimEnd('.')}  ›"
+        licenseBanner.setTextColor(if (color == Palette.TEXT2) Palette.GOLD else color)
+    }
+
+    /** Ajustes: assinatura, ajuda, diagnóstico e versão (o que não precisa ficar na tela). */
+    private fun showSettings() {
+        val state = license.state()
+        val (title, detail) = when (state) {
+            is LicenseManager.State.Trial -> "Teste grátis" to (if (state.daysLeft == 0L) "Último dia de teste." else "${state.daysLeft + 1} dias restantes.")
+            is LicenseManager.State.Licensed -> "Plano ${state.license.plan}" to "Válida até ${LicenseManager.format(state.license.until)}" +
+                (state.license.name.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+            is LicenseManager.State.Expired -> "Assinatura vencida" to "Insira uma chave nova para continuar."
+            is LicenseManager.State.Revoked -> "Chave cancelada" to "Fale com o suporte do Revela."
+        }
+        lateinit var dialog: AlertDialog
+        fun close(action: () -> Unit) = { dialog.dismiss(); action() }
+        val column = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            addView(ui.cardTitle(R.drawable.ic_workspace_premium, "Assinatura"))
+            addView(ui.text(title, 16f, Palette.TEXT, bold = true))
+            addView(ui.text(detail, 13f, Palette.TEXT2), ui.wrap(4))
+            addView(ui.row(R.drawable.ic_key, "Inserir chave de ativação", onClick = close { enterKey() }), ui.matchWidth(48, 14))
+            addView(ui.row(R.drawable.ic_workspace_premium, if (state is LicenseManager.State.Licensed) "Renovar assinatura" else "Assinar o Revela", onClick = close { openSubscribe() }), ui.matchWidth(48, 8))
+            addView(ui.text("Código deste tablet: ${license.deviceCode}", 12f, Palette.TEXT3).apply { setTextIsSelectable(true) }, ui.wrap(10))
+            addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Gestos na foto").apply { setPadding(0, dp(24), 0, dp(10)) })
+            for (tip in listOf(
+                "Dois toques: zoom 100% para conferir o foco",
+                "Pinça: amplia · deslizar: troca de foto",
+                "Segurar a foto: vê sem o preset",
+                "Segurar uma miniatura: esconder ou apagar",
+            )) addView(ui.text("•  $tip", 13f, Palette.TEXT2), ui.wrap(6))
+            addView(ui.row(R.drawable.ic_bug_report, "Diagnóstico", onClick = close { showDiagnostics() }), ui.matchWidth(48, 22))
+            addView(ui.text("Revela ${BuildConfig.VERSION_NAME}", 12f, Palette.TEXT3), ui.wrap(14))
+        }
+        dialog = AlertDialog.Builder(this)
+            .setTitle("Ajustes")
+            .setView(ScrollView(this).apply { addView(column) })
+            .setPositiveButton("Fechar", null)
+            .show()
     }
 
     private fun showPaywall(state: LicenseManager.State = license.state()) {
@@ -1748,17 +1796,17 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         val entry = library.active()
         val stamp = watermark.snapshot()
         look = Look(entry?.let { PresetLook(it.preset, library.amount / 100f) }, stamp, "${presetSignature()}|${stamp?.signature ?: "-"}")
-        presetButton.text = entry?.preset?.name?.let { "$it" } ?: "Sem preset"
+        presetButton.text = "Presets (${library.all().size})"
         amountBar.isEnabled = entry != null
         amountLabel.text = "${library.amount}%"
         val ignored = entry?.preset?.ignored.orEmpty()
         presetNote.text = if (ignored.isEmpty()) "" else "Não reproduzido neste app: ${ignored.joinToString(", ")}"
         presetNote.visibility = if (ignored.isEmpty()) View.GONE else View.VISIBLE
         watermarkButton.text = when {
-            stamp == null && watermark.enabled -> "Ligada, mas sem logo nem texto"
-            stamp == null -> "Desligada"
-            watermark.hasLogo -> "Ligada: logo"
-            else -> "Ligada: \"${watermark.text.trim()}\""
+            stamp == null && watermark.enabled -> "Marca d'água: sem logo nem texto"
+            stamp == null -> "Marca d'água: desligada"
+            watermark.hasLogo -> "Marca d'água: logo"
+            else -> "Marca d'água: \"${watermark.text.trim()}\""
         }
         presetStrip.highlight()
         if (lastAmount != library.amount) {
@@ -2094,15 +2142,26 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 "Sony, Canon ou Nikon pelo cabo USB, ou qualquer câmera com FTP pelo Wi-Fi.\nCada foto aparece aqui assim que você dispara.",
                 14f, Palette.TEXT2,
             ).apply { gravity = Gravity.CENTER }, ui.wrap(10))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+                addView(ui.primary(R.drawable.ic_usb, "Conectar pelo cabo") {
+                    askedPermissionFor = null
+                    connect()
+                }.apply { setPadding(dp(20), 0, dp(24), 0) }, LinearLayout.LayoutParams(WRAP_CONTENT, dp(48)))
+                addView(ui.row(R.drawable.ic_wifi, "Wi-Fi (FTP)", chevron = false) { ftpDialog() }.apply {
+                    setPadding(dp(18), 0, dp(22), 0)
+                }, LinearLayout.LayoutParams(WRAP_CONTENT, dp(48)).apply { marginStart = dp(10) })
+            }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply { topMargin = dp(28) })
         }
 
         badge = ui.pill("ORIGINAL", 0xFF1A1307.toInt(), Palette.GOLD).apply { visibility = View.GONE }
 
         heart = iconButton(R.drawable.ic_favorite_border, "Favorita") { toggleFavorite() }
         stars = (1..5).map { n -> iconButton(R.drawable.ic_star_border, "$n estrelas") { rate(n) }.apply { setPadding(dp(9), dp(9), dp(9), dp(9)) } }
-        hideButton = iconButton(R.drawable.ic_visibility_off, "Esconder") { toggleHidden() }
-        val trash = iconButton(R.drawable.ic_delete_outline, "Apagar") { confirmDelete() }
         val edit = iconButton(R.drawable.ic_tune, "Editar foto") { toggleEditor() }
+        moreButton = iconButton(R.drawable.ic_more_vert, "Mais opções") {}
+        moreButton.setOnClickListener { photoMore(it) }
         ratingBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -2115,8 +2174,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
                 marginEnd = dp(6)
             })
             addView(edit)
-            addView(hideButton)
-            addView(trash)
+            addView(moreButton)
         }
         photoTitle = ui.text("", 16f, Color.WHITE, bold = true).apply { isSingleLine = true }
         photoInfo = ui.text("", 12f, 0xCCFFFFFF.toInt()).apply { isSingleLine = true }
@@ -2183,75 +2241,102 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             })
         }
 
-        val column = LinearLayout(this).apply {
+        // Painel: cabeçalho fixo (marca, câmera, assinatura, abas) e uma aba por vez embaixo.
+        statusDot = ui.dot(Palette.TEXT3)
+        statusTitle = ui.text("Câmera desconectada", 14f, Palette.TEXT, bold = true).apply {
+            isSingleLine = true
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        }
+        licenseBanner = ui.text("", 12f, Palette.GOLD, bold = true).apply {
+            background = ui.ripple(ui.rounded(0x14E9B45A, 10, 0x40E9B45A), 10)
+            setPadding(dp(12), dp(9), dp(12), dp(9))
+            visibility = View.GONE
+            setOnClickListener { showSettings() }
+        }
+        val header = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(20), dp(16), dp(24))
+            setPadding(dp(16), dp(18), dp(16), dp(10))
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(FrameLayout(this@MainActivity).apply {
+                    background = ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2A2214.toInt(), 0xFF16130D.toInt(), radiusDp = 10)
+                    addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 20), FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
+                }, LinearLayout.LayoutParams(dp(34), dp(34)))
+                addView(ui.text("Revela", 18f, Palette.TEXT, bold = true), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(10) })
+                addView(ImageView(this@MainActivity).apply {
+                    setImageResource(R.drawable.ic_settings)
+                    imageTintList = ColorStateList.valueOf(Palette.TEXT2)
+                    contentDescription = "Ajustes"
+                    setPadding(dp(8), dp(8), dp(8), dp(8))
+                    background = ui.ripple(null, 18)
+                    setOnClickListener { showSettings() }
+                }, LinearLayout.LayoutParams(dp(40), dp(40)))
+            })
+            // Câmera: um selo que diz tudo de relance; tocar leva à aba Captura.
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                background = ui.ripple(ui.rounded(Palette.CARD, 12, Palette.STROKE), 12)
+                setPadding(dp(14), 0, dp(10), 0)
+                addView(statusDot)
+                addView(statusTitle, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(10) })
+                addView(ui.icon(R.drawable.ic_chevron_right, Palette.TEXT3, 18))
+                setOnClickListener { selectTab(TAB_CAPTURE) }
+            }, ui.matchWidth(44, 14))
+            addView(licenseBanner, ui.wrap(8))
+            // Abas: o que se faz em cada momento do ensaio.
+            addView(LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                background = ui.rounded(0xFF101014.toInt(), 12, Palette.STROKE)
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                for ((i, name) in listOf("Captura", "Visual", "Entregar").withIndex()) {
+                    val tab = ui.text(name, 13f, Palette.TEXT2, bold = true).apply {
+                        gravity = Gravity.CENTER
+                        setOnClickListener { selectTab(i) }
+                    }
+                    tabs += tab
+                    addView(tab, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f))
+                }
+            }, ui.matchWidth(44, 14))
         }
 
-        // Cabeçalho: marca, nome e versão.
-        column.addView(LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(4), 0, dp(4), dp(18))
-            addView(FrameLayout(this@MainActivity).apply {
-                background = ui.gradient(GradientDrawable.Orientation.TL_BR, 0xFF2A2214.toInt(), 0xFF16130D.toInt(), radiusDp = 12)
-                addView(ui.icon(R.drawable.ic_camera, Palette.GOLD, 24), FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
-            }, LinearLayout.LayoutParams(dp(42), dp(42)))
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(dp(12), 0, 0, 0)
-                addView(ui.text("Revela", 19f, Palette.TEXT, bold = true))
-                addView(ui.text("Sony · Canon · Nikon · Wi-Fi", 12f, Palette.TEXT3), ui.wrap(3))
-            }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-            addView(ui.pill(BuildConfig.VERSION_NAME.replace("-beta", " BETA"), Palette.GOLD, 0x14E9B45A, 0x55E9B45A))
-        })
+        fun page() = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(6), dp(16), dp(24))
+        }.also { pages += it }
 
-        // Câmera: estado da conexão.
-        statusDot = ui.dot(Palette.TEXT3)
-        statusTitle = ui.text("Câmera desconectada", 16f, Palette.TEXT, bold = true)
+        // Aba Captura: conexão e sessão.
         status = ui.text("Ligue a câmera pelo cabo USB ou ative o Wi-Fi (FTP).", 13f, Palette.TEXT2)
         ftpButton = ui.row(R.drawable.ic_wifi, "Receber pelo Wi-Fi (FTP)") { ftpDialog() }
         connectButton = ui.primary(R.drawable.ic_usb, "Conectar câmera") {
             askedPermissionFor = null
             connect()
         }
-        column.addView(ui.card().apply {
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                addView(statusDot)
-                addView(statusTitle, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = dp(10) })
-                addView(ImageView(this@MainActivity).apply {
-                    setImageResource(R.drawable.ic_bug_report)
-                    imageTintList = ColorStateList.valueOf(Palette.TEXT3)
-                    contentDescription = "Diagnóstico"
-                    setPadding(dp(6), dp(6), dp(6), dp(6))
-                    background = ui.ripple(null, 16)
-                    setOnClickListener { showDiagnostics() }
-                }, LinearLayout.LayoutParams(dp(32), dp(32)))
-            })
-            addView(status, ui.wrap(8))
-            addView(connectButton, ui.matchWidth(48, 14))
-            addView(ftpButton, ui.matchWidth(48, 8))
-        }, ui.wrap())
-
-        // Sessão
         sessionButton = ui.row(R.drawable.ic_folder, "") { chooseSession() }
         filterButton = ui.row(R.drawable.ic_filter_list, "") { chooseFilter() }
         counter = ui.text("Nenhuma foto ainda", 12f, Palette.TEXT3)
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_photo_library, "Sessão"))
-            addView(sessionButton, ui.matchWidth(48))
-            addView(filterButton, ui.matchWidth(48, 8))
-            addView(counter, ui.wrap(12))
-        }, ui.wrap(12))
+        page().apply {
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_usb, "Câmera"))
+                addView(status)
+                addView(connectButton, ui.matchWidth(48, 14))
+                addView(ftpButton, ui.matchWidth(48, 8))
+            }, ui.wrap())
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_photo_library, "Sessão"))
+                addView(sessionButton, ui.matchWidth(48))
+                addView(filterButton, ui.matchWidth(48, 8))
+                addView(counter, ui.wrap(12))
+            }, ui.wrap(12))
+        }
 
-        // Preset
+        // Aba Visual: preset, ajustes da foto e como ela sai.
         presetStrip = PresetStrip(this, ui, library) { file ->
             library.activeFile = file
             lookChanged()
         }
-        presetButton = ui.row(R.drawable.ic_tune, "Sem preset") { choosePreset() }
+        presetButton = ui.row(R.drawable.ic_tune, "Presets") { choosePreset() }
         amountLabel = ui.text("", 13f, Palette.GOLD, bold = true)
         amountBar = SeekBar(this).apply {
             max = 100
@@ -2272,46 +2357,44 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
             })
         }
         presetNote = ui.text("", 12f, Palette.TEXT3)
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Preset do Lightroom"))
-            addView(presetStrip.view, ui.wrap(2).apply { bottomMargin = dp(12) })
-            addView(presetButton, ui.matchWidth(48))
-            addView(ui.row(R.drawable.ic_upload_file, "Importar preset…", chevron = false) { importPreset() }, ui.matchWidth(48, 8))
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                addView(ui.text("Intensidade", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-                addView(amountLabel)
-            }, ui.wrap(16))
-            addView(amountBar, ui.wrap(4))
-            addView(presetNote, ui.wrap(4))
-        }, ui.wrap(12))
-
-        // Marca d'água
-        watermarkButton = ui.row(R.drawable.ic_branding_watermark, "Desligada") { editWatermark() }
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_branding_watermark, "Marca d'água"))
-            addView(watermarkButton, ui.matchWidth(48))
-        }, ui.wrap(12))
-
-        // Foto da tela
+        editPanelButton = ui.row(R.drawable.ic_tune, "Luz e cor", chevron = false) { toggleEditor() }
+        cropPanelButton = ui.row(R.drawable.ic_crop, "Recortar", chevron = false) { openCrop() }
+        watermarkButton = ui.row(R.drawable.ic_branding_watermark, "Marca d'água: desligada") { editWatermark() }
         frameButton = ui.row(R.drawable.ic_crop, "Moldura: Nenhuma") { chooseFrame() }
-        editPanelButton = ui.row(R.drawable.ic_tune, "Editar foto: luz e cor") { toggleEditor() }
-        cropPanelButton = ui.row(R.drawable.ic_crop, "Recortar e girar") { openCrop() }
-        hidePanelButton = ui.row(R.drawable.ic_visibility_off, "Esconder", chevron = false) { toggleHidden() }
-        deletePanelButton = ui.row(R.drawable.ic_delete_outline, "Apagar", chevron = false, color = Palette.RED) { confirmDelete() }
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_photo_camera, "Foto da tela"))
-            addView(LinearLayout(this@MainActivity).apply {
-                orientation = LinearLayout.HORIZONTAL
-                addView(hidePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
-                addView(deletePanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
-            })
-            addView(editPanelButton, ui.matchWidth(48, 8))
-            addView(cropPanelButton, ui.matchWidth(48, 8))
-            addView(frameButton, ui.matchWidth(48, 8))
-        }, ui.wrap(12))
+        page().apply {
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_auto_awesome, "Preset do Lightroom"))
+                addView(presetStrip.view, ui.wrap(2))
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(ui.text("Intensidade", 13f, Palette.TEXT2), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+                    addView(amountLabel)
+                }, ui.wrap(14))
+                addView(amountBar, ui.wrap(4))
+                addView(presetNote, ui.wrap(4))
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(presetButton, LinearLayout.LayoutParams(0, dp(44), 1f))
+                    addView(ui.row(R.drawable.ic_upload_file, "Importar", chevron = false) { importPreset() },
+                        LinearLayout.LayoutParams(WRAP_CONTENT, dp(44)).apply { marginStart = dp(8) })
+                }, ui.wrap(10))
+            }, ui.wrap())
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_photo_camera, "Esta foto"))
+                addView(LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    addView(editPanelButton, LinearLayout.LayoutParams(0, dp(48), 1f))
+                    addView(cropPanelButton, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginStart = dp(8) })
+                })
+            }, ui.wrap(12))
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_branding_watermark, "Assinatura visual"))
+                addView(watermarkButton, ui.matchWidth(48))
+                addView(frameButton, ui.matchWidth(48, 8))
+            }, ui.wrap(12))
+        }
 
-        // Entregar
+        // Aba Entregar
         shareButton = ui.primary(R.drawable.ic_share, "Compartilhar esta foto") { current?.let { share(listOf(it)) } }
         shareButton.isEnabled = false
         shareAllButton = ui.row(R.drawable.ic_photo_library, "Compartilhar todas (0)", chevron = false) { share(visiblePhotos()) }
@@ -2319,47 +2402,50 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         qrButton = ui.row(R.drawable.ic_qr_code_2, "QR code para o cliente") { showQr() }
         slideshowButton = ui.row(R.drawable.ic_tv, "Slideshow para TV") { showSlideshow() }
         brandButton = ui.row(R.drawable.ic_storefront, "Sua marca na galeria") { editBrand() }
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_share, "Entregar"))
-            addView(shareButton, ui.matchWidth(50))
-            addView(shareAllButton, ui.matchWidth(48, 8))
-            addView(qrButton, ui.matchWidth(48, 8))
-            addView(slideshowButton, ui.matchWidth(48, 8))
-            addView(brandButton, ui.matchWidth(48, 8))
-            addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
-        }, ui.wrap(12))
-
-        // Assinatura
-        licenseTitle = ui.text("", 16f, Palette.TEXT, bold = true)
-        licenseDetail = ui.text("", 13f, Palette.TEXT2)
-        licenseDevice = ui.text("", 12f, Palette.TEXT3).apply { setTextIsSelectable(true) }
-        renewButton = ui.row(R.drawable.ic_workspace_premium, "Assinar o Revela") { openSubscribe() }
-        column.addView(ui.card().apply {
-            addView(ui.cardTitle(R.drawable.ic_workspace_premium, "Assinatura"))
-            addView(licenseTitle)
-            addView(licenseDetail, ui.wrap(4))
-            addView(ui.row(R.drawable.ic_key, "Inserir chave de ativação") { enterKey() }, ui.matchWidth(48, 14))
-            addView(renewButton, ui.matchWidth(48, 8))
-            addView(licenseDevice, ui.wrap(10))
-        }, ui.wrap(12))
-
-        column.addView(ui.text(
-            "Dois toques: zoom 100% para conferir o foco · pinça amplia · deslize para trocar de foto · " +
-                "segure para ver sem o preset · segure uma miniatura para esconder ou apagar",
-            12f, Palette.TEXT3,
-        ).apply { setPadding(dp(4), 0, dp(4), 0) }, ui.wrap(16))
-
-        panel = ScrollView(this).apply {
-            setBackgroundColor(Palette.PANEL)
-            isVerticalScrollBarEnabled = false
-            addView(column)
+        page().apply {
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_share, "Enviar"))
+                addView(shareButton, ui.matchWidth(50))
+                addView(shareAllButton, ui.matchWidth(48, 8))
+            }, ui.wrap())
+            addView(ui.card().apply {
+                addView(ui.cardTitle(R.drawable.ic_qr_code_2, "Mostrar ao cliente"))
+                addView(qrButton, ui.matchWidth(48))
+                addView(slideshowButton, ui.matchWidth(48, 8))
+                addView(ui.row(R.drawable.ic_fullscreen, "Modo cliente (tela cheia)") { setClientMode(true) }, ui.matchWidth(48, 8))
+                addView(brandButton, ui.matchWidth(48, 8))
+            }, ui.wrap(12))
         }
+
+        pageScroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            addView(FrameLayout(this@MainActivity).apply { pages.forEach { addView(it) } })
+        }
+        panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Palette.PANEL)
+            addView(header)
+            addView(pageScroll, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
+        }
+        selectTab(prefs().getInt(KEY_TAB, TAB_CAPTURE))
         root = LinearLayout(this).apply {
             setBackgroundColor(Palette.PANEL)
             addView(stage)
             addView(panel)
         }
         setContentView(root)
+    }
+
+    private fun selectTab(index: Int) {
+        val i = index.coerceIn(0, pages.size - 1)
+        pages.forEachIndexed { k, page -> page.visibility = if (k == i) View.VISIBLE else View.GONE }
+        tabs.forEachIndexed { k, tab ->
+            val on = k == i
+            tab.setTextColor(if (on) 0xFF1A1307.toInt() else Palette.TEXT2)
+            tab.background = if (on) ui.rounded(Palette.GOLD, 9) else ui.ripple(null, 9)
+        }
+        pageScroll.scrollTo(0, 0)
+        prefs().edit().putInt(KEY_TAB, i).apply()
     }
 
     private fun showDiagnostics() {
@@ -2393,7 +2479,7 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         } else {
             root.orientation = LinearLayout.HORIZONTAL
             stage.layoutParams = LinearLayout.LayoutParams(0, MATCH_PARENT, 1f)
-            panel.layoutParams = LinearLayout.LayoutParams(dp(340), MATCH_PARENT)
+            panel.layoutParams = LinearLayout.LayoutParams(dp(360), MATCH_PARENT)
         }
     }
 
@@ -2417,6 +2503,8 @@ class MainActivity : Activity(), CameraSession.Listener, ZoomImageView.Listener,
         const val REQUEST_BRAND = 4
         const val KEY_SLIDE_MODE = "slideMode"
         const val KEY_FRAME = "frame"
+        const val KEY_TAB = "tab"
+        const val TAB_CAPTURE = 0
         const val SCREEN_PX = 1920
 
         /** Enquanto um slider do editor é arrastado, a prévia sai menor para acompanhar o dedo. */

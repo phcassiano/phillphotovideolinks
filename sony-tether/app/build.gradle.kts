@@ -13,8 +13,8 @@ android {
         applicationId = "com.phill.sonytether"
         minSdk = 29
         targetSdk = 34
-        versionCode = 23
-        versionName = "0.9.10-beta"
+        versionCode = 24
+        versionName = "0.9.11-beta"
     }
 
     // A chave de assinatura fica FORA do repositório (quem tem a chave consegue publicar

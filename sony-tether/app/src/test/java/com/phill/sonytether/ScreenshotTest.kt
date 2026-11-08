@@ -9,7 +9,6 @@ import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.view.View
-import android.widget.ScrollView
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -97,15 +96,28 @@ class ScreenshotTest {
         shadowOf(android.os.Looper.getMainLooper()).idle()
         save(root, "2-com-foto")
 
-        val panel = activity.javaClass.getDeclaredField("panel").apply { isAccessible = true }.get(activity) as ScrollView
-        panel.scrollTo(0, 700)
         val viewer = activity.javaClass.getDeclaredField("viewer").apply { isAccessible = true }.get(activity) as ZoomImageView
+        fun relayout() {
+            shadowOf(android.os.Looper.getMainLooper()).idle()
+            root.measure(View.MeasureSpec.makeMeasureSpec(root.width, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(root.height, View.MeasureSpec.EXACTLY))
+            root.layout(0, 0, root.width, root.height)
+        }
+        call(activity, "selectTab", 1)
         viewer.frame = 4 // story 9:16
-        save(root, "3-moldura-e-presets")
+        relayout()
+        save(root, "3-aba-visual")
 
         viewer.frame = 0
-        panel.scrollTo(0, 10_000)
-        save(root, "4-painel-entregar")
+        call(activity, "selectTab", 2)
+        relayout()
+        save(root, "4-aba-entregar")
+        call(activity, "selectTab", 0)
+
+        call(activity, "showSettings")
+        shadowOf(android.os.Looper.getMainLooper()).idle()
+        val settings = ShadowDialog.getLatestDialog() as AlertDialog
+        save(settings.window!!.decorView, "7-ajustes")
+        settings.dismiss()
 
         call(activity, "editBrand")
         shadowOf(android.os.Looper.getMainLooper()).idle()
