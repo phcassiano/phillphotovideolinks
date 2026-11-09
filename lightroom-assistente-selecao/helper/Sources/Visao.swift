@@ -19,11 +19,21 @@ enum Visao {
         (.leftAnkle, "tornozeloE"), (.rightAnkle, "tornozeloD"),
     ]
 
+    /// Criar um CIDetector é caro (monta um contexto gráfico): cada thread cria o seu uma vez só.
+    static func detectorDaThread() -> CIDetector? {
+        let chave = "assistente.ciDetector"
+        if let pronto = Thread.current.threadDictionary[chave] as? CIDetector { return pronto }
+        let contexto = CIContext(options: [.useSoftwareRenderer: false])
+        let novo = CIDetector(ofType: CIDetectorTypeFace, context: contexto,
+                              options: [CIDetectorAccuracy: CIDetectorAccuracyHigh])
+        Thread.current.threadDictionary[chave] = novo
+        return novo
+    }
+
     /// Sorrisos pelo detector do Core Image: lista de (retângulo do rosto em pixels, origem no
     /// canto superior esquerdo; está sorrindo?).
     static func sorrisosCoreImage(_ imagem: CGImage) -> [(CGRect, Bool)] {
-        guard let detector = CIDetector(ofType: CIDetectorTypeFace, context: nil,
-                                        options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]) else { return [] }
+        guard let detector = detectorDaThread() else { return [] }
         let altura = CGFloat(imagem.height)
         let rostos = detector.features(in: CIImage(cgImage: imagem), options: [CIDetectorSmile: true])
         return rostos.compactMap { f in

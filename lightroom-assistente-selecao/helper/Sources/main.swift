@@ -19,7 +19,7 @@ import CoreGraphics
 import ImageIO
 #endif
 
-let versao = "0.4.3"
+let versao = "0.4.4"
 /// Lado maior usado na análise. As medidas de nitidez dependem do tamanho,
 /// por isso toda foto é reduzida para o mesmo tamanho antes de medir.
 let ladoAnalise = 1024
@@ -211,7 +211,12 @@ func principal() -> Int32 {
 
     let resultados = Resultados(caminhos.count)
     DispatchQueue.concurrentPerform(iterations: caminhos.count) { i in
+        #if canImport(ObjectiveC)
+        // Libera a memória dos objetos da Apple (Vision, Core Image) a cada foto
+        autoreleasepool { resultados.guardar(i, linhaResultado(caminhos[i], opcoes)) }
+        #else
         resultados.guardar(i, linhaResultado(caminhos[i], opcoes))
+        #endif
     }
     let texto = "caminho\tmedia\tsombras\testouro\tnitidez\ttremor\tassinatura\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\tsorriso\texpressao\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
 

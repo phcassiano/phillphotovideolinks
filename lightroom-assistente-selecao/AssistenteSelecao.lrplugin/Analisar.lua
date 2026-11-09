@@ -18,7 +18,7 @@ local Comum = require 'Comum'
 local log = LrLogger('AssistenteSelecao')
 log:enable('logfile')
 
-local LOTE = 200            -- fotos por rodada (miniaturas -> análise -> catálogo)
+local LOTE = 50             -- fotos por rodada (miniaturas -> análise -> catálogo)
 local TAREFAS_PARALELAS = 4 -- pedidos de miniatura simultâneos
 local ESPERA_MAXIMA = 15    -- segundos por miniatura (depois disso, a foto vai para a exportação)
 
@@ -261,7 +261,10 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
 
     local progresso = LrProgressScope { title = 'Assistente de Seleção', functionContext = contexto }
     local inicio = LrDate.currentTime()
-    local contagem = { feitas = 0, total = #fotos }
+    log:info(string.format('início: %d fotos, miniaturas de %d px, rostos: %s', #fotos, tamanho,
+        tostring(Comum.usaVisao(p))))
+    -- Progresso: cada foto conta 2 passos (miniatura; análise + catálogo)
+    local contagem = { feitas = 0, total = #fotos * 2 }
     local totais = { normais = 0, falhas = 0, ignoradas = 0, analisadas = 0, grupos = 0, duplicadas = 0 }
     for _, k in ipairs(Comum.ordem) do totais[k] = 0 end
     local relatorio = {}           -- linhas na ordem da análise
@@ -283,13 +286,27 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                 arquivo = LrPathUtils.child(pasta, string.format('%06d.jpg', i)),
             }
         end
+        local t0 = LrDate.currentTime()
         gravarMiniaturas(itens, tamanho, progresso, contagem)
         if progresso:isCanceled() then break end
+        local comMiniatura = 0
+        for _, item in ipairs(itens) do if item.temMiniatura then comMiniatura = comMiniatura + 1 end end
+        log:info(string.format('lote %d: %d/%d miniaturas em %.1f s', rodada, comMiniatura, #itens,
+            LrDate.currentTime() - t0))
+        t0 = LrDate.currentTime()
         exportarFaltantes(itens, pasta, tamanho, progresso)
         if progresso:isCanceled() then break end
+        if comMiniatura < #itens then
+            log:info(string.format('lote %d: exportação de %d foto(s) em %.1f s', rodada, #itens - comMiniatura,
+                LrDate.currentTime() - t0))
+        end
 
         progresso:setCaption(string.format('Analisando %d–%d de %d', inicioLote, fimLote, #fotos))
+        t0 = LrDate.currentTime()
         local medidas = analisar(itens, pasta, rodada, p)
+        log:info(string.format('lote %d: análise em %.1f s', rodada, LrDate.currentTime() - t0))
+        t0 = LrDate.currentTime()
+        progresso:setCaption(string.format('Gravando no catálogo %d–%d de %d', inicioLote, fimLote, #fotos))
 
         catalogo:withWriteAccessDo('Assistente de Seleção', function()
             -- Fotos a pôr / tirar de cada coleção neste lote
@@ -392,6 +409,9 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                 end
             end
         end, { timeout = 120 })
+        log:info(string.format('lote %d: catálogo em %.1f s', rodada, LrDate.currentTime() - t0))
+        contagem.feitas = contagem.feitas + #itens
+        progresso:setPortionComplete(contagem.feitas, contagem.total)
 
         for _, item in ipairs(itens) do LrFileUtils.delete(item.arquivo) end
     end

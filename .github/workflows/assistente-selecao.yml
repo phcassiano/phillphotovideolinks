@@ -64,6 +64,11 @@ jobs:
           if tail -n +2 "$RUNNER_TEMP/r.tsv" | cut -f15 | grep -q .; then
             echo "::error::Houve erro na análise de alguma foto"; exit 1
           fi
+          # Desempenho: um lote de 200 fotos (as mesmas, repetidas), como no Lightroom
+          for i in $(seq 1 16); do cat "$RUNNER_TEMP/lista.txt"; done | head -200 > "$RUNNER_TEMP/lote.txt"
+          INICIO=$(date +%s)
+          "$BIN" --lista "$RUNNER_TEMP/lote.txt" --saida "$RUNNER_TEMP/lote.tsv" --visao --margem 0.02
+          echo "Lote de 200 fotos com rostos/corpo: $(( $(date +%s) - INICIO )) s"
           ROSTOS=$(tail -n +2 "$RUNNER_TEMP/r.tsv" | awk -F'\t' '$8 > 0' | wc -l)
           echo "Fotos com rosto detectado: $ROSTOS"
           [ "$ROSTOS" -gt 0 ] || { echo "::error::Nenhum rosto detectado: o Vision não está funcionando"; exit 1; }
