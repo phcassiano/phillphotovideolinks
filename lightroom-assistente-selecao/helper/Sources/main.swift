@@ -19,7 +19,7 @@ import CoreGraphics
 import ImageIO
 #endif
 
-let versao = "0.4.0"
+let versao = "0.4.3"
 /// Lado maior usado na análise. As medidas de nitidez dependem do tamanho,
 /// por isso toda foto é reduzida para o mesmo tamanho antes de medir.
 let ladoAnalise = 1024
@@ -204,7 +204,8 @@ func principal() -> Int32 {
         }
         caminhos += texto.split(whereSeparator: { $0 == "\n" || $0 == "\r" }).map(String.init).filter { !$0.isEmpty }
     }
-    guard !caminhos.isEmpty else {
+    // Lista vazia é válida (resultado só com o cabeçalho); sem lista e sem fotos é erro de uso.
+    guard !caminhos.isEmpty || arquivoLista != nil else {
         fputs("uso: assistente-analise --lista arquivo.txt --saida resultado.tsv\n", stderr); return 2
     }
 

@@ -17,5 +17,5 @@ return {
         { title = 'Configurações…', file = 'Configuracoes.lua' },
     },
 
-    VERSION = { major = 0, minor = 4, revision = 2 },
+    VERSION = { major = 0, minor = 4, revision = 3 },
 }

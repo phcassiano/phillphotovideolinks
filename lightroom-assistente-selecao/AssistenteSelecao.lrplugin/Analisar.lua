@@ -5,6 +5,7 @@
 local LrApplication = import 'LrApplication'
 local LrDate = import 'LrDate'
 local LrDialogs = import 'LrDialogs'
+local LrExportSession = import 'LrExportSession'
 local LrFileUtils = import 'LrFileUtils'
 local LrFunctionContext = import 'LrFunctionContext'
 local LrPathUtils = import 'LrPathUtils'
@@ -19,23 +20,24 @@ log:enable('logfile')
 
 local LOTE = 200            -- fotos por rodada (miniaturas -> análise -> catálogo)
 local TAREFAS_PARALELAS = 4 -- pedidos de miniatura simultâneos
-local ESPERA_MAXIMA = 60    -- segundos por miniatura
+local ESPERA_MAXIMA = 15    -- segundos por miniatura (depois disso, a foto vai para a exportação)
 
 -- Pede ao Lightroom a miniatura (já com a revelação aplicada) e grava em disco.
+-- O Lightroom pode chamar a resposta mais de uma vez: primeiro sem imagem (prévia ainda não
+-- pronta) e depois com ela. Só desiste quando o tempo acaba.
 local function gravarMiniatura(foto, destino, tamanho)
-    local pronto, dados, erro = false, nil, nil
+    local dados, erro = nil, nil
     local pedido = foto:requestJpegThumbnail(tamanho, tamanho, function(jpeg, msg)
-        if not pronto then
-            dados, erro, pronto = jpeg, msg, true
-        end
+        if jpeg and not dados then dados = jpeg end
+        if msg then erro = msg end
     end)
     local inicio = LrDate.currentTime()
-    while not pronto and LrDate.currentTime() - inicio < ESPERA_MAXIMA do
-        LrTasks.sleep(0.02)
+    while not dados and LrDate.currentTime() - inicio < ESPERA_MAXIMA do
+        LrTasks.sleep(0.05)
     end
     pedido = nil -- o pedido precisa ficar referenciado até aqui
     if not dados then
-        return false, erro or 'sem miniatura'
+        return false, erro or 'o Lightroom não entregou a miniatura'
     end
     local f = io.open(destino, 'wb')
     if not f then return false, 'não gravou arquivo temporário' end
@@ -67,24 +69,97 @@ local function gravarMiniaturas(itens, tamanho, progresso, contagem)
     end
 end
 
+-- Plano B: fotos sem miniatura são exportadas como JPEG pequeno (mais lento, mas sempre funciona).
+local function exportarFaltantes(itens, pasta, tamanho, progresso)
+    local faltantes, porFoto = {}, {}
+    for _, item in ipairs(itens) do
+        if not item.temMiniatura then
+            faltantes[#faltantes + 1] = item.foto
+            porFoto[item.foto] = item
+        end
+    end
+    if #faltantes == 0 then return end
+    log:info(#faltantes .. ' foto(s) sem miniatura; exportando')
+    progresso:setCaption('Gerando ' .. #faltantes .. ' imagem(ns) por exportação')
+
+    local destino = LrPathUtils.child(pasta, 'exportadas')
+    LrFileUtils.createAllDirectories(destino)
+    local sessao = LrExportSession {
+        photosToExport = faltantes,
+        exportSettings = {
+            LR_export_destinationType = 'specificFolder',
+            LR_export_destinationPathPrefix = destino,
+            LR_export_useSubfolder = false,
+            LR_collisionHandling = 'rename',
+            LR_format = 'JPEG',
+            LR_jpeg_quality = 0.85,
+            LR_export_colorSpace = 'sRGB',
+            LR_size_doConstrain = true,
+            LR_size_resizeType = 'wh',
+            LR_size_maxWidth = tamanho,
+            LR_size_maxHeight = tamanho,
+            LR_size_units = 'pixels',
+            LR_size_doNotEnlarge = true,
+            LR_outputSharpeningOn = false,
+            LR_minimizeEmbeddedMetadata = true,
+            LR_removeLocationMetadata = true,
+            LR_includeVideoFiles = false,
+            LR_useWatermark = false,
+            LR_reimportExportedPhoto = false,
+            LR_export_postProcessing = 'doNothing',
+        },
+    }
+    for _, rendicao in sessao:renditions() do
+        if progresso:isCanceled() then break end
+        local ok, caminhoOuErro = rendicao:waitForRender()
+        local item = porFoto[rendicao.photo]
+        if item then
+            if ok then
+                item.arquivo = caminhoOuErro
+                item.temMiniatura = true
+                item.erro = nil
+            else
+                item.erro = 'exportação: ' .. tostring(caminhoOuErro)
+            end
+        end
+    end
+end
+
+local function lerArquivo(caminho)
+    local f = io.open(caminho, 'r')
+    if not f then return '' end
+    local texto = f:read('*a') or ''
+    f:close()
+    return texto
+end
+
 -- Roda o programa auxiliar e devolve uma tabela arquivo -> medidas.
 local function analisar(itens, pasta, rodada, p)
     local lista = LrPathUtils.child(pasta, 'lista-' .. rodada .. '.txt')
     local saida = LrPathUtils.child(pasta, 'resultado-' .. rodada .. '.tsv')
+    local erros = LrPathUtils.child(pasta, 'erros-' .. rodada .. '.txt')
+    local quantas = 0
     local f = assert(io.open(lista, 'w'))
     for _, item in ipairs(itens) do
-        if item.temMiniatura then f:write(item.arquivo, '\n') end
+        if item.temMiniatura then
+            f:write(item.arquivo, '\n')
+            quantas = quantas + 1
+        end
     end
     f:close()
+    if quantas == 0 then return {} end
 
     local comando = Comum.aspas(Comum.caminhoAuxiliar()) .. ' --lista ' .. Comum.aspas(lista)
         .. ' --saida ' .. Comum.aspas(saida)
     if Comum.usaVisao(p) then
-        comando = comando .. ' --visao --margem ' .. string.format('%.4f', (p.margemBorda or 2) / 100)
+        comando = comando .. ' --visao --margem ' .. string.format('%.4f', (p.margemBorda or 2) / 100):gsub(',', '.')
     end
-    local status = LrTasks.execute(comando)
+    local status = LrTasks.execute(comando .. ' 2> ' .. Comum.aspas(erros))
     if status ~= 0 then
-        error('O programa de análise falhou (código ' .. tostring(status) .. ').\n' .. comando)
+        local detalhe = lerArquivo(erros)
+        log:error('auxiliar falhou (' .. tostring(status) .. '): ' .. comando .. '\n' .. detalhe)
+        error('O programa de análise falhou (código ' .. tostring(status) .. ').\n\n'
+            .. (detalhe ~= '' and detalhe or 'Sem mensagem.') .. '\n\nComando: ' .. comando)
     end
 
     -- Colunas: caminho media sombras estouro nitidez tremor assinatura
@@ -209,6 +284,8 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
             }
         end
         gravarMiniaturas(itens, tamanho, progresso, contagem)
+        if progresso:isCanceled() then break end
+        exportarFaltantes(itens, pasta, tamanho, progresso)
         if progresso:isCanceled() then break end
 
         progresso:setCaption(string.format('Analisando %d–%d de %d', inicioLote, fimLote, #fotos))
