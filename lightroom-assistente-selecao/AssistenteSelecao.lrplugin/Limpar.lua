@@ -13,7 +13,8 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
     local p = Comum.prefs()
     local catalogo = LrApplication.activeCatalog()
     local fotos = catalogo:getTargetPhotos()
-    local info = catalogo:batchGetRawMetadata(fotos, { 'keywords', 'colorNameForLabel', 'label', 'pickStatus' })
+    local info = catalogo:batchGetRawMetadata(fotos, { 'keywords', 'colorNameForLabel', 'pickStatus' })
+    local formatados = catalogo:batchGetFormattedMetadata(fotos, { 'label' })
 
     local marcadas = {}
     for _, foto in ipairs(fotos) do
@@ -43,7 +44,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
                 foto:setRawMetadata('pickStatus', 0)
             end
             for _, k in ipairs(Comum.todas) do foto:removeKeyword(palavras[k]) end
-            if Comum.ehCorDoAssistente(info[foto].colorNameForLabel, info[foto].label, p) then
+            if Comum.ehCorDoAssistente(info[foto].colorNameForLabel, formatados[foto] and formatados[foto].label, p) then
                 Comum.definirCor(foto, 'none')
             end
         end

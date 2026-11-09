@@ -149,8 +149,9 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
     end
 
     local info = catalogo:batchGetRawMetadata(alvo,
-        { 'isVideo', 'keywords', 'colorNameForLabel', 'label', 'pickStatus', 'dateTimeOriginal' })
-    local nomes = catalogo:batchGetFormattedMetadata(alvo, { 'fileName' })
+        { 'isVideo', 'keywords', 'colorNameForLabel', 'pickStatus', 'dateTimeOriginal' })
+    -- O texto do rótulo só existe como metadado formatado
+    local nomes = catalogo:batchGetFormattedMetadata(alvo, { 'fileName', 'label' })
     local fotos = {}
     for _, foto in ipairs(alvo) do
         if not info[foto].isVideo then fotos[#fotos + 1] = foto end
@@ -240,7 +241,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                     totais.analisadas = totais.analisadas + 1
                     local r, principal = Comum.classificar(m, p)
                     local corAtual = info[foto].colorNameForLabel
-                    local textoRotulo = info[foto].label
+                    local textoRotulo = nomes[foto] and nomes[foto].label
                     local marcadaAntes = Comum.temMarcacao(info[foto].keywords)
 
                     -- Palavras-chave e coleções: uma por problema, refeitas a cada análise

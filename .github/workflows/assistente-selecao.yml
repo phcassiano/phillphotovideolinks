@@ -33,6 +33,7 @@ jobs:
           brew install lua >/dev/null
           for f in AssistenteSelecao.lrplugin/*.lua; do luac -p "$f"; done
           lua testes/comum_teste.lua AssistenteSelecao.lrplugin
+          lua testes/chaves_teste.lua AssistenteSelecao.lrplugin
 
       - name: Montar instalador
         run: ./instalador/montar.sh

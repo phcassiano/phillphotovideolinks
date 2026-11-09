@@ -320,6 +320,7 @@ function M.definirCor(foto, cor, categoria)
         return
     end
     if cor == 'none' then
+        pcall(function() foto:setRawMetadata('colorNameForLabel', 'none') end)
         pcall(function() foto:setRawMetadata('label', '') end)
         return
     end
