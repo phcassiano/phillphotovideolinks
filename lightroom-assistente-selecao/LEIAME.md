@@ -33,20 +33,33 @@ Fotos sem problema não são alteradas.
 Olhos fechados e pessoas cortadas usam o Vision, a inteligência artificial que já vem no macOS
 (macOS 11 ou superior). Nada sai do computador.
 
-## Instalação (uma vez só)
+## Instalação
 
-1. Instale as ferramentas da Apple (se ainda não tiver). No Terminal:
-   ```
-   xcode-select --install
-   ```
-2. Compile o programa de análise:
-   ```
-   cd caminho/para/lightroom-assistente-selecao
-   ./helper/compilar.sh
-   ```
-   Deve aparecer `assistente-analise 0.4.0` e "Pronto". Ao atualizar o plugin, rode o script de novo.
-3. No Lightroom Classic: **Arquivo › Gerenciador de plug-ins › Adicionar** e escolha a pasta
+**Jeito fácil (instalador):**
+1. Feche o Lightroom Classic. Se você já tinha adicionado o plugin à mão pelo Gerenciador de
+   plug-ins, remova essa entrada antes.
+2. Baixe `AssistenteSelecao-<versão>.pkg` na página de versões (Releases) do repositório
+   (versões "assistente-selecao-v…").
+3. Abra o `.pkg`. Como o instalador não tem assinatura paga da Apple, o macOS pode dizer que não
+   consegue verificar o desenvolvedor: clique com o botão direito no arquivo › **Abrir** › **Abrir**
+   (ou **Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim**).
+4. Abra o Lightroom. O plugin é carregado sozinho a partir de
+   `/Library/Application Support/Adobe/Lightroom/Modules`.
+
+Para atualizar, baixe e rode o `.pkg` da versão nova. Para desinstalar, apague
+`AssistenteSelecao.lrplugin` dessa pasta.
+
+O instalador é gerado automaticamente por um Mac do GitHub (GitHub Actions) a cada mudança no
+plugin: ele compila o programa de análise para Apple Silicon e Intel, roda os testes e analisa
+fotos reais com o Vision antes de publicar.
+
+**Jeito manual (compilando no seu Mac):**
+1. `xcode-select --install` (ferramentas da Apple, uma vez só).
+2. `./helper/compilar.sh` dentro desta pasta.
+3. No Lightroom: **Arquivo › Gerenciador de plug-ins › Adicionar** e escolha
    `AssistenteSelecao.lrplugin`.
+
+Para gerar o instalador no seu próprio Mac: `./instalador/montar.sh` (sai em `dist/`).
 
 ## Uso
 

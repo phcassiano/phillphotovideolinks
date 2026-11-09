@@ -1,0 +1,6 @@
+#!/bin/bash
+# Depois de instalar: garante permissão de execução e remove a marca de "baixado da internet".
+PLUGIN="/Library/Application Support/Adobe/Lightroom/Modules/AssistenteSelecao.lrplugin"
+chmod 755 "$PLUGIN/bin/assistente-analise" 2>/dev/null || true
+xattr -dr com.apple.quarantine "$PLUGIN" 2>/dev/null || true
+exit 0

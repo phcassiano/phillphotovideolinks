@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>Assistente de Seleção __VERSAO__</title>
+    <welcome file="boas-vindas.html" mime-type="text/html"/>
+    <conclusion file="conclusao.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+    <domains enable_localSystem="true"/>
+    <os-version min="11.0"/>
+    <choices-outline>
+        <line choice="padrao"/>
+    </choices-outline>
+    <choice id="padrao" title="Assistente de Seleção">
+        <pkg-ref id="com.phillcassiano.assistenteselecao"/>
+    </choice>
+    <pkg-ref id="com.phillcassiano.assistenteselecao" version="__VERSAO__">componente.pkg</pkg-ref>
+</installer-gui-script>

@@ -1,0 +1,82 @@
+name: "Assistente de Seleção: gerar instalador"
+
+on:
+  push:
+    paths:
+      - "lightroom-assistente-selecao/**"
+      - ".github/workflows/assistente-selecao.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assistente-selecao-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instalador:
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: lightroom-assistente-selecao
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Testes das medidas e regras (Swift)
+        run: |
+          swiftc helper/Sources/Analise.swift helper/Sources/Pessoas.swift helper/Testes/main.swift -o "$RUNNER_TEMP/testes"
+          "$RUNNER_TEMP/testes"
+
+      - name: Testes do plugin (Lua)
+        run: |
+          brew install lua >/dev/null
+          for f in AssistenteSelecao.lrplugin/*.lua; do luac -p "$f"; done
+          lua testes/comum_teste.lua AssistenteSelecao.lrplugin
+
+      - name: Montar instalador
+        run: ./instalador/montar.sh
+
+      - name: Teste com fotos reais (Vision, rostos e corpo)
+        run: |
+          set -euo pipefail
+          FOTOS="$RUNNER_TEMP/fotos"; mkdir -p "$FOTOS"
+          for id in 1005 1011 1027 1062 64 91 338 342 433 453 593 659 823; do
+            curl -sSfL -o "$FOTOS/$id.jpg" "https://picsum.photos/id/$id/1600/1067" || echo "não baixou $id"
+          done
+          ls "$FOTOS"/*.jpg > "$RUNNER_TEMP/lista.txt"
+          mkdir -p "$RUNNER_TEMP/p" && unzip -q dist/AssistenteSelecao-*.zip -d "$RUNNER_TEMP/p"
+          BIN="$RUNNER_TEMP/p/AssistenteSelecao.lrplugin/bin/assistente-analise"
+          time "$BIN" --lista "$RUNNER_TEMP/lista.txt" --saida "$RUNNER_TEMP/r.tsv" --visao --margem 0.02
+          echo "arquivo | nitidez | tremor | rostos | olhos | pessoas | cortes | sorriso | expressão | erro"
+          tail -n +2 "$RUNNER_TEMP/r.tsv" | awk -F'\t' '{n=split($1,a,"/"); printf "%s | %s | %s | %s | %s | %s | %s | %s | %s | %s\n", a[n], $5, $6, $8, $9, $10, $12, $13, $14, $15}'
+          if tail -n +2 "$RUNNER_TEMP/r.tsv" | cut -f15 | grep -q .; then
+            echo "::error::Houve erro na análise de alguma foto"; exit 1
+          fi
+          ROSTOS=$(tail -n +2 "$RUNNER_TEMP/r.tsv" | awk -F'\t' '$8 > 0' | wc -l)
+          echo "Fotos com rosto detectado: $ROSTOS"
+          [ "$ROSTOS" -gt 0 ] || { echo "::error::Nenhum rosto detectado: o Vision não está funcionando"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: assistente-selecao-instalador
+          path: lightroom-assistente-selecao/dist/*
+
+      - name: Publicar na página de versões (Releases)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSAO=$(cat dist/VERSAO)
+          TAG="assistente-selecao-v$VERSAO"
+          NOTAS="Plugin Assistente de Seleção $VERSAO para Lightroom Classic (macOS 11+, Apple Silicon e Intel).
+
+          Baixe AssistenteSelecao-$VERSAO.pkg e abra. Se o macOS disser que não pode verificar o desenvolvedor: clique com o botão direito no arquivo > Abrir > Abrir (ou Ajustes do Sistema > Privacidade e Segurança > Abrir Mesmo Assim).
+
+          Gerado a partir de ${GITHUB_SHA::7}."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.pkg dist/*.zip --clobber
+            gh release edit "$TAG" --notes "$NOTAS"
+          else
+            gh release create "$TAG" dist/*.pkg dist/*.zip --prerelease --target "$GITHUB_SHA" \
+              --title "Assistente de Seleção $VERSAO" --notes "$NOTAS"
+          fi

@@ -1,0 +1,10 @@
+ASSISTENTE DE SELEÇÃO - instalação manual (alternativa ao instalador .pkg)
+
+1. Mova a pasta AssistenteSelecao.lrplugin para um lugar fixo
+   (por exemplo, Documentos/Lightroom Plugins).
+2. Abra o Terminal e rode (arraste a pasta para o Terminal no lugar do caminho):
+      xattr -dr com.apple.quarantine "/caminho/para/AssistenteSelecao.lrplugin"
+   Isso tira a marca de "baixado da internet", que faria o macOS bloquear o programa de análise.
+3. No Lightroom Classic: Arquivo > Gerenciador de plug-ins > Adicionar > escolha a pasta.
+
+Mais simples: use o instalador AssistenteSelecao-<versão>.pkg.
