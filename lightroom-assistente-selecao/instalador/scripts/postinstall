@@ -1,6 +1,20 @@
 #!/bin/bash
-# Depois de instalar: garante permissão de execução e remove a marca de "baixado da internet".
-PLUGIN="/Library/Application Support/Adobe/Lightroom/Modules/AssistenteSelecao.lrplugin"
-chmod 755 "$PLUGIN/bin/assistente-analise" 2>/dev/null || true
-xattr -dr com.apple.quarantine "$PLUGIN" 2>/dev/null || true
+# Coloca o plugin na pasta de módulos do Lightroom do usuário logado.
+ORIGEM="/Library/Application Support/AssistenteSelecao/AssistenteSelecao.lrplugin"
+USUARIO=$(stat -f%Su /dev/console)
+[ -n "$USUARIO" ] && [ "$USUARIO" != "root" ] || USUARIO="$USER"
+CASA=$(dscl . -read "/Users/$USUARIO" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+[ -n "$CASA" ] || CASA="/Users/$USUARIO"
+MODULOS="$CASA/Library/Application Support/Adobe/Lightroom/Modules"
+
+mkdir -p "$MODULOS"
+rm -rf "$MODULOS/AssistenteSelecao.lrplugin"
+ditto "$ORIGEM" "$MODULOS/AssistenteSelecao.lrplugin"
+chmod 755 "$MODULOS/AssistenteSelecao.lrplugin/bin/assistente-analise"
+xattr -dr com.apple.quarantine "$MODULOS/AssistenteSelecao.lrplugin" 2>/dev/null || true
+GRUPO=$(id -gn "$USUARIO" 2>/dev/null || echo staff)
+chown -R "$USUARIO:$GRUPO" "$CASA/Library/Application Support/Adobe/Lightroom/Modules"
+
+# Versão 0.4.0 instalava em /Library (todos os usuários): remove para não haver cópia duplicada
+rm -rf "/Library/Application Support/Adobe/Lightroom/Modules/AssistenteSelecao.lrplugin"
 exit 0

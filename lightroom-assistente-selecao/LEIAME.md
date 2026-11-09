@@ -40,11 +40,13 @@ Olhos fechados e pessoas cortadas usam o Vision, a inteligência artificial que 
    plug-ins, remova essa entrada antes.
 2. Baixe `AssistenteSelecao-<versão>.pkg` na página de versões (Releases) do repositório
    (versões "assistente-selecao-v…").
-3. Abra o `.pkg`. Como o instalador não tem assinatura paga da Apple, o macOS pode dizer que não
-   consegue verificar o desenvolvedor: clique com o botão direito no arquivo › **Abrir** › **Abrir**
-   (ou **Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim**).
-4. Abra o Lightroom. O plugin é carregado sozinho a partir de
-   `/Library/Application Support/Adobe/Lightroom/Modules`.
+3. Abra o `.pkg`. Como o instalador não tem assinatura paga da Apple, o macOS bloqueia na primeira
+   vez ("Apple could not verify…"): clique em **Done**, vá em **Ajustes do Sistema › Privacidade e
+   Segurança**, role até o fim e clique em **Abrir Mesmo Assim** (Open Anyway). Ou, no Terminal:
+   `sudo installer -pkg ~/Downloads/AssistenteSelecao-<versão>.pkg -target /`
+4. Reabra o Lightroom. O plugin é carregado sozinho a partir de
+   `~/Library/Application Support/Adobe/Lightroom/Modules` e aparece em
+   **Biblioteca › Extras do plug-in** (no módulo Biblioteca) e em **Arquivo › Extras do plug-in**.
 
 Para atualizar, baixe e rode o `.pkg` da versão nova. Para desinstalar, apague
 `AssistenteSelecao.lrplugin` dessa pasta.

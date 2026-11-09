@@ -37,6 +37,16 @@ jobs:
       - name: Montar instalador
         run: ./instalador/montar.sh
 
+      - name: Teste do instalador (instala de verdade e confere a pasta)
+        run: |
+          set -euo pipefail
+          sudo installer -pkg dist/AssistenteSelecao-*.pkg -target /
+          PLUGIN="$HOME/Library/Application Support/Adobe/Lightroom/Modules/AssistenteSelecao.lrplugin"
+          ls -la "$PLUGIN" "$PLUGIN/bin"
+          [ -f "$PLUGIN/Info.lua" ] || { echo "::error::Plugin não foi parar na pasta do usuário"; exit 1; }
+          [ "$(stat -f%Su "$PLUGIN/Info.lua")" = "$(id -un)" ] || { echo "::error::Plugin não pertence ao usuário"; exit 1; }
+          "$PLUGIN/bin/assistente-analise" --versao
+
       - name: Teste com fotos reais (Vision, rostos e corpo)
         run: |
           set -euo pipefail

@@ -40,10 +40,12 @@ chmod 755 "$PLUGIN/bin/assistente-analise"
 ( cd "$TRABALHO/plugin" && cp "$RAIZ/instalador/recursos/LEIA-ME.txt" . \
   && ditto -c -k --sequesterRsrc . "$DIST/AssistenteSelecao-$VERSAO.zip" )
 
-# 4. Pacote .pkg: instala na pasta de módulos do Lightroom (todos os usuários),
-#    de onde o Lightroom Classic carrega o plugin sozinho.
+# 4. Pacote .pkg: copia o plugin para uma pasta de apoio; o script pós-instalação o coloca
+#    na pasta de módulos do Lightroom do usuário logado (~/Library/.../Modules), de onde o
+#    Lightroom Classic carrega o plugin sozinho. (A pasta "para todos os usuários" em /Library
+#    não é carregada de forma confiável pelo Lightroom Classic atual.)
 CARGA="$TRABALHO/carga"
-DESTINO="$CARGA/Library/Application Support/Adobe/Lightroom/Modules"
+DESTINO="$CARGA/Library/Application Support/AssistenteSelecao"
 mkdir -p "$DESTINO"
 cp -R "$PLUGIN" "$DESTINO/"
 pkgbuild --root "$CARGA" --install-location / \
