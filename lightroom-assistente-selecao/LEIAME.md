@@ -1,14 +1,24 @@
 # Assistente de Seleção (plugin para Lightroom Classic, macOS)
 
-Versão 0.2. Analisa as fotos selecionadas e marca:
+Versão 0.3. Analisa as fotos selecionadas e marca:
 
 | Prioridade | Problema | Cor padrão |
 |---|---|---|
 | 1 | Sem foco | Azul |
-| 2 | Olhos fechados | Verde |
-| 3 | Pessoa cortada (cabeça, braço, tronco, perna/pé) | Roxo |
-| 4 | Muito clara / fundo estourado | Amarelo |
-| 5 | Muito escura | Vermelho |
+| 2 | Tremida (borrão de movimento) | Branco (rótulo "Tremida") |
+| 3 | Olhos fechados | Verde |
+| 4 | Pessoa cortada (cabeça, braço, tronco, perna/pé) | Roxo |
+| 5 | Muito clara / fundo estourado | Amarelo |
+| 6 | Muito escura | Vermelho |
+
+O Lightroom só tem 5 cores de rótulo; a 6ª ("branco") é um rótulo com o nome do problema, que
+aparece em branco na grade. Dá para trocar qualquer cor nas Configurações.
+
+**Duplicadas:** fotos quase iguais tiradas em sequência (por padrão, até 3 s entre uma e outra)
+viram um grupo. A melhor do grupo (mais nítida, descontando olhos fechados, tremido etc.) vai
+para **Melhor da sequência**; as outras, para **Duplicada**. Opcionalmente o plugin marca as
+duplicadas como rejeitadas (X) e a melhor como escolhida (bandeira). Duplicadas não recebem cor,
+para não esconder os outros problemas.
 
 Uma foto recebe **uma** cor: a do problema de maior prioridade. Além disso, cada problema vira
 uma **palavra-chave** (Assistente de Seleção › …) e uma **coleção** dentro do conjunto
@@ -29,7 +39,7 @@ Olhos fechados e pessoas cortadas usam o Vision, a inteligência artificial que 
    cd caminho/para/lightroom-assistente-selecao
    ./helper/compilar.sh
    ```
-   Deve aparecer `assistente-analise 0.2.0` e "Pronto". Ao atualizar o plugin, rode o script de novo.
+   Deve aparecer `assistente-analise 0.3.0` e "Pronto". Ao atualizar o plugin, rode o script de novo.
 3. No Lightroom Classic: **Arquivo › Gerenciador de plug-ins › Adicionar** e escolha a pasta
    `AssistenteSelecao.lrplugin`.
 
@@ -58,6 +68,8 @@ Os limites padrão são um ponto de partida. A cada análise o plugin salva na M
 - `nitidez`: nota dos trechos mais nítidos da foto. Fundo desfocado de propósito não derruba a nota.
 - `abertura_olhos_%`: abertura do olho mais fechado entre as pessoas principais (altura ÷ largura do
   olho). Aberto fica em torno de 25–40; fechado, 5–15. Vazio = nenhum rosto grande o bastante.
+- `tremor`: indício de tremido. Nítidas ficam abaixo de ~10; tremidas costumam passar de 15.
+- `assinatura` / `sequencia`: a "impressão digital" da foto e o número do grupo de repetidas.
 - `rostos` / `pessoas`: quantos rostos e corpos principais foram encontrados (pessoas pequenas ao
   fundo são ignoradas).
 - `partes_cortadas`: cabeca, braco, tronco, perna.
@@ -73,6 +85,12 @@ olhos e o brilho. Se o corte acusar demais, aumente/diminua a "distância da bor
   desligados) **já com a revelação aplicada** e grava numa pasta temporária, 200 fotos por vez.
 - O programa `assistente-analise` (Swift, roda no próprio Mac, sem internet) mede brilho,
   sombras, estouro e nitidez (Laplaciano por blocos, com contraste normalizado).
+- Tremido: em cada direção (0°, 45°, 90°, 135°) compara o detalhe fino (pixels vizinhos) com o
+  detalhe médio (2 px). O borrão de movimento derruba o detalhe fino só na direção do movimento,
+  na foto inteira; o desfoque comum derruba igual em todas e não conta como tremido.
+- Duplicadas: cada foto vira uma assinatura de 64 pontos (dHash). Fotos da mesma sequência
+  diferem em até ~10; fotos diferentes, em 17 ou mais. As fotos são ordenadas pelo horário de
+  captura e agrupadas quando estão perto no tempo e na assinatura.
 - Olhos: o Vision encontra os rostos e o contorno de cada olho; mede-se altura ÷ largura.
 - Cortes: o Vision encontra os pontos do corpo (cabeça, ombros, cotovelos, pulsos, quadris,
   joelhos, tornozelos). A pessoa é "cortada" quando o topo estimado da cabeça sai do quadro, uma
@@ -85,14 +103,17 @@ padrão na importação deixa a análise bem mais rápida.
 
 ## Testes (para desenvolvimento)
 
-As regras de olhos e cortes rodam em qualquer sistema:
+As medidas (nitidez, tremido, assinatura) e as regras de olhos e cortes rodam em qualquer sistema:
 ```
 cd helper
 swiftc Sources/Analise.swift Sources/Pessoas.swift Testes/main.swift -o /tmp/testes && /tmp/testes
 ```
+A lógica do plugin (prioridades, duplicadas, cores) também, com Lua 5.1:
+```
+lua5.1 testes/comum_teste.lua AssistenteSelecao.lrplugin
+```
 
 ## Próximos passos
 
-- Fotos tremidas (borrão de movimento numa direção).
-- Duplicadas e melhor foto de cada sequência.
-- Nitidez medida no rosto/pessoa em vez da foto inteira.
+- Nitidez e tremido medidos no rosto/pessoa em vez da foto inteira.
+- Melhor da sequência levando em conta expressão/sorriso.

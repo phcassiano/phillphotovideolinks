@@ -83,5 +83,51 @@ confere("pessoa pequena ao fundo cortada é ignorada", p.pessoas == 1 && p.corta
 p = avaliar(corpoInteiro(dx: -150, escala: 0.9), corpoInteiro(dx: 420, escala: 0.9))
 confere("duas pessoas, a da direita cortada", p.pessoas == 2 && p.cortadas == 1, "\(p.partes)")
 
+// Tremido e assinatura em imagens sintéticas
+func textura(_ w: Int, _ h: Int) -> [Double] {
+    var gerador = SystemRandomNumberGenerator()
+    var v = (0..<(w * h)).map { _ in Double(UInt8.random(in: 0...255, using: &gerador)) }
+    // suaviza um pouco para parecer foto (blocos de 2x2)
+    for y in stride(from: 0, to: h - 1, by: 2) {
+        for x in stride(from: 0, to: w - 1, by: 2) {
+            let m = (v[y * w + x] + v[y * w + x + 1] + v[(y + 1) * w + x] + v[(y + 1) * w + x + 1]) / 4
+            v[y * w + x] = m; v[y * w + x + 1] = m; v[(y + 1) * w + x] = m; v[(y + 1) * w + x + 1] = m
+        }
+    }
+    return v
+}
+func imagem(_ v: [Double], _ w: Int, _ h: Int) -> ImagemCinza {
+    ImagemCinza(largura: w, altura: h, pixels: v.map { UInt8(max(0, min(255, $0.rounded()))) })
+}
+func borrar(_ v: [Double], _ w: Int, _ h: Int, dx: Int, dy: Int, passos: Int) -> [Double] {
+    var r = v
+    for y in 0..<h {
+        for x in 0..<w {
+            var s = 0.0, n = 0.0
+            for k in -passos...passos {
+                let xx = x + k * dx, yy = y + k * dy
+                if xx >= 0, xx < w, yy >= 0, yy < h { s += v[yy * w + xx]; n += 1 }
+            }
+            r[y * w + x] = s / n
+        }
+    }
+    return r
+}
+let (tw, th) = (480, 360)
+let base = textura(tw, th)
+let original = Analise.medir(imagem(base, tw, th))
+let horizontal = Analise.medir(imagem(borrar(base, tw, th, dx: 1, dy: 0, passos: 3), tw, th))
+let vertical = Analise.medir(imagem(borrar(base, tw, th, dx: 0, dy: 1, passos: 3), tw, th))
+let diagonal = Analise.medir(imagem(borrar(base, tw, th, dx: 1, dy: 1, passos: 2), tw, th))
+let comum = Analise.medir(imagem(borrar(borrar(base, tw, th, dx: 1, dy: 0, passos: 2), tw, th, dx: 0, dy: 1, passos: 2), tw, th))
+confere("textura nítida: sem tremido", original.tremor < 0.15, String(format: "%.3f", original.tremor))
+confere("borrão horizontal = tremida", horizontal.tremor >= 0.15, String(format: "%.3f", horizontal.tremor))
+confere("borrão vertical = tremida", vertical.tremor >= 0.15, String(format: "%.3f", vertical.tremor))
+confere("borrão diagonal = tremida", diagonal.tremor >= 0.15, String(format: "%.3f", diagonal.tremor))
+confere("desfoque igual em tudo: não é tremida", comum.tremor < 0.15, String(format: "%.3f", comum.tremor))
+confere("assinatura tem 16 caracteres", original.assinatura.count == 16, original.assinatura)
+let clara = Analise.medir(imagem(base.map { $0 * 0.8 + 40 }, tw, th))
+confere("mesma foto mais clara: mesma assinatura", clara.assinatura == original.assinatura)
+
 print(falhas == 0 ? "\nTodos os testes passaram." : "\n\(falhas) falha(s).")
 exit(falhas == 0 ? 0 : 1)

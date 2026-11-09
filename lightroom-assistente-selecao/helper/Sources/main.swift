@@ -9,7 +9,7 @@
 // --margem distância da borda, em fração do lado maior, que conta como "encostado na borda"
 //
 // Saída (TSV, uma linha por foto, na mesma ordem da entrada):
-//   caminho media sombras estouro nitidez rostos abertura_olhos pessoas cortadas partes erro
+//   caminho media sombras estouro nitidez tremor assinatura rostos abertura_olhos pessoas cortadas partes erro
 // (rostos..partes ficam vazios quando --visao não foi usado)
 
 import Foundation
@@ -18,7 +18,7 @@ import CoreGraphics
 import ImageIO
 #endif
 
-let versao = "0.2.0"
+let versao = "0.3.0"
 /// Lado maior usado na análise. As medidas de nitidez dependem do tamanho,
 /// por isso toda foto é reduzida para o mesmo tamanho antes de medir.
 let ladoAnalise = 1024
@@ -134,7 +134,8 @@ func formatar(_ v: Double) -> String { String(format: "%.5f", v) }
 func linhaResultado(_ caminho: String, _ opcoes: Opcoes) -> String {
     do {
         let m = Analise.medir(try lerImagem(caminho))
-        var campos = [caminho, formatar(m.media), formatar(m.sombras), formatar(m.estouro), formatar(m.nitidez)]
+        var campos = [caminho, formatar(m.media), formatar(m.sombras), formatar(m.estouro), formatar(m.nitidez),
+                      formatar(m.tremor), m.assinatura]
         var erro = ""
         if opcoes.visao {
             do {
@@ -150,7 +151,7 @@ func linhaResultado(_ caminho: String, _ opcoes: Opcoes) -> String {
         }
         return (campos + [limpar(erro)]).joined(separator: "\t")
     } catch {
-        return [caminho, "", "", "", "", "", "", "", "", "", limpar("\(error)")].joined(separator: "\t")
+        return [caminho, "", "", "", "", "", "", "", "", "", "", "", limpar("\(error)")].joined(separator: "\t")
     }
 }
 
@@ -209,7 +210,7 @@ func principal() -> Int32 {
     DispatchQueue.concurrentPerform(iterations: caminhos.count) { i in
         resultados.guardar(i, linhaResultado(caminhos[i], opcoes))
     }
-    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
+    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\ttremor\tassinatura\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
 
     if let saida = arquivoSaida {
         do { try texto.write(toFile: saida, atomically: true, encoding: .utf8) } catch {

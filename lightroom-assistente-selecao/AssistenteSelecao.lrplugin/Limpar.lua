@@ -13,7 +13,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
     local p = Comum.prefs()
     local catalogo = LrApplication.activeCatalog()
     local fotos = catalogo:getTargetPhotos()
-    local info = catalogo:batchGetRawMetadata(fotos, { 'keywords', 'colorNameForLabel' })
+    local info = catalogo:batchGetRawMetadata(fotos, { 'keywords', 'colorNameForLabel', 'label', 'pickStatus' })
 
     local marcadas = {}
     for _, foto in ipairs(fotos) do
@@ -25,7 +25,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
     end
 
     if LrDialogs.confirm('Limpar ' .. #marcadas .. ' fotos?',
-            'Remove as palavras-chave, as coleções e a cor de rótulo que o assistente colocou.',
+            'Remove as palavras-chave, as coleções, a cor de rótulo e as bandeiras que o assistente colocou.',
             'Limpar', 'Cancelar') ~= 'ok' then
         return
     end
@@ -36,8 +36,14 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
             colecao:removePhotos(marcadas)
         end
         for _, foto in ipairs(marcadas) do
-            for _, k in ipairs(Comum.ordem) do foto:removeKeyword(palavras[k]) end
-            if Comum.ehCorDoAssistente(info[foto].colorNameForLabel, p) then
+            local palavrasFoto = info[foto].keywords
+            local bandeira = info[foto].pickStatus
+            if (bandeira == -1 and Comum.temPalavra(palavrasFoto, Comum.nomes.duplicada))
+                    or (bandeira == 1 and Comum.temPalavra(palavrasFoto, Comum.nomes.melhor)) then
+                foto:setRawMetadata('pickStatus', 0)
+            end
+            for _, k in ipairs(Comum.todas) do foto:removeKeyword(palavras[k]) end
+            if Comum.ehCorDoAssistente(info[foto].colorNameForLabel, info[foto].label, p) then
                 Comum.definirCor(foto, 'none')
             end
         end

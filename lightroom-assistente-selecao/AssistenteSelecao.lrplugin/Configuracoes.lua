@@ -37,56 +37,81 @@ LrFunctionContext.callWithContext('AssistenteSelecaoConfig', function(contexto)
         spacing = f:control_spacing(),
 
         f:static_text {
-            title = 'Prioridade da cor quando a foto tem mais de um problema: sem foco, olhos fechados,\n'
-                .. 'pessoa cortada, muito clara, muito escura.',
+            title = 'Prioridade da cor quando a foto tem mais de um problema: sem foco, tremida,\n'
+                .. 'olhos fechados, pessoa cortada, muito clara, muito escura.',
         },
-        f:group_box {
-            title = '1. Sem foco', fill_horizontal = 1,
-            linha('Nitidez abaixo de', numero('focoMinimo', 0, 1000, 1),
-                '(veja a coluna "nitidez" do relatório para calibrar)'),
-            linha('Cor do rótulo', cor('corFoco')),
-        },
-        f:group_box {
-            title = '2. Olhos fechados', fill_horizontal = 1,
-            f:checkbox { title = 'Detectar olhos fechados', value = bind('detectarOlhos') },
-            linha('Abertura do olho abaixo de', numero('olhosAbertura', 0, 100), '% (aberto ≈ 25–40, fechado ≈ 5–15)'),
-            linha('Cor do rótulo', cor('corOlhos')),
-        },
-        f:group_box {
-            title = '3. Pessoa cortada', fill_horizontal = 1,
-            f:checkbox { title = 'Detectar pessoas cortadas (cabeça, braços, tronco)', value = bind('detectarCortadas') },
-            f:checkbox { title = 'Contar também pernas/pés cortados', value = bind('contarPernas') },
-            linha('Distância da borda que conta como corte', numero('margemBorda', 0, 20, 1), '% do lado maior'),
-            linha('Cor do rótulo', cor('corCortada')),
-        },
-        f:group_box {
-            title = '4. Muito clara', fill_horizontal = 1,
-            linha('Brilho médio acima de', numero('claraMedia', 0, 100), '%'),
-            linha('ou pixels estourados acima de', numero('claraEstouro', 0, 100), '%'),
-            linha('Cor do rótulo', cor('corClara')),
-        },
-        f:group_box {
-            title = '5. Muito escura', fill_horizontal = 1,
-            linha('Brilho médio abaixo de', numero('escuraMedia', 0, 100), '%'),
-            linha('ou pixels quase pretos acima de', numero('escuraSombras', 0, 100), '%'),
-            linha('Cor do rótulo', cor('corEscura')),
-        },
-        f:group_box {
-            title = 'Resultado', fill_horizontal = 1,
-            f:checkbox { title = 'Aplicar cor de rótulo', value = bind('aplicarRotulos') },
-            f:checkbox {
-                title = 'Substituir rótulos que eu já tinha colocado',
-                value = bind('sobrescreverRotulos'), enabled = bind('aplicarRotulos'),
+        f:row {
+            spacing = f:control_spacing(),
+            f:column {
+                spacing = f:control_spacing(),
+                f:group_box {
+                    title = '1. Sem foco', fill_horizontal = 1,
+                    linha('Nitidez abaixo de', numero('focoMinimo', 0, 1000, 1),
+                        '(veja a coluna "nitidez" do relatório para calibrar)'),
+                    linha('Cor do rótulo', cor('corFoco')),
+                },
+                f:group_box {
+                    title = '2. Tremida', fill_horizontal = 1,
+                    f:checkbox { title = 'Detectar fotos tremidas (borrão de movimento)', value = bind('detectarTremidas') },
+                    linha('Indício de tremido a partir de', numero('tremorLimite', 0, 100),
+                        '(menor = pega mais, com mais alarmes falsos)'),
+                    linha('Cor do rótulo', cor('corTremida')),
+                },
+                f:group_box {
+                    title = '3. Olhos fechados', fill_horizontal = 1,
+                    f:checkbox { title = 'Detectar olhos fechados', value = bind('detectarOlhos') },
+                    linha('Abertura do olho abaixo de', numero('olhosAbertura', 0, 100), '% (aberto ≈ 25–40, fechado ≈ 5–15)'),
+                    linha('Cor do rótulo', cor('corOlhos')),
+                },
+                f:group_box {
+                    title = '4. Pessoa cortada', fill_horizontal = 1,
+                    f:checkbox { title = 'Detectar pessoas cortadas (cabeça, braços, tronco)', value = bind('detectarCortadas') },
+                    f:checkbox { title = 'Contar também pernas/pés cortados', value = bind('contarPernas') },
+                    linha('Distância da borda que conta como corte', numero('margemBorda', 0, 20, 1), '% do lado maior'),
+                    linha('Cor do rótulo', cor('corCortada')),
+                },
             },
-            f:checkbox {
-                title = 'Adicionar palavras-chave (permite filtrar mais de um problema por foto)',
-                value = bind('aplicarPalavrasChave'),
+            f:column {
+                spacing = f:control_spacing(),
+                f:group_box {
+                    title = '5. Muito clara', fill_horizontal = 1,
+                    linha('Brilho médio acima de', numero('claraMedia', 0, 100), '%'),
+                    linha('ou pixels estourados acima de', numero('claraEstouro', 0, 100), '%'),
+                    linha('Cor do rótulo', cor('corClara')),
+                },
+                f:group_box {
+                    title = '6. Muito escura', fill_horizontal = 1,
+                    linha('Brilho médio abaixo de', numero('escuraMedia', 0, 100), '%'),
+                    linha('ou pixels quase pretos acima de', numero('escuraSombras', 0, 100), '%'),
+                    linha('Cor do rótulo', cor('corEscura')),
+                },
+                f:group_box {
+                    title = 'Duplicadas e melhor da sequência', fill_horizontal = 1,
+                    f:checkbox { title = 'Agrupar fotos repetidas e apontar a melhor', value = bind('detectarDuplicadas') },
+                    linha('Intervalo máximo entre fotos', numero('duplicadaSegundos', 0, 600, 1), 'segundos'),
+                    linha('Diferença máxima', numero('duplicadaDiferenca', 0, 64),
+                        '(0 = idênticas; 10 = padrão; mais = agrupa mais)'),
+                    f:checkbox { title = 'Marcar as repetidas como rejeitadas (X)', value = bind('rejeitarDuplicadas') },
+                    f:checkbox { title = 'Marcar a melhor de cada sequência como escolhida (bandeira)', value = bind('escolherMelhor') },
+                },
+                f:group_box {
+                    title = 'Resultado', fill_horizontal = 1,
+                    f:checkbox { title = 'Aplicar cor de rótulo', value = bind('aplicarRotulos') },
+                    f:checkbox {
+                        title = 'Substituir rótulos que eu já tinha colocado',
+                        value = bind('sobrescreverRotulos'), enabled = bind('aplicarRotulos'),
+                    },
+                    f:checkbox {
+                        title = 'Adicionar palavras-chave (permite filtrar mais de um problema por foto)',
+                        value = bind('aplicarPalavrasChave'),
+                    },
+                    f:checkbox {
+                        title = 'Organizar em coleções (Assistente de Seleção › Para revisar, Sem foco, …)',
+                        value = bind('criarColecoes'),
+                    },
+                    f:checkbox { title = 'Salvar relatório .csv na Mesa', value = bind('salvarRelatorio') },
+                },
             },
-            f:checkbox {
-                title = 'Organizar em coleções (Assistente de Seleção › Para revisar, Sem foco, …)',
-                value = bind('criarColecoes'),
-            },
-            f:checkbox { title = 'Salvar relatório .csv na Mesa', value = bind('salvarRelatorio') },
         },
         f:push_button {
             title = 'Restaurar padrões',
