@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: lightroom-assistente-selecao
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Testes das medidas e regras (Swift)
         run: |
@@ -57,7 +57,7 @@ jobs:
           echo "Fotos com rosto detectado: $ROSTOS"
           [ "$ROSTOS" -gt 0 ] || { echo "::error::Nenhum rosto detectado: o Vision não está funcionando"; exit 1; }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: assistente-selecao-instalador
           path: lightroom-assistente-selecao/dist/*

@@ -177,8 +177,24 @@ confere("borrão vertical = tremida", vertical.tremor >= 0.15, String(format: "%
 confere("borrão diagonal = tremida", diagonal.tremor >= 0.15, String(format: "%.3f", diagonal.tremor))
 confere("desfoque igual em tudo: não é tremida", comum.tremor < 0.15, String(format: "%.3f", comum.tremor))
 confere("assinatura tem 16 caracteres", original.assinatura.count == 16, original.assinatura)
-let clara = Analise.medir(imagem(base.map { $0 * 0.8 + 40 }, tw, th))
-confere("mesma foto mais clara: mesma assinatura", clara.assinatura == original.assinatura)
+// Para a assinatura, uma "foto" com formas grandes (como numa cena real) além da textura
+let cena = (0..<(tw * th)).map { i -> Double in
+    let x = Double(i % tw), y = Double(i / tw)
+    return 128 + 70 * sin(x / 45) * cos(y / 38) + 0.2 * (base[i] - 128)
+}
+func diferenca(_ a: String, _ b: String) -> Int {
+    guard let x = UInt64(a, radix: 16), let y = UInt64(b, radix: 16) else { return 64 }
+    return (x ^ y).nonzeroBitCount
+}
+let cenaOriginal = Analise.medir(imagem(cena, tw, th))
+let cenaClara = Analise.medir(imagem(cena.map { $0 * 0.8 + 40 }, tw, th))
+let outraCena = Analise.medir(imagem(cena.reversed(), tw, th))
+confere("mesma foto mais clara: assinatura quase igual",
+        diferenca(cenaClara.assinatura, cenaOriginal.assinatura) <= 4,
+        "\(diferenca(cenaClara.assinatura, cenaOriginal.assinatura)) bits")
+confere("outra foto: assinatura bem diferente",
+        diferenca(outraCena.assinatura, cenaOriginal.assinatura) >= 17,
+        "\(diferenca(outraCena.assinatura, cenaOriginal.assinatura)) bits")
 
 print(falhas == 0 ? "\nTodos os testes passaram." : "\n\(falhas) falha(s).")
 exit(falhas == 0 ? 0 : 1)
