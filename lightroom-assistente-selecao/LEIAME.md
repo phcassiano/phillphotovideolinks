@@ -69,16 +69,15 @@ olhos e o brilho. Se o corte acusar demais, aumente/diminua a "distância da bor
 
 ## Como funciona
 
-- O plugin (Lua) pede ao Lightroom miniaturas de 1024 px **já com a revelação aplicada** e grava
-  numa pasta temporária, 200 fotos por vez.
-- O plugin pede miniaturas de 1600 px (1024 px se olhos e cortes estiverem desligados).
+- O plugin (Lua) pede ao Lightroom miniaturas de 1600 px (1024 px se olhos e cortes estiverem
+  desligados) **já com a revelação aplicada** e grava numa pasta temporária, 200 fotos por vez.
 - O programa `assistente-analise` (Swift, roda no próprio Mac, sem internet) mede brilho,
   sombras, estouro e nitidez (Laplaciano por blocos, com contraste normalizado).
 - Olhos: o Vision encontra os rostos e o contorno de cada olho; mede-se altura ÷ largura.
 - Cortes: o Vision encontra os pontos do corpo (cabeça, ombros, cotovelos, pulsos, quadris,
   joelhos, tornozelos). A pessoa é "cortada" quando o topo estimado da cabeça sai do quadro, uma
   extremidade encosta na borda, ou some e o prolongamento do membro cairia fora da foto.
-- O plugin decide com base nos limites e grava cor de rótulo e palavras-chave no catálogo.
+- O plugin decide com base nos limites e grava cor de rótulo, palavras-chave e coleções no catálogo.
 - O log fica em `~/Library/Logs/Adobe/Lightroom/LrClassicLogs/AssistenteSelecao.log`.
 
 Fotos sem prévia gerada demoram mais, porque o Lightroom precisa renderizá-las. Gerar prévias
