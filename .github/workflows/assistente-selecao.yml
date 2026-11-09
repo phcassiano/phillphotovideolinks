@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   instalador:
-    runs-on: macos-14
+    runs-on: macos-latest
     defaults:
       run:
         working-directory: lightroom-assistente-selecao
