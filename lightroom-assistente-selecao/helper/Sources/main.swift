@@ -9,7 +9,8 @@
 // --margem distância da borda, em fração do lado maior, que conta como "encostado na borda"
 //
 // Saída (TSV, uma linha por foto, na mesma ordem da entrada):
-//   caminho media sombras estouro nitidez tremor assinatura rostos abertura_olhos pessoas cortadas partes erro
+//   caminho media sombras estouro nitidez tremor assinatura rostos abertura_olhos pessoas cortadas partes
+//   sorriso expressao erro
 // (rostos..partes ficam vazios quando --visao não foi usado)
 
 import Foundation
@@ -18,7 +19,7 @@ import CoreGraphics
 import ImageIO
 #endif
 
-let versao = "0.3.0"
+let versao = "0.4.0"
 /// Lado maior usado na análise. As medidas de nitidez dependem do tamanho,
 /// por isso toda foto é reduzida para o mesmo tamanho antes de medir.
 let ladoAnalise = 1024
@@ -141,17 +142,18 @@ func linhaResultado(_ caminho: String, _ opcoes: Opcoes) -> String {
             do {
                 let (r, p) = try detectarPessoas(caminho, opcoes)
                 campos += [String(r.rostos), r.menorAbertura.map(formatar) ?? "", String(p.pessoas),
-                           String(p.cortadas), p.partes.sorted().joined(separator: ",")]
+                           String(p.cortadas), p.partes.sorted().joined(separator: ","),
+                           r.sorriso.map(formatar) ?? "", r.expressao.map(formatar) ?? ""]
             } catch {
-                campos += ["", "", "", "", ""]
+                campos += ["", "", "", "", "", "", ""]
                 erro = "visao: \(error)"
             }
         } else {
-            campos += ["", "", "", "", ""]
+            campos += ["", "", "", "", "", "", ""]
         }
         return (campos + [limpar(erro)]).joined(separator: "\t")
     } catch {
-        return [caminho, "", "", "", "", "", "", "", "", "", "", "", limpar("\(error)")].joined(separator: "\t")
+        return [caminho, "", "", "", "", "", "", "", "", "", "", "", "", "", limpar("\(error)")].joined(separator: "\t")
     }
 }
 
@@ -210,7 +212,7 @@ func principal() -> Int32 {
     DispatchQueue.concurrentPerform(iterations: caminhos.count) { i in
         resultados.guardar(i, linhaResultado(caminhos[i], opcoes))
     }
-    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\ttremor\tassinatura\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
+    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\ttremor\tassinatura\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\tsorriso\texpressao\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
 
     if let saida = arquivoSaida {
         do { try texto.write(toFile: saida, atomically: true, encoding: .utf8) } catch {

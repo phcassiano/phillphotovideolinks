@@ -56,5 +56,25 @@ ok('pontuação desconta olhos fechados', C.pontuacao({nitidez=40}, r) == 16)
 ok('branco reconhecido pelo texto', C.ehCorDoAssistente('other', 'Tremida', p))
 ok('texto alheio não', not C.ehCorDoAssistente('other', 'Cliente', p))
 ok('azul é do assistente', C.ehCorDoAssistente('blue', '', p))
+-- melhor da sequência com expressão
+local function seq(fotos, peso)
+  local regs = {}
+  for i, f in ipairs(fotos) do
+    regs[i] = {indice=i, tempo=100 + i * 0.3, assinatura=A, pontuacao=f[1], expressao=f[2]}
+  end
+  local g = C.agruparDuplicadas(regs, 3, 10, peso)
+  return g[1] and g[1].melhor.indice
+end
+ok('sem expressão: vence a mais nítida', seq({{40,.5},{50,.4},{45,.9}}, 0) == 2)
+ok('com expressão: sorriso vence nitidez parecida', seq({{40,.5},{50,.4},{45,.9}}, 0.5) == 3)
+ok('expressão não salva foto muito pior', seq({{50,.5},{10,.95}}, 0.5) == 1)
+ok('grupo sem rostos: só nitidez', seq({{40,nil},{50,nil},{45,nil}}, 0.5) == 2)
+ok('foto sem rosto perde para foto com rosto', seq({{50,nil},{48,.8}}, 0.5) == 2)
+ok('peso 100%: só expressão', seq({{50,.3},{20,.6}}, 1) == 2)
+p.detectarDuplicadas = true; p.usarExpressao = true; p.detectarOlhos = false; p.detectarCortadas = false
+ok('expressão liga a análise de rostos', C.usaVisao(p))
+p.usarExpressao = false
+ok('tudo de rosto desligado: sem análise de rostos', not C.usaVisao(p))
+
 print(falhas == 0 and 'Todos passaram.' or (falhas .. ' falha(s)'))
 os.exit(falhas == 0 and 0 or 1)

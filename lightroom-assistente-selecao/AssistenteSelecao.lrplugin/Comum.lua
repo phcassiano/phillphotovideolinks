@@ -29,6 +29,8 @@ M.padroes = {
     detectarDuplicadas = true,
     duplicadaSegundos = 3,   -- fotos tiradas com até esse intervalo podem ser da mesma sequência
     duplicadaDiferenca = 10, -- diferença máxima de assinatura (0 = idênticas, 64 = nada a ver)
+    usarExpressao = true,       -- na melhor da sequência, considerar sorriso e expressão
+    pesoExpressao = 50,         -- % da nota que vem da expressão (o resto: nitidez e problemas)
     rejeitarDuplicadas = false, -- marcar as repetidas como "rejeitada" (X)
     escolherMelhor = false,     -- marcar a melhor de cada sequência como "escolhida" (bandeira)
 
@@ -95,7 +97,7 @@ function M.prefs()
 end
 
 function M.usaVisao(p)
-    return p.detectarOlhos or p.detectarCortadas
+    return p.detectarOlhos or p.detectarCortadas or (p.detectarDuplicadas and p.usarExpressao)
 end
 
 function M.caminhoAuxiliar()
@@ -175,11 +177,33 @@ function M.diferenca(a, b)
     return n
 end
 
+-- Nota de cada foto dentro da sequência (0 a 1), em r.nota.
+-- Parte técnica: pontuação ÷ maior pontuação do grupo (nitidez descontando problemas).
+-- Parte de expressão (peso 0 a 1): só entra se alguma foto do grupo tem rosto medido; foto sem
+-- rosto num grupo com rostos (pessoa de costas, rosto tampado) recebe expressão baixa.
+function M.notarSequencia(grupo, peso)
+    local maior, algumRosto = 0, false
+    for _, r in ipairs(grupo) do
+        if r.pontuacao > maior then maior = r.pontuacao end
+        if r.expressao then algumRosto = true end
+    end
+    for _, r in ipairs(grupo) do
+        local tecnica = maior > 0 and r.pontuacao / maior or 0
+        if algumRosto and peso and peso > 0 then
+            r.nota = (1 - peso) * tecnica + peso * (r.expressao or 0.2)
+        else
+            r.nota = tecnica
+        end
+    end
+end
+
 -- Agrupa fotos em sequências de quase-duplicadas.
--- registros: lista de { tempo = segundos ou nil, assinatura = 'hex', pontuacao = n, indice = n }
+-- registros: lista de { tempo = segundos ou nil, assinatura = 'hex', pontuacao = n, indice = n,
+--                       expressao = 0..1 ou nil }
+-- pesoExpressao: 0 a 1 (0 = só a parte técnica).
 -- Retorna lista de grupos (só os com 2+ fotos); cada grupo é uma lista de registros, com
--- grupo.melhor apontando para o registro de maior pontuação.
-function M.agruparDuplicadas(registros, segundos, diferencaMaxima)
+-- grupo.melhor apontando para o registro de maior nota.
+function M.agruparDuplicadas(registros, segundos, diferencaMaxima, pesoExpressao)
     local ordenados = {}
     for i, r in ipairs(registros) do ordenados[i] = r end
     table.sort(ordenados, function(a, b)
@@ -208,9 +232,10 @@ function M.agruparDuplicadas(registros, segundos, diferencaMaxima)
     if atual and #atual >= 2 then grupos[#grupos + 1] = atual end
 
     for _, g in ipairs(grupos) do
+        M.notarSequencia(g, pesoExpressao or 0)
         g.melhor = g[1]
         for _, r in ipairs(g) do
-            if r.pontuacao > g.melhor.pontuacao then g.melhor = r end
+            if r.nota > g.melhor.nota then g.melhor = r end
         end
     end
     return grupos

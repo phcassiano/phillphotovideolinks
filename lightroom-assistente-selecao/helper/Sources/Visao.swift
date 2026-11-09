@@ -3,6 +3,7 @@
 
 #if canImport(Vision)
 import CoreGraphics
+import CoreImage
 import Foundation
 import Vision
 
@@ -18,8 +19,22 @@ enum Visao {
         (.leftAnkle, "tornozeloE"), (.rightAnkle, "tornozeloD"),
     ]
 
-    /// Roda as duas detecções na mesma imagem.
-    static func detectar(_ imagem: CGImage) throws -> (rostos: [Rosto], pessoas: [Pessoa]) {
+    /// Sorrisos pelo detector do Core Image: lista de (retângulo do rosto em pixels, origem no
+    /// canto superior esquerdo; está sorrindo?).
+    static func sorrisosCoreImage(_ imagem: CGImage) -> [(CGRect, Bool)] {
+        guard let detector = CIDetector(ofType: CIDetectorTypeFace, context: nil,
+                                        options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]) else { return [] }
+        let altura = CGFloat(imagem.height)
+        let rostos = detector.features(in: CIImage(cgImage: imagem), options: [CIDetectorSmile: true])
+        return rostos.compactMap { f in
+            guard let face = f as? CIFaceFeature else { return nil }
+            let b = face.bounds
+            return (CGRect(x: b.minX, y: altura - b.maxY, width: b.width, height: b.height), face.hasSmile)
+        }
+    }
+
+    /// Roda as detecções na mesma imagem.
+    static func detectar(_ imagem: CGImage, comSorriso: Bool = true) throws -> (rostos: [Rosto], pessoas: [Pessoa]) {
         let largura = Double(imagem.width), altura = Double(imagem.height)
         let tamanho = CGSize(width: largura, height: altura)
 
@@ -31,12 +46,29 @@ enum Visao {
         // Vision usa origem no canto inferior esquerdo; aqui convertemos para o superior esquerdo.
         func converter(_ p: CGPoint) -> Ponto { Ponto(x: Double(p.x), y: altura - Double(p.y)) }
 
+        let sorrisos = comSorriso ? sorrisosCoreImage(imagem) : []
+
         var rostos: [Rosto] = []
         for face in pedidoRostos.results ?? [] {
-            let alturaRosto = Double(face.boundingBox.height) * altura
-            let olhoE = face.landmarks?.leftEye?.pointsInImage(imageSize: tamanho).map(converter) ?? []
-            let olhoD = face.landmarks?.rightEye?.pointsInImage(imageSize: tamanho).map(converter) ?? []
-            rostos.append(Rosto(altura: alturaRosto, olhoEsquerdo: olhoE, olhoDireito: olhoD))
+            let caixa = face.boundingBox
+            let alturaRosto = Double(caixa.height) * altura
+            let marcas = face.landmarks
+            var rosto = Rosto(
+                altura: alturaRosto,
+                olhoEsquerdo: marcas?.leftEye?.pointsInImage(imageSize: tamanho).map(converter) ?? [],
+                olhoDireito: marcas?.rightEye?.pointsInImage(imageSize: tamanho).map(converter) ?? [])
+            rosto.largura = Double(caixa.width) * largura
+            rosto.labiosExternos = marcas?.outerLips?.pointsInImage(imageSize: tamanho).map(converter) ?? []
+            rosto.labiosInternos = marcas?.innerLips?.pointsInImage(imageSize: tamanho).map(converter) ?? []
+            rosto.giro = face.yaw?.doubleValue
+
+            // Associa o rosto do Core Image cujo centro cai dentro deste rosto do Vision
+            let retangulo = CGRect(x: Double(caixa.minX) * largura, y: (1 - Double(caixa.maxY)) * altura,
+                                   width: Double(caixa.width) * largura, height: alturaRosto)
+            if let par = sorrisos.first(where: { retangulo.contains(CGPoint(x: $0.0.midX, y: $0.0.midY)) }) {
+                rosto.sorrisoDetector = par.1
+            }
+            rostos.append(rosto)
         }
 
         var pessoas: [Pessoa] = []

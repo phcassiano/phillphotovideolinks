@@ -88,7 +88,7 @@ local function analisar(itens, pasta, rodada, p)
     end
 
     -- Colunas: caminho media sombras estouro nitidez tremor assinatura
-    --          rostos abertura_olhos pessoas cortadas partes erro
+    --          rostos abertura_olhos pessoas cortadas partes sorriso expressao erro
     local medidas = {}
     local primeira = true
     for linha in io.lines(saida) do
@@ -98,7 +98,7 @@ local function analisar(itens, pasta, rodada, p)
             local c = {}
             for campo in (linha .. '\t'):gmatch('([^\t]*)\t') do c[#c + 1] = campo end
             local media = tonumber(c[2])
-            local erro = (c[13] or '') ~= '' and c[13] or nil
+            local erro = (c[15] or '') ~= '' and c[15] or nil
             if media then
                 medidas[c[1]] = {
                     media = media,
@@ -112,6 +112,8 @@ local function analisar(itens, pasta, rodada, p)
                     pessoas = tonumber(c[10]),
                     cortadas = tonumber(c[11]),
                     partes = c[12] or '',
+                    sorriso = tonumber(c[13]),
+                    expressao = tonumber(c[14]),
                     aviso = erro,
                 }
             else
@@ -298,6 +300,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                         tempo = info[foto].dateTimeOriginal,
                         assinatura = m.assinatura,
                         pontuacao = Comum.pontuacao(m, r),
+                        expressao = m.expressao,
                     }
                 end
             end
@@ -318,7 +321,8 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
     -- Duplicadas: só depois de ter todas as fotos, porque uma sequência pode cruzar lotes.
     if p.detectarDuplicadas and not progresso:isCanceled() and #registros > 1 then
         progresso:setCaption('Procurando fotos repetidas')
-        local grupos = Comum.agruparDuplicadas(registros, p.duplicadaSegundos, p.duplicadaDiferenca)
+        local peso = p.usarExpressao and (p.pesoExpressao or 50) / 100 or 0
+        local grupos = Comum.agruparDuplicadas(registros, p.duplicadaSegundos, p.duplicadaDiferenca, peso)
         local papel = {} -- foto -> 'melhor' | 'duplicada'
         for n, g in ipairs(grupos) do
             totais.grupos = totais.grupos + 1
@@ -326,6 +330,7 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                 local melhor = (r == g.melhor)
                 papel[r.foto] = melhor and 'melhor' or 'duplicada'
                 r.linha.grupo = n
+                r.linha.nota = r.nota
                 r.linha.papel = melhor and 'Melhor da sequência' or 'Duplicada'
                 if not melhor then totais.duplicadas = totais.duplicadas + 1 end
             end
@@ -380,8 +385,8 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
         caminhoRelatorio = LrPathUtils.child(LrPathUtils.getStandardFilePath('desktop'), nomeArquivo)
         local f = io.open(caminhoRelatorio, 'w')
         if f then
-            f:write('arquivo;nitidez;tremor;abertura_olhos_%;rostos;pessoas;partes_cortadas;brilho_medio_%;'
-                .. 'sombras_%;estourado_%;assinatura;sequencia;resultado\n')
+            f:write('arquivo;nitidez;tremor;abertura_olhos_%;sorriso_%;expressao_%;rostos;pessoas;partes_cortadas;'
+                .. 'brilho_medio_%;sombras_%;estourado_%;assinatura;sequencia;nota_na_sequencia_%;resultado\n')
             for _, l in ipairs(relatorio) do
                 local m = l.m
                 local resultado = l.resultado .. (l.papel and (' | ' .. l.papel) or '')
@@ -389,12 +394,14 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                     f:write(table.concat({
                         l.nome, numeroBR(m.nitidez, 1), numeroBR(m.tremor and m.tremor * 100, 0),
                         numeroBR(m.abertura and m.abertura * 100, 0),
+                        numeroBR(m.sorriso and m.sorriso * 100, 0), numeroBR(m.expressao and m.expressao * 100, 0),
                         m.rostos and tostring(m.rostos) or '', m.pessoas and tostring(m.pessoas) or '', m.partes or '',
                         numeroBR(m.media * 100, 1), numeroBR(m.sombras * 100, 1), numeroBR(m.estouro * 100, 1),
-                        m.assinatura or '', l.grupo and tostring(l.grupo) or '', resultado,
+                        m.assinatura or '', l.grupo and tostring(l.grupo) or '',
+                        numeroBR(l.nota and l.nota * 100, 0), resultado,
                     }, ';'), '\n')
                 else
-                    f:write(l.nome, ';;;;;;;;;;;;', resultado, '\n')
+                    f:write(l.nome, ';;;;;;;;;;;;;;;', resultado, '\n')
                 end
             end
             f:close()

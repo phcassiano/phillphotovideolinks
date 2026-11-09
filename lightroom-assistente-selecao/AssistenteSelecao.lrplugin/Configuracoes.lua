@@ -91,7 +91,12 @@ LrFunctionContext.callWithContext('AssistenteSelecaoConfig', function(contexto)
                     linha('Intervalo máximo entre fotos', numero('duplicadaSegundos', 0, 600, 1), 'segundos'),
                     linha('Diferença máxima', numero('duplicadaDiferenca', 0, 64),
                         '(0 = idênticas; 10 = padrão; mais = agrupa mais)'),
-                    f:checkbox { title = 'Marcar as repetidas como rejeitadas (X)', value = bind('rejeitarDuplicadas') },
+                    f:checkbox {
+                title = 'Na melhor da sequência, preferir sorriso e boa expressão',
+                value = bind('usarExpressao'), enabled = bind('detectarDuplicadas'),
+            },
+            linha('Peso da expressão', numero('pesoExpressao', 0, 100), '% (o resto: nitidez e problemas)'),
+            f:checkbox { title = 'Marcar as repetidas como rejeitadas (X)', value = bind('rejeitarDuplicadas') },
                     f:checkbox { title = 'Marcar a melhor de cada sequência como escolhida (bandeira)', value = bind('escolherMelhor') },
                 },
                 f:group_box {

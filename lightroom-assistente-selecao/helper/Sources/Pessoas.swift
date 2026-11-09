@@ -1,4 +1,4 @@
-// Regras de "olhos fechados" e "pessoa cortada".
+// Regras de "olhos fechados", "pessoa cortada" e da expressão (sorriso etc.).
 // Recebe pontos já convertidos para pixels (origem no canto superior esquerdo, y para baixo),
 // sem depender do Vision, para poder ser testado em qualquer sistema.
 
@@ -9,11 +9,20 @@ struct Ponto {
     var y: Double
 }
 
-/// Um rosto encontrado: altura do rosto em pixels e o contorno de cada olho.
+/// Um rosto encontrado: tamanho em pixels, contorno dos olhos e da boca, e para onde está virado.
 struct Rosto {
     var altura: Double
     var olhoEsquerdo: [Ponto]
     var olhoDireito: [Ponto]
+    /// Largura do rosto em pixels (0 = desconhecida).
+    var largura: Double = 0
+    /// Contorno externo e interno dos lábios.
+    var labiosExternos: [Ponto] = []
+    var labiosInternos: [Ponto] = []
+    /// Rotação para os lados, em radianos (0 = de frente para a câmera). nil = desconhecida.
+    var giro: Double? = nil
+    /// Resposta do detector de sorriso da Apple (Core Image). nil = não avaliado.
+    var sorrisoDetector: Bool? = nil
 }
 
 /// Uma pessoa: articulações encontradas com confiança suficiente.
@@ -27,6 +36,22 @@ struct ResultadoRostos {
     var rostos: Int = 0
     /// Menor abertura média dos olhos entre os rostos principais (altura / largura do olho). nil = sem rosto medível.
     var menorAbertura: Double?
+    /// Sorriso médio dos rostos principais, de 0 a 1. nil = sem rosto medível.
+    var sorriso: Double?
+    /// Nota de expressão média dos rostos principais, de 0 a 1 (olhos abertos, sorriso, de frente,
+    /// sem careta). nil = sem rosto medível.
+    var expressao: Double?
+}
+
+/// Medidas da boca de um rosto.
+struct Boca {
+    /// Quanto os cantos estão acima do centro dos lábios, em fração da largura da boca.
+    /// Sorriso ≈ 0,05–0,15; neutro ≈ 0; tristeza/careta < 0.
+    var elevacaoCantos: Double
+    /// Largura da boca ÷ largura do rosto. Neutro ≈ 0,35–0,40; sorriso largo ≈ 0,45+.
+    var larguraRelativa: Double?
+    /// Abertura (altura dos lábios internos ÷ largura da boca). Fechada ≈ 0; gritando ≈ 0,5+.
+    var abertura: Double
 }
 
 struct ResultadoPessoas {
@@ -59,13 +84,73 @@ enum Regras {
         guard let maior = validos.map(\.altura).max() else { return r }
         let principais = validos.filter { $0.altura >= maior * fracaoPrincipalRosto }
         r.rostos = principais.count
+        var sorrisos: [Double] = [], expressoes: [Double] = []
         for rosto in principais {
             let olhos = [abertura(rosto.olhoEsquerdo), abertura(rosto.olhoDireito)].compactMap { $0 }
-            guard !olhos.isEmpty else { continue }
-            let media = olhos.reduce(0, +) / Double(olhos.count)
-            r.menorAbertura = min(r.menorAbertura ?? media, media)
+            let mediaOlhos = olhos.isEmpty ? nil : olhos.reduce(0, +) / Double(olhos.count)
+            if let m = mediaOlhos { r.menorAbertura = min(r.menorAbertura ?? m, m) }
+            if let e = expressao(rosto, aberturaOlhos: mediaOlhos) {
+                sorrisos.append(e.sorriso)
+                expressoes.append(e.nota)
+            }
+        }
+        if !expressoes.isEmpty {
+            r.sorriso = sorrisos.reduce(0, +) / Double(sorrisos.count)
+            r.expressao = expressoes.reduce(0, +) / Double(expressoes.count)
         }
         return r
+    }
+
+    static func medirBoca(_ rosto: Rosto) -> Boca? {
+        let externos = rosto.labiosExternos
+        guard externos.count >= 6 else { return nil }
+        guard let esquerdo = externos.min(by: { $0.x < $1.x }), let direito = externos.max(by: { $0.x < $1.x }) else { return nil }
+        let largura = direito.x - esquerdo.x
+        guard largura > 2 else { return nil }
+        // Centro vertical da boca (y cresce para baixo: cantos "acima" têm y menor).
+        // Usa o contorno interno: numa boca aberta de esforço o lábio de baixo desce, mas o centro
+        // da abertura acompanha, e os cantos só ficam acima dele se estiverem de fato levantados.
+        let referencia = rosto.labiosInternos.count >= 4 ? rosto.labiosInternos : externos
+        let centroY = referencia.map(\.y).reduce(0, +) / Double(referencia.count)
+        let cantosY = (esquerdo.y + direito.y) / 2
+        let elevacao = (centroY - cantosY) / largura
+        var aberturaBoca = 0.0
+        if rosto.labiosInternos.count >= 4 {
+            let ys = rosto.labiosInternos.map(\.y)
+            aberturaBoca = (ys.max()! - ys.min()!) / largura
+        }
+        let relativa = rosto.largura > 0 ? largura / rosto.largura : nil
+        return Boca(elevacaoCantos: elevacao, larguraRelativa: relativa, abertura: aberturaBoca)
+    }
+
+    static func limitar(_ v: Double) -> Double { min(max(v, 0), 1) }
+
+    /// Sorriso (0–1) e nota de expressão (0–1) de um rosto. nil se não há boca nem olhos medíveis.
+    static func expressao(_ rosto: Rosto, aberturaOlhos: Double?) -> (sorriso: Double, nota: Double)? {
+        let boca = medirBoca(rosto)
+        guard boca != nil || aberturaOlhos != nil else { return nil }
+
+        // Sorriso pela geometria: cantos levantados e boca mais larga que o normal
+        var sorriso = 0.0
+        if let b = boca {
+            let pelosCantos = limitar(b.elevacaoCantos / 0.10)
+            if let rel = b.larguraRelativa {
+                sorriso = 0.6 * pelosCantos + 0.4 * limitar((rel - 0.38) / 0.10)
+            } else {
+                sorriso = pelosCantos
+            }
+        }
+        // O detector da Apple, quando disponível, vale metade da nota
+        if let detector = rosto.sorrisoDetector {
+            sorriso = 0.5 * sorriso + 0.5 * (detector ? 1 : 0)
+        }
+
+        let olhos = aberturaOlhos.map { limitar(($0 - 0.10) / 0.18) } ?? 0.7
+        let frente = rosto.giro.map { max(0.3, 1 - abs($0) / (Double.pi / 3)) } ?? 0.8
+        var nota = 0.45 * olhos + 0.35 * sorriso + 0.20 * frente
+        // Careta: boca muito aberta sem sorriso (esforço, grito)
+        if let b = boca, b.abertura > 0.45, sorriso < 0.3 { nota *= 0.75 }
+        return (sorriso, limitar(nota))
     }
 
     static func avaliarPessoas(_ pessoas: [Pessoa], largura: Double, altura: Double, margem: Double) -> ResultadoPessoas {

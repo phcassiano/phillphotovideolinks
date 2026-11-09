@@ -83,6 +83,57 @@ confere("pessoa pequena ao fundo cortada é ignorada", p.pessoas == 1 && p.corta
 p = avaliar(corpoInteiro(dx: -150, escala: 0.9), corpoInteiro(dx: 420, escala: 0.9))
 confere("duas pessoas, a da direita cortada", p.pessoas == 2 && p.cortadas == 1, "\(p.partes)")
 
+// Expressão: boca de 60 px de largura num rosto de 150 px
+/// curva > 0 levanta os cantos (sorriso); abertura em px separa os lábios internos.
+func boca(curva: Double, abertura: Double, largura: Double = 60) -> (externos: [Ponto], internos: [Ponto]) {
+    var externos: [Ponto] = [], internos: [Ponto] = []
+    for i in 0...10 {
+        let t = Double(i) / 10 * 2 - 1           // -1 (canto esquerdo) ... 1 (canto direito)
+        let x = 100 + t * largura / 2
+        let sobe = curva * largura * t * t       // cantos sobem (y menor) com a curva
+        let lado = (1 - t * t)
+        externos.append(Ponto(x: x, y: 200 - sobe - 8 * lado))                  // lábio de cima
+        externos.append(Ponto(x: x, y: 200 - sobe + (8 + abertura) * lado))     // lábio de baixo
+        internos.append(Ponto(x: x, y: 200 - sobe - abertura / 2 * lado))
+        internos.append(Ponto(x: x, y: 200 - sobe + abertura / 2 * lado))
+    }
+    return (externos, internos)
+}
+func rostoExpressao(curva: Double, aberturaBoca: Double, olhos: Double, giro: Double? = 0,
+                    detector: Bool? = nil, larguraBoca: Double = 60) -> Rosto {
+    var r = rosto(altura: 150, abertura: olhos)
+    let b = boca(curva: curva, abertura: aberturaBoca, largura: larguraBoca)
+    r.labiosExternos = b.externos
+    r.labiosInternos = b.internos
+    r.largura = 150
+    r.giro = giro
+    r.sorrisoDetector = detector
+    return r
+}
+func nota(_ r: Rosto) -> (sorriso: Double, nota: Double) {
+    Regras.avaliarRostos([r]).sorriso.map { s in (s, Regras.avaliarRostos([r]).expressao!) } ?? (0, 0)
+}
+let neutro = nota(rostoExpressao(curva: 0, aberturaBoca: 0, olhos: 0.32))
+let sorrindo = nota(rostoExpressao(curva: 0.12, aberturaBoca: 4, olhos: 0.32, larguraBoca: 72))
+let gargalhada = nota(rostoExpressao(curva: 0.12, aberturaBoca: 25, olhos: 0.30, larguraBoca: 75))
+let careta = nota(rostoExpressao(curva: -0.03, aberturaBoca: 35, olhos: 0.30))
+let sorrisoOlhoFechado = nota(rostoExpressao(curva: 0.12, aberturaBoca: 4, olhos: 0.06, larguraBoca: 72))
+let deLado = nota(rostoExpressao(curva: 0.12, aberturaBoca: 4, olhos: 0.32, giro: 1.0, larguraBoca: 72))
+let detectorDiz = nota(rostoExpressao(curva: 0, aberturaBoca: 0, olhos: 0.32, detector: true))
+let f = { (v: Double) in String(format: "%.2f", v) }
+confere("neutro: pouco sorriso", neutro.sorriso < 0.2, f(neutro.sorriso))
+confere("sorrindo: sorriso alto", sorrindo.sorriso > 0.6, f(sorrindo.sorriso))
+confere("gargalhada também é sorriso", gargalhada.sorriso > 0.6, f(gargalhada.sorriso))
+confere("careta (boca aberta, cantos para baixo) não é sorriso", careta.sorriso < 0.2, f(careta.sorriso))
+confere("sorrindo vence neutro", sorrindo.nota > neutro.nota, "\(f(sorrindo.nota)) > \(f(neutro.nota))")
+confere("neutro vence careta", neutro.nota > careta.nota, "\(f(neutro.nota)) > \(f(careta.nota))")
+confere("olhos fechados derrubam mesmo sorrindo", sorrisoOlhoFechado.nota < neutro.nota,
+        "\(f(sorrisoOlhoFechado.nota)) < \(f(neutro.nota))")
+confere("de perfil vale menos que de frente", deLado.nota < sorrindo.nota, "\(f(deLado.nota)) < \(f(sorrindo.nota))")
+confere("detector da Apple soma ao sorriso", detectorDiz.sorriso >= 0.5, f(detectorDiz.sorriso))
+let semBoca = Regras.avaliarRostos([rosto(altura: 120, abertura: 0.3)])
+confere("sem boca ainda dá nota pelos olhos", semBoca.expressao != nil && semBoca.sorriso == 0)
+
 // Tremido e assinatura em imagens sintéticas
 func textura(_ w: Int, _ h: Int) -> [Double] {
     var gerador = SystemRandomNumberGenerator()

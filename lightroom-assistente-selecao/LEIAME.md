@@ -1,6 +1,6 @@
 # Assistente de Seleção (plugin para Lightroom Classic, macOS)
 
-Versão 0.3. Analisa as fotos selecionadas e marca:
+Versão 0.4. Analisa as fotos selecionadas e marca:
 
 | Prioridade | Problema | Cor padrão |
 |---|---|---|
@@ -15,8 +15,13 @@ O Lightroom só tem 5 cores de rótulo; a 6ª ("branco") é um rótulo com o nom
 aparece em branco na grade. Dá para trocar qualquer cor nas Configurações.
 
 **Duplicadas:** fotos quase iguais tiradas em sequência (por padrão, até 3 s entre uma e outra)
-viram um grupo. A melhor do grupo (mais nítida, descontando olhos fechados, tremido etc.) vai
-para **Melhor da sequência**; as outras, para **Duplicada**. Opcionalmente o plugin marca as
+viram um grupo. A melhor do grupo vai para **Melhor da sequência**; as outras, para **Duplicada**.
+A melhor é escolhida por uma nota que junta:
+- **parte técnica** (50%): nitidez, descontando tremido, olhos fechados, corte e luz;
+- **expressão** (50%): olhos abertos, sorriso, rosto virado para a câmera, sem careta.
+
+O peso da expressão é ajustável (0% = só a parte técnica). Se nenhuma foto do grupo tem rosto
+visível, vale só a parte técnica. Uma foto muito menos nítida não ganha só por sorrir. Opcionalmente o plugin marca as
 duplicadas como rejeitadas (X) e a melhor como escolhida (bandeira). Duplicadas não recebem cor,
 para não esconder os outros problemas.
 
@@ -39,7 +44,7 @@ Olhos fechados e pessoas cortadas usam o Vision, a inteligência artificial que 
    cd caminho/para/lightroom-assistente-selecao
    ./helper/compilar.sh
    ```
-   Deve aparecer `assistente-analise 0.3.0` e "Pronto". Ao atualizar o plugin, rode o script de novo.
+   Deve aparecer `assistente-analise 0.4.0` e "Pronto". Ao atualizar o plugin, rode o script de novo.
 3. No Lightroom Classic: **Arquivo › Gerenciador de plug-ins › Adicionar** e escolha a pasta
    `AssistenteSelecao.lrplugin`.
 
@@ -69,6 +74,8 @@ Os limites padrão são um ponto de partida. A cada análise o plugin salva na M
 - `abertura_olhos_%`: abertura do olho mais fechado entre as pessoas principais (altura ÷ largura do
   olho). Aberto fica em torno de 25–40; fechado, 5–15. Vazio = nenhum rosto grande o bastante.
 - `tremor`: indício de tremido. Nítidas ficam abaixo de ~10; tremidas costumam passar de 15.
+- `sorriso_%` / `expressao_%`: média dos rostos principais (0–100).
+- `nota_na_sequencia_%`: nota usada para escolher a melhor do grupo.
 - `assinatura` / `sequencia`: a "impressão digital" da foto e o número do grupo de repetidas.
 - `rostos` / `pessoas`: quantos rostos e corpos principais foram encontrados (pessoas pequenas ao
   fundo são ignoradas).
@@ -91,6 +98,10 @@ olhos e o brilho. Se o corte acusar demais, aumente/diminua a "distância da bor
 - Duplicadas: cada foto vira uma assinatura de 64 pontos (dHash). Fotos da mesma sequência
   diferem em até ~10; fotos diferentes, em 17 ou mais. As fotos são ordenadas pelo horário de
   captura e agrupadas quando estão perto no tempo e na assinatura.
+- Sorriso: junta o detector de sorriso do Core Image (da Apple) com a geometria da boca do
+  Vision: cantos acima do centro da boca e boca mais larga que o normal em relação ao rosto.
+  Boca aberta com cantos para baixo (esforço, grito) não conta como sorriso e ainda tira pontos.
+- Expressão: 45% olhos abertos + 35% sorriso + 20% rosto de frente para a câmera.
 - Olhos: o Vision encontra os rostos e o contorno de cada olho; mede-se altura ÷ largura.
 - Cortes: o Vision encontra os pontos do corpo (cabeça, ombros, cotovelos, pulsos, quadris,
   joelhos, tornozelos). A pessoa é "cortada" quando o topo estimado da cabeça sai do quadro, uma
@@ -116,4 +127,4 @@ lua5.1 testes/comum_teste.lua AssistenteSelecao.lrplugin
 ## Próximos passos
 
 - Nitidez e tremido medidos no rosto/pessoa em vez da foto inteira.
-- Melhor da sequência levando em conta expressão/sorriso.
+- Calibrar sorriso e expressão com sequências reais.
