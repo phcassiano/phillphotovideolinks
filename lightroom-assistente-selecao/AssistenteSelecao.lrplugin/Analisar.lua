@@ -1,5 +1,5 @@
--- Analisa as fotos selecionadas e marca as problemáticas com cor de rótulo
--- e palavras-chave em "Assistente de Seleção".
+-- Analisa as fotos selecionadas e marca as problemáticas com cor de rótulo,
+-- palavras-chave e coleções em "Assistente de Seleção".
 
 local LrApplication = import 'LrApplication'
 local LrDate = import 'LrDate'
@@ -16,15 +16,14 @@ local Comum = require 'Comum'
 local log = LrLogger('AssistenteSelecao')
 log:enable('logfile')
 
-local TAMANHO_MINIATURA = 1024
 local LOTE = 200            -- fotos por rodada (miniaturas -> análise -> catálogo)
 local TAREFAS_PARALELAS = 4 -- pedidos de miniatura simultâneos
 local ESPERA_MAXIMA = 60    -- segundos por miniatura
 
 -- Pede ao Lightroom a miniatura (já com a revelação aplicada) e grava em disco.
-local function gravarMiniatura(foto, destino)
+local function gravarMiniatura(foto, destino, tamanho)
     local pronto, dados, erro = false, nil, nil
-    local pedido = foto:requestJpegThumbnail(TAMANHO_MINIATURA, TAMANHO_MINIATURA, function(jpeg, msg)
+    local pedido = foto:requestJpegThumbnail(tamanho, tamanho, function(jpeg, msg)
         if not pronto then
             dados, erro, pronto = jpeg, msg, true
         end
@@ -45,13 +44,13 @@ local function gravarMiniatura(foto, destino)
 end
 
 -- Gera as miniaturas de um lote com algumas tarefas em paralelo.
-local function gravarMiniaturas(itens, progresso, contagem)
+local function gravarMiniaturas(itens, tamanho, progresso, contagem)
     local proximo, terminadas = 1, 0
     local function trabalhador()
         while proximo <= #itens and not progresso:isCanceled() do
             local item = itens[proximo]
             proximo = proximo + 1
-            local ok, resultado, erro = pcall(gravarMiniatura, item.foto, item.arquivo)
+            local ok, resultado, erro = pcall(gravarMiniatura, item.foto, item.arquivo, tamanho)
             item.temMiniatura = ok and resultado
             item.erro = (not ok and tostring(resultado)) or erro
             contagem.feitas = contagem.feitas + 1
@@ -68,7 +67,7 @@ local function gravarMiniaturas(itens, progresso, contagem)
 end
 
 -- Roda o programa auxiliar e devolve uma tabela arquivo -> medidas.
-local function analisar(itens, pasta, rodada)
+local function analisar(itens, pasta, rodada, p)
     local lista = LrPathUtils.child(pasta, 'lista-' .. rodada .. '.txt')
     local saida = LrPathUtils.child(pasta, 'resultado-' .. rodada .. '.tsv')
     local f = assert(io.open(lista, 'w'))
@@ -79,6 +78,9 @@ local function analisar(itens, pasta, rodada)
 
     local comando = Comum.aspas(Comum.caminhoAuxiliar()) .. ' --lista ' .. Comum.aspas(lista)
         .. ' --saida ' .. Comum.aspas(saida)
+    if Comum.usaVisao(p) then
+        comando = comando .. ' --visao --margem ' .. string.format('%.4f', (p.margemBorda or 2) / 100)
+    end
     local status = LrTasks.execute(comando)
     if status ~= 0 then
         error('O programa de análise falhou (código ' .. tostring(status) .. ').\n' .. comando)
@@ -99,9 +101,15 @@ local function analisar(itens, pasta, rodada)
                     sombras = tonumber(c[3]),
                     estouro = tonumber(c[4]),
                     nitidez = tonumber(c[5]),
+                    rostos = tonumber(c[6]),
+                    abertura = tonumber(c[7]),
+                    pessoas = tonumber(c[8]),
+                    cortadas = tonumber(c[9]),
+                    partes = c[10] or '',
+                    aviso = (c[11] or '') ~= '' and c[11] or nil,
                 }
             else
-                medidas[c[1]] = { erro = c[6] ~= '' and c[6] or 'falha na análise' }
+                medidas[c[1]] = { erro = (c[11] or '') ~= '' and c[11] or 'falha na análise' }
             end
         end
     end
@@ -109,6 +117,7 @@ local function analisar(itens, pasta, rodada)
 end
 
 local function numeroBR(v, casas)
+    if v == nil then return '' end
     return (string.format('%.' .. casas .. 'f', v):gsub('%.', ','))
 end
 
@@ -142,9 +151,12 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
         return
     end
 
+    local onde = {}
+    if p.aplicarRotulos then onde[#onde + 1] = 'cor de rótulo' end
+    if p.aplicarPalavrasChave then onde[#onde + 1] = 'palavras-chave' end
+    if p.criarColecoes then onde[#onde + 1] = 'coleções em "' .. Comum.palavraPai .. '"' end
     local escolha = LrDialogs.confirm('Analisar ' .. #fotos .. ' fotos?',
-        'As fotos com problema vão receber cor de rótulo'
-        .. (p.aplicarPalavrasChave and ' e palavras-chave em "' .. Comum.palavraPai .. '"' or '') .. '.',
+        'As fotos com problema vão receber: ' .. (#onde > 0 and table.concat(onde, ', ') or 'nada (só relatório)') .. '.',
         'Analisar', 'Cancelar')
     if escolha ~= 'ok' then return end
 
@@ -153,12 +165,22 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
     LrFileUtils.createAllDirectories(pasta)
     contexto:addCleanupHandler(function() LrFileUtils.delete(pasta) end)
 
+    -- Palavras-chave e coleções são criadas antes, numa transação separada.
+    local destino
+    catalogo:withWriteAccessDo('Assistente de Seleção – preparar', function()
+        destino = Comum.prepararCatalogo(catalogo, p.criarColecoes)
+    end, { timeout = 60 })
+
+    -- Olhos e cortes precisam de mais resolução que brilho e nitidez.
+    local tamanho = Comum.usaVisao(p) and 1600 or 1024
+
     local progresso = LrProgressScope { title = 'Assistente de Seleção', functionContext = contexto }
     local inicio = LrDate.currentTime()
     local contagem = { feitas = 0, total = #fotos }
-    local totais = { escura = 0, clara = 0, foco = 0, normais = 0, falhas = 0, ignoradas = 0, analisadas = 0 }
+    local totais = { normais = 0, falhas = 0, ignoradas = 0, analisadas = 0 }
+    for _, k in ipairs(Comum.ordem) do totais[k] = 0 end
     local relatorio = {}
-    local primeiraFalha = nil
+    local primeiraFalha, primeiroAviso = nil, nil
 
     local rodada = 0
     for inicioLote = 1, #fotos, LOTE do
@@ -174,14 +196,19 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                 arquivo = LrPathUtils.child(pasta, string.format('%06d.jpg', i)),
             }
         end
-        gravarMiniaturas(itens, progresso, contagem)
+        gravarMiniaturas(itens, tamanho, progresso, contagem)
         if progresso:isCanceled() then break end
 
         progresso:setCaption(string.format('Analisando %d–%d de %d', inicioLote, fimLote, #fotos))
-        local medidas = analisar(itens, pasta, rodada)
+        local medidas = analisar(itens, pasta, rodada, p)
 
         catalogo:withWriteAccessDo('Assistente de Seleção', function()
-            local palavras = p.aplicarPalavrasChave and Comum.palavrasChave(catalogo) or nil
+            -- Fotos a pôr / tirar de cada coleção neste lote
+            local entrar, sair = {}, {}
+            if destino.colecoes then
+                for chave in pairs(destino.colecoes) do entrar[chave], sair[chave] = {}, {} end
+            end
+
             for _, item in ipairs(itens) do
                 local foto = item.foto
                 local m = item.temMiniatura and medidas[item.arquivo] or nil
@@ -194,16 +221,27 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
                     log:warn(nome .. ': ' .. motivo)
                     relatorio[#relatorio + 1] = { nome, nil, 'falha: ' .. motivo }
                 else
+                    if m.aviso then
+                        primeiroAviso = primeiroAviso or (nome .. ': ' .. m.aviso)
+                        log:warn(nome .. ': ' .. m.aviso)
+                    end
                     totais.analisadas = totais.analisadas + 1
                     local r, principal = Comum.classificar(m, p)
                     local corAtual = info[foto].colorNameForLabel
                     local marcadaAntes = Comum.temMarcacao(info[foto].keywords)
 
-                    if palavras then
-                        for _, k in ipairs(Comum.ordem) do
-                            foto:removeKeyword(palavras[k])
-                            if r[k] then foto:addKeyword(palavras[k]) end
+                    -- Palavras-chave e coleções: uma por problema, refeitas a cada análise
+                    for _, k in ipairs(Comum.ordem) do
+                        if p.aplicarPalavrasChave then
+                            foto:removeKeyword(destino.palavras[k])
+                            if r[k] then foto:addKeyword(destino.palavras[k]) end
                         end
+                        if destino.colecoes then
+                            table.insert(r[k] and entrar[k] or sair[k], foto)
+                        end
+                    end
+                    if destino.colecoes then
+                        table.insert(principal and entrar.revisar or sair.revisar, foto)
                     end
 
                     if principal then
@@ -226,11 +264,28 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
 
                     local problemas = {}
                     for _, k in ipairs(Comum.ordem) do
-                        if r[k] then problemas[#problemas + 1] = Comum.nomes[k] end
+                        if r[k] then
+                            local texto = Comum.nomes[k]
+                            if k == 'cortada' then
+                                local partes = {}
+                                for _, parte in ipairs(Comum.partesQueContam(m, p)) do
+                                    partes[#partes + 1] = Comum.nomesPartes[parte] or parte
+                                end
+                                texto = texto .. ' (' .. table.concat(partes, ', ') .. ')'
+                            end
+                            problemas[#problemas + 1] = texto
+                        end
                     end
                     relatorio[#relatorio + 1] = {
                         nome, m, #problemas > 0 and table.concat(problemas, ' + ') or 'Normal',
                     }
+                end
+            end
+
+            if destino.colecoes then
+                for chave, colecao in pairs(destino.colecoes) do
+                    if #sair[chave] > 0 then colecao:removePhotos(sair[chave]) end
+                    if #entrar[chave] > 0 then colecao:addPhotos(entrar[chave]) end
                 end
             end
         end, { timeout = 120 })
@@ -247,14 +302,17 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
         caminhoRelatorio = LrPathUtils.child(LrPathUtils.getStandardFilePath('desktop'), nomeArquivo)
         local f = io.open(caminhoRelatorio, 'w')
         if f then
-            f:write('arquivo;brilho_medio_%;sombras_%;estourado_%;nitidez;resultado\n')
+            f:write('arquivo;nitidez;abertura_olhos_%;rostos;pessoas;partes_cortadas;brilho_medio_%;sombras_%;estourado_%;resultado\n')
             for _, l in ipairs(relatorio) do
                 local m = l[2]
                 if m then
-                    f:write(l[1], ';', numeroBR(m.media * 100, 1), ';', numeroBR(m.sombras * 100, 1), ';',
-                        numeroBR(m.estouro * 100, 1), ';', numeroBR(m.nitidez, 1), ';', l[3], '\n')
+                    f:write(table.concat({
+                        l[1], numeroBR(m.nitidez, 1), numeroBR(m.abertura and m.abertura * 100, 0),
+                        m.rostos and tostring(m.rostos) or '', m.pessoas and tostring(m.pessoas) or '', m.partes or '',
+                        numeroBR(m.media * 100, 1), numeroBR(m.sombras * 100, 1), numeroBR(m.estouro * 100, 1), l[3],
+                    }, ';'), '\n')
                 else
-                    f:write(l[1], ';;;;;', l[3], '\n')
+                    f:write(l[1], ';;;;;;;;;', l[3], '\n')
                 end
             end
             f:close()
@@ -263,28 +321,35 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecao', function(context
         end
     end
 
-    local cor = {}
-    for _, c in ipairs(Comum.cores) do cor[c.value] = c.title end
-    local texto = string.format(
-        'Analisadas: %d de %d em %d s\n\n'
-        .. 'Muito escuras: %d (%s)\n'
-        .. 'Muito claras: %d (%s)\n'
-        .. 'Sem foco: %d (%s)\n'
-        .. 'Normais: %d\n'
-        .. 'Falhas: %d',
-        totais.analisadas, #fotos, math.floor(segundos + 0.5),
-        totais.escura, cor[p.corEscura] or p.corEscura,
-        totais.clara, cor[p.corClara] or p.corClara,
-        totais.foco, cor[p.corFoco] or p.corFoco,
-        totais.normais, totais.falhas)
+    local nomeCor = {}
+    for _, c in ipairs(Comum.cores) do nomeCor[c.value] = c.title end
+    local linhas = {
+        string.format('Analisadas: %d de %d em %d s', totais.analisadas, #fotos, math.floor(segundos + 0.5)), '',
+    }
+    for _, k in ipairs(Comum.ordem) do
+        local desligada = (k == 'olhos' and not p.detectarOlhos) or (k == 'cortada' and not p.detectarCortadas)
+        if not desligada then
+            local cor = Comum.corDe(k, p)
+            linhas[#linhas + 1] = string.format('%s: %d (%s)', Comum.nomes[k], totais[k], nomeCor[cor] or cor)
+        end
+    end
+    linhas[#linhas + 1] = 'Normais: ' .. totais.normais
+    linhas[#linhas + 1] = 'Falhas: ' .. totais.falhas
     if totais.ignoradas > 0 then
-        texto = texto .. '\n\n' .. totais.ignoradas .. ' foto(s) já tinham rótulo e não foram alteradas.'
+        linhas[#linhas + 1] = ''
+        linhas[#linhas + 1] = totais.ignoradas .. ' foto(s) já tinham rótulo e não foram alteradas.'
     end
     if primeiraFalha then
-        texto = texto .. '\n\nPrimeira falha: ' .. primeiraFalha
+        linhas[#linhas + 1] = ''
+        linhas[#linhas + 1] = 'Primeira falha: ' .. primeiraFalha
+    end
+    if primeiroAviso then
+        linhas[#linhas + 1] = ''
+        linhas[#linhas + 1] = 'Aviso (olhos/cortes): ' .. primeiroAviso
     end
     if caminhoRelatorio then
-        texto = texto .. '\n\nRelatório salvo na Mesa:\n' .. LrPathUtils.leafName(caminhoRelatorio)
+        linhas[#linhas + 1] = ''
+        linhas[#linhas + 1] = 'Relatório salvo na Mesa: ' .. LrPathUtils.leafName(caminhoRelatorio)
     end
-    LrDialogs.message('Assistente de Seleção – Concluído', texto, 'info')
+    LrDialogs.message('Assistente de Seleção – Concluído', table.concat(linhas, '\n'), 'info')
 end)

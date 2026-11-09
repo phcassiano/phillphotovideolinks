@@ -1,4 +1,4 @@
--- Remove as palavras-chave do assistente e a cor de rótulo que ele colocou
+-- Remove as palavras-chave, coleções e cor de rótulo que o assistente colocou
 -- nas fotos selecionadas.
 
 local LrApplication = import 'LrApplication'
@@ -25,13 +25,16 @@ LrFunctionContext.postAsyncTaskWithContext('AssistenteSelecaoLimpar', function(c
     end
 
     if LrDialogs.confirm('Limpar ' .. #marcadas .. ' fotos?',
-            'Remove as palavras-chave do assistente e a cor de rótulo que ele colocou.',
+            'Remove as palavras-chave, as coleções e a cor de rótulo que o assistente colocou.',
             'Limpar', 'Cancelar') ~= 'ok' then
         return
     end
 
     catalogo:withWriteAccessDo('Limpar Assistente de Seleção', function()
-        local palavras = Comum.palavrasChave(catalogo)
+        local palavras = Comum.prepararCatalogo(catalogo, false).palavras
+        for _, colecao in ipairs(Comum.colecoesExistentes(catalogo) or {}) do
+            colecao:removePhotos(marcadas)
+        end
         for _, foto in ipairs(marcadas) do
             for _, k in ipairs(Comum.ordem) do foto:removeKeyword(palavras[k]) end
             if Comum.ehCorDoAssistente(info[foto].colorNameForLabel, p) then

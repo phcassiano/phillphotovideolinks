@@ -36,23 +36,40 @@ LrFunctionContext.callWithContext('AssistenteSelecaoConfig', function(contexto)
         bind_to_object = tabela,
         spacing = f:control_spacing(),
 
-        f:group_box {
-            title = 'Muito escura', fill_horizontal = 1,
-            linha('Brilho médio abaixo de', numero('escuraMedia', 0, 100), '%'),
-            linha('ou pixels quase pretos acima de', numero('escuraSombras', 0, 100), '%'),
-            linha('Cor do rótulo', cor('corEscura')),
+        f:static_text {
+            title = 'Prioridade da cor quando a foto tem mais de um problema: sem foco, olhos fechados,\n'
+                .. 'pessoa cortada, muito clara, muito escura.',
         },
         f:group_box {
-            title = 'Muito clara', fill_horizontal = 1,
+            title = '1. Sem foco', fill_horizontal = 1,
+            linha('Nitidez abaixo de', numero('focoMinimo', 0, 1000, 1),
+                '(veja a coluna "nitidez" do relatório para calibrar)'),
+            linha('Cor do rótulo', cor('corFoco')),
+        },
+        f:group_box {
+            title = '2. Olhos fechados', fill_horizontal = 1,
+            f:checkbox { title = 'Detectar olhos fechados', value = bind('detectarOlhos') },
+            linha('Abertura do olho abaixo de', numero('olhosAbertura', 0, 100), '% (aberto ≈ 25–40, fechado ≈ 5–15)'),
+            linha('Cor do rótulo', cor('corOlhos')),
+        },
+        f:group_box {
+            title = '3. Pessoa cortada', fill_horizontal = 1,
+            f:checkbox { title = 'Detectar pessoas cortadas (cabeça, braços, tronco)', value = bind('detectarCortadas') },
+            f:checkbox { title = 'Contar também pernas/pés cortados', value = bind('contarPernas') },
+            linha('Distância da borda que conta como corte', numero('margemBorda', 0, 20, 1), '% do lado maior'),
+            linha('Cor do rótulo', cor('corCortada')),
+        },
+        f:group_box {
+            title = '4. Muito clara', fill_horizontal = 1,
             linha('Brilho médio acima de', numero('claraMedia', 0, 100), '%'),
             linha('ou pixels estourados acima de', numero('claraEstouro', 0, 100), '%'),
             linha('Cor do rótulo', cor('corClara')),
         },
         f:group_box {
-            title = 'Sem foco', fill_horizontal = 1,
-            linha('Nitidez abaixo de', numero('focoMinimo', 0, 1000, 1),
-                '(veja a coluna "nitidez" do relatório para calibrar)'),
-            linha('Cor do rótulo', cor('corFoco')),
+            title = '5. Muito escura', fill_horizontal = 1,
+            linha('Brilho médio abaixo de', numero('escuraMedia', 0, 100), '%'),
+            linha('ou pixels quase pretos acima de', numero('escuraSombras', 0, 100), '%'),
+            linha('Cor do rótulo', cor('corEscura')),
         },
         f:group_box {
             title = 'Resultado', fill_horizontal = 1,
@@ -64,6 +81,10 @@ LrFunctionContext.callWithContext('AssistenteSelecaoConfig', function(contexto)
             f:checkbox {
                 title = 'Adicionar palavras-chave (permite filtrar mais de um problema por foto)',
                 value = bind('aplicarPalavrasChave'),
+            },
+            f:checkbox {
+                title = 'Organizar em coleções (Assistente de Seleção › Para revisar, Sem foco, …)',
+                value = bind('criarColecoes'),
             },
             f:checkbox { title = 'Salvar relatório .csv na Mesa', value = bind('salvarRelatorio') },
         },

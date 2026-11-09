@@ -12,7 +12,7 @@ fi
 DESTINO="../AssistenteSelecao.lrplugin/bin"
 mkdir -p "$DESTINO"
 echo "Compilando…"
-swiftc -O Sources/*.swift -o "$DESTINO/assistente-analise"
+swiftc -O -target "$(uname -m)-apple-macos11" Sources/*.swift -o "$DESTINO/assistente-analise"
 chmod +x "$DESTINO/assistente-analise"
 "$DESTINO/assistente-analise" --versao
 echo "Pronto. Agora adicione a pasta AssistenteSelecao.lrplugin no Gerenciador de plug-ins do Lightroom."

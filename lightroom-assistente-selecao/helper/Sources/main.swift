@@ -1,12 +1,16 @@
 // assistente-analise: programa auxiliar chamado pelo plugin do Lightroom.
 //
 // Uso:
-//   assistente-analise --lista <arquivo com um caminho por linha> --saida <arquivo.tsv>
+//   assistente-analise --lista <arquivo com um caminho por linha> --saida <arquivo.tsv> [--visao] [--margem 0.02]
 //   assistente-analise <foto1.jpg> <foto2.jpg> ...      (resultado na saída padrão)
 //   assistente-analise --versao
 //
+// --visao  liga rostos/olhos e pose do corpo (só macOS)
+// --margem distância da borda, em fração do lado maior, que conta como "encostado na borda"
+//
 // Saída (TSV, uma linha por foto, na mesma ordem da entrada):
-//   caminho  media  sombras  estouro  nitidez  erro
+//   caminho media sombras estouro nitidez rostos abertura_olhos pessoas cortadas partes erro
+// (rostos..partes ficam vazios quando --visao não foi usado)
 
 import Foundation
 #if canImport(ImageIO)
@@ -14,7 +18,7 @@ import CoreGraphics
 import ImageIO
 #endif
 
-let versao = "0.1.0"
+let versao = "0.2.0"
 /// Lado maior usado na análise. As medidas de nitidez dependem do tamanho,
 /// por isso toda foto é reduzida para o mesmo tamanho antes de medir.
 let ladoAnalise = 1024
@@ -58,19 +62,29 @@ func lerPGM(_ caminho: String) throws -> ImagemCinza {
 }
 
 #if canImport(ImageIO)
-/// JPEG/HEIC/PNG/TIFF via ImageIO, já reduzida e convertida para cinza.
-func lerImagemApple(_ caminho: String) throws -> ImagemCinza {
+func abrirFonte(_ caminho: String) throws -> CGImageSource {
     let url = URL(fileURLWithPath: caminho) as CFURL
     guard let fonte = CGImageSourceCreateWithURL(url, nil) else { throw ErroLeitura.naoAbriu(caminho) }
+    return fonte
+}
+
+/// Imagem colorida, já na orientação certa, com no máximo `lado` pixels no lado maior.
+func lerColorida(_ fonte: CGImageSource, lado: Int) throws -> CGImage {
     let opcoes: [CFString: Any] = [
         kCGImageSourceCreateThumbnailFromImageAlways: true,
         kCGImageSourceCreateThumbnailWithTransform: true,
         kCGImageSourceShouldCacheImmediately: true,
-        kCGImageSourceThumbnailMaxPixelSize: ladoAnalise,
+        kCGImageSourceThumbnailMaxPixelSize: lado,
     ]
     guard let cg = CGImageSourceCreateThumbnailAtIndex(fonte, 0, opcoes as CFDictionary) else {
         throw ErroLeitura.formato("nao decodificou")
     }
+    return cg
+}
+
+/// JPEG/HEIC/PNG/TIFF via ImageIO, já reduzida e convertida para cinza.
+func lerImagemApple(_ fonte: CGImageSource) throws -> ImagemCinza {
+    let cg = try lerColorida(fonte, lado: ladoAnalise)
     let w = cg.width, h = cg.height
     var pixels = [UInt8](repeating: 0, count: w * h)
     let ok = pixels.withUnsafeMutableBytes { buf -> Bool in
@@ -89,9 +103,27 @@ func lerImagemApple(_ caminho: String) throws -> ImagemCinza {
 func lerImagem(_ caminho: String) throws -> ImagemCinza {
     if caminho.lowercased().hasSuffix(".pgm") { return try lerPGM(caminho) }
     #if canImport(ImageIO)
-    return try lerImagemApple(caminho)
+    return try lerImagemApple(try abrirFonte(caminho))
     #else
     throw ErroLeitura.formato("so PGM fora do macOS")
+    #endif
+}
+
+struct Opcoes {
+    var visao = false
+    var margem = 0.02
+}
+
+/// Rostos e pessoas da foto. Usa a imagem inteira (até 2048 px), não a versão reduzida.
+func detectarPessoas(_ caminho: String, _ opcoes: Opcoes) throws -> (ResultadoRostos, ResultadoPessoas) {
+    #if canImport(Vision)
+    guard #available(macOS 11.0, *) else { throw ErroLeitura.formato("precisa do macOS 11 ou superior") }
+    let imagem = try lerColorida(try abrirFonte(caminho), lado: 2048)
+    let (rostos, pessoas) = try Visao.detectar(imagem)
+    return (Regras.avaliarRostos(rostos),
+            Regras.avaliarPessoas(pessoas, largura: Double(imagem.width), altura: Double(imagem.height), margem: opcoes.margem))
+    #else
+    throw ErroLeitura.formato("deteccao de rostos so no macOS")
     #endif
 }
 
@@ -99,15 +131,31 @@ func lerImagem(_ caminho: String) throws -> ImagemCinza {
 
 func formatar(_ v: Double) -> String { String(format: "%.5f", v) }
 
-func linhaResultado(_ caminho: String) -> String {
+func linhaResultado(_ caminho: String, _ opcoes: Opcoes) -> String {
     do {
         let m = Analise.medir(try lerImagem(caminho))
-        return [caminho, formatar(m.media), formatar(m.sombras), formatar(m.estouro), formatar(m.nitidez), ""]
-            .joined(separator: "\t")
+        var campos = [caminho, formatar(m.media), formatar(m.sombras), formatar(m.estouro), formatar(m.nitidez)]
+        var erro = ""
+        if opcoes.visao {
+            do {
+                let (r, p) = try detectarPessoas(caminho, opcoes)
+                campos += [String(r.rostos), r.menorAbertura.map(formatar) ?? "", String(p.pessoas),
+                           String(p.cortadas), p.partes.sorted().joined(separator: ",")]
+            } catch {
+                campos += ["", "", "", "", ""]
+                erro = "visao: \(error)"
+            }
+        } else {
+            campos += ["", "", "", "", ""]
+        }
+        return (campos + [limpar(erro)]).joined(separator: "\t")
     } catch {
-        let msg = "\(error)".replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\n", with: " ")
-        return [caminho, "", "", "", "", msg].joined(separator: "\t")
+        return [caminho, "", "", "", "", "", "", "", "", "", limpar("\(error)")].joined(separator: "\t")
     }
+}
+
+func limpar(_ s: String) -> String {
+    s.replacingOccurrences(of: "\t", with: " ").replacingOccurrences(of: "\n", with: " ")
 }
 
 final class Resultados: @unchecked Sendable {
@@ -123,6 +171,7 @@ func principal() -> Int32 {
     var arquivoLista: String?
     var arquivoSaida: String?
     var caminhos: [String] = []
+    var opcoes = Opcoes()
 
     while !args.isEmpty {
         let a = args.removeFirst()
@@ -136,6 +185,11 @@ func principal() -> Int32 {
         case "--saida":
             guard !args.isEmpty else { fputs("--saida precisa de um arquivo\n", stderr); return 2 }
             arquivoSaida = args.removeFirst()
+        case "--visao":
+            opcoes.visao = true
+        case "--margem":
+            guard !args.isEmpty, let v = Double(args.removeFirst()) else { fputs("--margem precisa de um numero\n", stderr); return 2 }
+            opcoes.margem = v
         default:
             caminhos.append(a)
         }
@@ -153,9 +207,9 @@ func principal() -> Int32 {
 
     let resultados = Resultados(caminhos.count)
     DispatchQueue.concurrentPerform(iterations: caminhos.count) { i in
-        resultados.guardar(i, linhaResultado(caminhos[i]))
+        resultados.guardar(i, linhaResultado(caminhos[i], opcoes))
     }
-    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
+    let texto = "caminho\tmedia\tsombras\testouro\tnitidez\trostos\tabertura_olhos\tpessoas\tcortadas\tpartes\terro\n" + resultados.todas.joined(separator: "\n") + "\n"
 
     if let saida = arquivoSaida {
         do { try texto.write(toFile: saida, atomically: true, encoding: .utf8) } catch {
