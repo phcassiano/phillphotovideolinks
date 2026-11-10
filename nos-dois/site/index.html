@@ -331,6 +331,100 @@ details summary::-webkit-details-marker{display:none}
 @keyframes popin{from{transform:translate(-50%,-24px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
 @media (prefers-reduced-motion: reduce){.pop{animation:none}}
 @media (max-width:360px){.big{font-size:30px} h1{font-size:25px} .ring{width:84px;height:84px}}
+
+/* ===== Layout em cartões (início, explorar, planos) ===== */
+.hhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-block:8px 16px}
+.hhead h1{font-size:30px;line-height:1.1;display:flex;align-items:center;gap:6px;min-width:0}
+.hhead .me{width:46px;height:46px;border-radius:50%;border:0;padding:0;background:none;cursor:pointer;flex:none}
+.hhead .me .av{width:46px;height:46px;font-size:19px}
+.carousel{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px;padding:2px 16px 4px;scroll-padding-inline:16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.carousel::-webkit-scrollbar{display:none}
+.slide{flex:0 0 88%;scroll-snap-align:center;border-radius:28px;padding:20px;min-height:232px;position:relative;overflow:hidden;color:#fff;display:flex;flex-direction:column;gap:8px;box-shadow:0 14px 34px rgba(20,60,50,.18)}
+.slide h2{font-size:24px;line-height:1.15;color:#fff;max-width:78%;position:relative;z-index:1}
+.slide p{color:rgba(255,255,255,.9);font-size:14.5px;max-width:70%;position:relative;z-index:1}
+.slide .eyebrow{color:rgba(255,255,255,.85);position:relative;z-index:1}
+.slide .btn{margin-top:auto;align-self:flex-start;background:#fff;color:var(--sl,#13785F);border:0;position:relative;z-index:1}
+.slide .art{position:absolute;right:-18px;bottom:-22px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.16);display:grid;place-items:center;font-size:66px;line-height:1}
+.slide .art::before{content:"";position:absolute;inset:-26px;border-radius:50%;border:2px solid rgba(255,255,255,.14)}
+.slide .bignum{font-family:var(--display);font-weight:700;font-size:44px;line-height:1;letter-spacing:-.02em;position:relative;z-index:1;-webkit-user-select:none;user-select:none}
+.sl-mint{background:linear-gradient(140deg,#13785F,#2BB592);--sl:#13785F}
+.sl-coral{background:linear-gradient(140deg,#E0603F,#F59A73);--sl:#C24A2A}
+.sl-lilac{background:linear-gradient(140deg,#6F5BD9,#A48BF0);--sl:#5B45C9}
+.sl-sky{background:linear-gradient(140deg,#2B86C9,#5FB5E8);--sl:#1F6FA8}
+.dots{display:flex;justify-content:center;gap:7px;margin:10px 0 4px}
+.dots i{width:7px;height:7px;border-radius:50%;background:var(--faint);opacity:.45;transition:all .2s}
+.dots i.on{opacity:1;background:var(--accent);width:18px;border-radius:9px}
+.ftiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ftile{position:relative;overflow:hidden;background:var(--surface);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:24px;padding:16px 16px 74px;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;box-shadow:var(--shadow);cursor:pointer;color:var(--fg);font:inherit}
+.ftile b{font-family:var(--display);font-weight:600;font-size:17px;line-height:1.2}
+.ftile small{color:var(--muted);font-size:13px;line-height:1.3}
+.ftile b{overflow-wrap:anywhere}
+.ftile .fic{position:absolute;right:14px;bottom:14px;width:50px;height:50px;border-radius:16px;display:grid;place-items:center;background:var(--tc-soft);color:var(--tc)}
+.ftile .fic svg{width:28px;height:28px;stroke-width:2.1}
+.ftile.wide{grid-column:1/-1;padding-bottom:16px;padding-right:80px;min-height:84px}
+.crown{position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:50%;background:#8E6BE8;color:#fff;display:grid;place-items:center;font-size:12px;box-shadow:0 0 0 3px var(--bg)}
+.ftile .crown{right:8px;bottom:54px;box-shadow:0 0 0 3px var(--surface-solid)}
+.ftile.prem{background:linear-gradient(140deg,#7C5CE0,#B38CF0);border:0;color:#fff}
+.ftile.prem small{color:rgba(255,255,255,.9)}
+.ftile.prem .fic{background:rgba(255,255,255,.2);color:#fff;font-size:30px}
+.t-coral{--tc:#D9572F;--tc-soft:rgba(242,120,92,.16)}.t-green{--tc:#159A6E;--tc-soft:rgba(43,181,146,.16)}
+.t-yellow{--tc:#B7860B;--tc-soft:rgba(245,196,81,.24)}.t-lilac{--tc:#7457DE;--tc-soft:rgba(140,110,240,.16)}
+.t-teal{--tc:#0F8A8A;--tc-soft:rgba(32,170,170,.15)}.t-blue{--tc:#2B72C9;--tc-soft:rgba(70,140,230,.15)}
+.t-pink{--tc:#C23E79;--tc-soft:rgba(236,100,160,.15)}.t-orange{--tc:#D06A12;--tc-soft:rgba(245,150,60,.17)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .t-coral{--tc:#FF9479}:root:not([data-theme="light"]) .t-green{--tc:#5FD3AE}:root:not([data-theme="light"]) .t-yellow{--tc:#F5C451}:root:not([data-theme="light"]) .t-lilac{--tc:#B9A4FF}:root:not([data-theme="light"]) .t-teal{--tc:#5CD6D6}:root:not([data-theme="light"]) .t-blue{--tc:#7DB4FF}:root:not([data-theme="light"]) .t-pink{--tc:#FF8FC0}:root:not([data-theme="light"]) .t-orange{--tc:#FFB066}}
+:root[data-theme="dark"] .t-coral{--tc:#FF9479}:root[data-theme="dark"] .t-green{--tc:#5FD3AE}:root[data-theme="dark"] .t-yellow{--tc:#F5C451}:root[data-theme="dark"] .t-lilac{--tc:#B9A4FF}:root[data-theme="dark"] .t-teal{--tc:#5CD6D6}:root[data-theme="dark"] .t-blue{--tc:#7DB4FF}:root[data-theme="dark"] .t-pink{--tc:#FF8FC0}:root[data-theme="dark"] .t-orange{--tc:#FFB066}
+.pillnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;justify-content:center;padding:8px 12px calc(14px + env(safe-area-inset-bottom,0px));pointer-events:none}
+.pillnav nav{pointer-events:auto;display:flex;gap:6px;padding:7px;border-radius:999px;background:var(--surface-solid);border:1px solid var(--line-2);box-shadow:0 14px 34px rgba(20,60,50,.2)}
+.pillnav button{position:relative;width:76px;height:50px;border-radius:999px;border:0;background:none;color:var(--faint);display:grid;place-items:center;cursor:pointer}
+.pillnav button svg{width:26px;height:26px}
+.pillnav button[aria-current="page"]{background:var(--accent-soft);color:var(--accent)}
+.pillnav .nb{position:absolute;top:9px;right:20px;width:10px;height:10px;border-radius:50%;background:var(--coral);box-shadow:0 0 0 2px var(--surface-solid)}
+.xban{border-radius:26px;padding:20px;color:#fff;background:linear-gradient(140deg,#C2603F,#E89A6E);position:relative;overflow:hidden;min-height:150px;margin-bottom:6px}
+.xban h2{color:#fff;font-size:24px;max-width:70%}.xban p{color:rgba(255,255,255,.92);font-size:14.5px;max-width:64%;margin-top:6px}
+.xban .art{position:absolute;right:-10px;bottom:-16px;font-size:84px;line-height:1;opacity:.95}
+.xgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px}
+.xit{display:flex;flex-direction:column;align-items:center;gap:7px;background:none;border:0;padding:0;cursor:pointer;color:var(--fg);font:500 12.5px/1.2 var(--body,Inter),system-ui,sans-serif;text-align:center;min-width:0}
+.xit .sq{position:relative;width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);color:var(--tc)}
+.xit .sq::after{content:"";position:absolute;inset:9px;border-radius:14px;background:var(--tc-soft)}
+.xit .sq svg{width:28px;height:28px;stroke-width:2.1;position:relative;z-index:1}
+.xit span.l{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.pw-hero{border-radius:30px;padding:26px 22px 22px;background:linear-gradient(150deg,#6F5BD9,#A48BF0 55%,#F59A73);color:#fff;position:relative;overflow:hidden}
+.pw-hero .rings{display:block;margin:4px auto 14px}
+.pw-hero h1{color:#fff;font-size:28px;line-height:1.12;text-align:center}
+.pw-hero p{color:rgba(255,255,255,.92);text-align:center;margin-top:8px}
+.pw-hero .spk{position:absolute;color:#FFE08A;font-size:18px}
+.brandtag{display:inline-flex;align-items:center;gap:8px;font:700 13px var(--display);color:#fff;background:rgba(255,255,255,.2);padding:6px 12px;border-radius:999px;margin:0 auto 10px}
+.pplans{display:flex;flex-direction:column;gap:10px}
+.pplan{position:relative;display:flex;align-items:center;gap:12px;padding:16px;border-radius:22px;border:2px solid var(--line-2);background:var(--surface);cursor:pointer;text-align:left;color:var(--fg);font:inherit}
+.pplan[aria-pressed="true"]{border-color:#8E6BE8;background:rgba(142,107,232,.08)}
+.pplan .ck{margin-left:auto;width:28px;height:28px;border-radius:50%;border:2px solid var(--line-2);display:grid;place-items:center;color:#fff;flex:none}
+.pplan[aria-pressed="true"] .ck{background:#8E6BE8;border-color:#8E6BE8}
+.pplan .ck svg{width:16px;height:16px}
+.pplan .badge{position:absolute;top:-12px;left:16px;background:#8E6BE8;color:#fff;font:700 12px var(--display);padding:4px 10px;border-radius:999px}
+.pplan s{color:var(--faint)}
+.cmp{width:100%;border-collapse:collapse}
+.cmp th{font:600 13px var(--display);color:var(--muted);text-align:center;padding:0 0 8px;width:70px}
+.cmp th.p{color:#8E6BE8}
+.cmp td{padding:9px 0;border-top:1px solid var(--line-2);font-size:14.5px}
+.cmp td.c{text-align:center}
+.cmp .yes,.cmp .no{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%}
+.cmp .yes{background:rgba(142,107,232,.16);color:#8E6BE8}.cmp .no{color:var(--faint)}
+.cmp svg{width:15px;height:15px}
+.tline{position:relative;display:flex;flex-direction:column;gap:18px;padding-left:46px}
+.tline::before{content:"";position:absolute;left:15px;top:6px;bottom:6px;width:6px;border-radius:6px;background:linear-gradient(#8E6BE8 0 34%,rgba(142,107,232,.25) 34%)}
+.tline .st{position:relative}
+.tline .st .dot{position:absolute;left:-46px;top:-2px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface-solid);border:2px solid #8E6BE8;color:#8E6BE8;font-size:16px}
+.tline .st b{display:block;font-family:var(--display);font-size:16px}
+.tline .st p{color:var(--muted);font-size:14px;margin-top:2px}
+.faq details{border:1px solid var(--line-2);border-radius:18px;padding:14px 16px;background:var(--surface)}
+.faq details+details{margin-top:8px}
+.faq summary{cursor:pointer;font:600 15px var(--display);list-style:none;display:flex;justify-content:space-between;gap:10px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"⌄";color:var(--muted)}
+.faq details[open] summary::after{content:"⌃"}
+.faq details p{color:var(--muted);font-size:14px;margin-top:8px}
+.pwcta{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:5;margin-top:14px}
+.pwcta .btn{width:100%;background:#8E6BE8;border-color:#8E6BE8;color:#fff;box-shadow:0 14px 30px rgba(110,80,210,.35)}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2BB592"/><stop offset="1" stop-color="#F2785C"/></linearGradient></defs></svg>
@@ -1088,25 +1182,47 @@ function assinar(){
     : st==="founder" ? `<section class="card"><b>Vocês são casal fundador</b><p class="small muted">Este espaço foi criado antes do teste e continua com tudo liberado.</p></section>`
     : st==="trial" ? `<section class="card"><b>Teste grátis: faltam ${daysLeft(plan.trialEnds)} ${daysLeft(plan.trialEnds)===1?"dia":"dias"}</b><p class="small muted">Assinando agora, o Premium começa a contar só quando o teste acabar.</p></section>`
     : want ? `<section class="card row" style="gap:12px"><span class="iconbtn" style="color:var(--coral);background:var(--coral-soft);border-color:transparent;box-shadow:none">${ic("lock")}</span><div class="grow"><b>${esc(PREMIUM_VIEWS[want])} é do Premium</b><p class="small muted">O teste de 7 dias acabou. O que vocês criaram continua guardado.</p></div></section>` : "";
-  return `${topBack("Nós Dois Premium", "Uma assinatura para os dois")}
-  <div class="stack">${head}
-  <div class="plans">
-    <div class="plan"><span class="small muted">Mensal</span><b>${PRICE_M}</b><span class="small muted">por mês, para o casal</span></div>
-    <div class="plan best"><span class="small" style="color:var(--accent);font-weight:700">Anual · economize 41%</span><b>${PRICE_Y}</b><span class="small muted">por ano (R$ 5,83/mês)</span></div>
+  const yes = `<span class="yes">${ic("tick")}</span>`, no = `<span class="no">${ic("lock")}</span>`;
+  const rows = [["Pergunta do dia",1],["Tarefas e listas",1],["Datas e avisos",1],["Fazer juntos e desafios",1],["Contas da casa",0],["Família e rotina do bebê",0],["Recado na tela",0],["Decidir juntos",0],["Desejos e radar de presentes",0],["Cofre cifrado e notas",0],["Planos, cápsulas e cartões",0],["O nosso ano e livro do casal",0]];
+  return `${topBack("", "")}
+  <div class="stack">
+  <section class="pw-hero"><span class="spk" style="left:22px;top:20px">✦</span><span class="spk" style="right:30px;top:34px">✦</span><span class="spk" style="left:40px;bottom:40px;font-size:12px">✦</span>
+    <div style="text-align:center"><span class="brandtag">Nós Dois · Premium 👑</span></div>
+    <svg class="rings" width="96" height="66" viewBox="0 0 520 360" aria-hidden="true"><circle cx="190" cy="180" r="130" fill="none" stroke="#fff" stroke-width="44"/><circle cx="330" cy="180" r="130" fill="none" stroke="#FFC3A6" stroke-width="44"/></svg>
+    <h1>A vida a dois, organizada e com carinho.</h1>
+    <p>Tudo o que vocês precisam para dividir a casa, cuidar da família e guardar as memórias.</p></section>
+  ${head}
+  <div class="pplans" role="group" aria-label="Planos">
+    <button class="pplan" data-act="pickPlan" data-v="y" aria-pressed="${pickedPlan!=="m"}"><span class="badge">Melhor oferta 🤩</span><div><b style="font-family:var(--display);font-size:17px">12 meses</b><div class="small"><s>R$ 118,80</s> <b>${PRICE_Y}</b> por ano</div><div class="small muted">Só R$ 5,83 por mês, para o casal</div></div><span class="ck">${ic("tick")}</span></button>
+    <button class="pplan" data-act="pickPlan" data-v="m" aria-pressed="${pickedPlan==="m"}"><div><b style="font-family:var(--display);font-size:17px">Mensal</b><div class="small"><b>${PRICE_M}</b> por mês, para o casal</div></div><span class="ck">${ic("tick")}</span></button>
   </div>
-  <section class="card stack"><b>O que o Premium libera</b><ul class="checks">
-    ${["Contas da casa: fixas, gastos e quem deve quanto","Família: gestação, rotina do bebê, filhos e nomes","Recado na tela e Decidir juntos","Bom saber, Radar de presentes e Desejos","Cofre cifrado, notas, planos, cápsulas e cartões","O nosso ano em números"].map(t=>`<li>${ic("check")}<span>${t}</span></li>`).join("")}
-  </ul><p class="small muted">Sempre grátis: pergunta do dia, tarefas, listas, datas e avisos.</p></section>
-  ${st==="founder" ? "" : `<section class="card stack"><b>Como assinar</b><ol class="steps3">
+  <section class="card stack"><b style="font-family:var(--display);font-size:18px">O que está incluído</b>
+    <table class="cmp"><thead><tr><th style="text-align:left"></th><th>Grátis</th><th class="p">Premium</th></tr></thead><tbody>
+    ${rows.map(([t,f])=>`<tr><td>${t}</td><td class="c">${f?yes:no}</td><td class="c">${yes}</td></tr>`).join("")}
+    </tbody></table></section>
+  <section class="card stack"><b style="font-family:var(--display);font-size:18px">Como funciona o teste grátis</b>
+    <div class="tline">
+      <div class="st"><span class="dot">🔓</span><b>Hoje: tudo liberado ✅</b><p>Você e ${esc(pn)} usam todas as funções do Premium por 7 dias.</p></div>
+      <div class="st"><span class="dot">♡</span><b>Aproveitem sem pressão ☁️</b><p>Sem cartão e sem cadastro de pagamento. Nada é cobrado sozinho.</p></div>
+      <div class="st"><span class="dot">👑</span><b>No 7º dia: vocês escolhem</b><p>Assinem para continuar com tudo, ou sigam no grátis. O que criaram fica guardado.</p></div>
+    </div></section>
+  <section class="faq"><b style="font-family:var(--display);font-size:18px;display:block;margin-bottom:10px">Perguntas frequentes</b>
+    <details><summary>✅ Tem cobrança automática?</summary><p>Não. O pagamento é por Pix, por período (mês ou ano). Quando acaba, vocês decidem se renovam.</p></details>
+    <details><summary>💞 Vale para nós dois?</summary><p>Sim. Uma assinatura libera o Premium para você e ${esc(pn)}, cada um no seu celular.</p></details>
+    <details><summary>📱 Funciona em mais de um aparelho?</summary><p>Sim. Entrem com o código do casal em quantos aparelhos quiserem.</p></details>
+    <details><summary>🗂️ E se a gente não assinar?</summary><p>Vocês seguem no plano grátis com a pergunta do dia, tarefas, listas e datas. Nada é apagado.</p></details>
+  </section>
+  ${st==="founder" ? "" : `<section class="card stack" id="comoAssinar"><b>Como assinar</b><ol class="steps3">
     <li><div class="grow">Pague por Pix o plano escolhido.${contact && contact.pix ? `<div class="row" style="gap:8px;margin-top:6px;flex-wrap:wrap"><span class="tag num">${esc(contact.pix)}</span><button class="btn sm ghost" data-act="copyText" data-t="${esc(contact.pix)}">Copiar chave</button></div>` : ""}</div></li>
     <li><div class="grow">Mande o comprovante pelo WhatsApp.${wa1 ? `<div style="margin-top:6px"><a class="btn sm" href="${wa1}" target="_blank" rel="noopener">${ic("chat")} Falar no WhatsApp</a></div>` : ""}</div></li>
     <li><div class="grow">Você recebe um código de ativação. Digite aqui:</div></li>
   </ol>
   <form class="inline" data-form="redeem"><input type="text" id="actCode" name="code" required autocomplete="off" autocapitalize="characters" placeholder="ND-XXXX-XXXX" style="text-transform:uppercase;letter-spacing:.05em"><button class="btn" type="submit">Ativar</button></form>
   <p class="small muted">Vale para você e ${esc(pn)}, cada um no seu celular.</p></section>`}
+  ${st==="founder" || st==="premium" ? "" : `<div class="pwcta"><button class="btn" data-act="toBuy">${st==="trial" ? "Garantir o Premium" : "Assinar o Premium"} ${pickedPlan==="m" ? "mensal" : "anual"}</button></div>`}
   </div>`;
 }
-let lockedFrom = null;
+let lockedFrom = null; let pickedPlan = "y";
 async function redeemCode(raw){
   if(!cloud){ toast("Crie o espaço de vocês primeiro."); return; }
   try{ const r = await api({op:"redeem", id:cloud.id, key:cloud.key, code:raw}); setPlan(r.plan); clearIds.add("actCode"); lockedFrom = null; schedule();
@@ -1484,10 +1600,12 @@ function screen(){
 }
 
 function tabbar(){
-  const tabs = [["home","Início","home"],["pergunta","Pergunta","chat"],["tarefas","Tarefas","check"],["listas","Listas","list"],["familia","Família","family"]];
-  const map = {datas:"home",ideias:"home",desejos:"home",ajustes:"home",contas:"home",secoes:"home",recado:"home",bomsaber:"home",decidir:"home",radar:"home",notas:"home",planos:"home",capsulas:"home",cofre:"home",cartoes:"home",numeros:"home"};
-  const cur = map[view] || view;
-  return `<div class="tabbar"><nav aria-label="Seções">${tabs.map(([v,l,i])=>`<button class="tab" data-act="go" data-v="${v}" ${cur===v?'aria-current="page"':""}>${ic(i)}<span>${l}</span></button>`).join("")}</nav></div>`;
+  const cur = view==="home" ? "home" : "secoes";
+  const news = Object.entries(S.polls).some(([,q])=>q.votes && q.votes[other(me)]!=null && q.votes[me]==null) || Object.values(S.capsules).some(c=>diff(c.openAt, today())>=0 && !(c.seen||{})[me] && (c.to==="ambos" || c.to===me));
+  return `<div class="pillnav"><nav aria-label="Navegação">
+    <button data-act="go" data-v="home" aria-label="Início" ${cur==="home"?'aria-current="page"':""}>${ic("home")}</button>
+    <button data-act="go" data-v="secoes" aria-label="Explorar" ${cur==="secoes"?'aria-current="page"':""}>${ic("grid")}${news?'<i class="nb"></i>':""}</button>
+  </nav></div>`;
 }
 const backBtn = (to="home") => `<button class="iconbtn" data-act="go" data-v="${to}" aria-label="Voltar">${ic("back")}</button>`;
 
@@ -1527,6 +1645,20 @@ function whoPicker(){
 }
 
 /* ----- Início ----- */
+/* ----- Cartões do início e do Explorar ----- */
+const paid = () => !planOn() || plan.status==="premium";
+const crownOn = v => PREMIUM_VIEWS[v] && !paid();
+const crown = v => crownOn(v) ? `<span class="crown" aria-label="Premium">👑</span>` : "";
+const ftile = (v, title, sub, icon, tone, wide=false) => `<button class="ftile t-${tone}${wide?" wide":""}" data-act="go" data-v="${v}"><b>${title}</b><small>${sub}</small><span class="fic">${ic(icon)}</span>${crown(v)}</button>`;
+const SECTIONS = {
+  pergunta:["Pergunta","chat","coral"], tarefas:["Tarefas","check","green"], listas:["Listas","list","yellow"], datas:["Datas","cal","lilac"],
+  ideias:["Fazer juntos","cup","orange"], desafios:["Desafios","target","pink"],
+  contas:["Contas","coin","teal"], familia:["Família","family","blue"], recado:["Recado","phone","orange"], decidir:["Decidir","vote","pink"],
+  desejos:["Desejos","star","yellow"], radar:["Presentes","gift","coral"], bomsaber:["Bom saber","info","blue"], cofre:["Cofre","shield","teal"],
+  notas:["Notas","pencil","yellow"], planos:["Planos","target","green"], capsulas:["Cápsulas","hourglass","lilac"], cartoes:["Cartões","card","blue"],
+  numeros:["Nosso ano","star","coral"], livro:["Livro","image","pink"]
+};
+const xit = v => { const [l, i, t] = SECTIONS[v]; return `<button class="xit t-${t}" data-act="go" data-v="${v}"><span class="sq">${ic(i)}${crown(v)}</span><span class="l">${l}</span></button>`; };
 function home(){
   const c = C(); const t = today();
   const days = c.start ? diff(c.start, t) : 0; const p = c.start ? ymd(c.start, t) : {y:0,m:0,d:0};
@@ -1565,12 +1697,22 @@ function home(){
   else if(hasStage("planejando")){ const done = Object.values((S.meta.talks||{})).filter(Boolean).length; fam = `<b>${done} de ${TALKS.length} conversas</b><span class="small muted">Antes de aumentar a família</span>`; }
   else if(hasStage("temos") || hasStage("esperando")){ fam = `<b>Completar perfil</b><span class="small muted">Adicione os dados da família</span>`; }
 
+  const slides = [
+    `<section class="slide sl-mint" aria-label="Tempo juntos"><span class="eyebrow">Juntos há</span><span class="bignum num" data-act="egg">${pl(days,"dia","dias")}</span><p>${ann && ann.inDays===0 ? `Hoje: ${pl(ann.turns,"ano","anos")} juntos! 🎉` : `Faltam ${pl(nextRound-days,"dia","dias")} para os ${nf(nextRound)}.`}</p><button class="btn sm" data-act="go" data-v="numeros">Os nossos números</button><span class="art">💞</span></section>`,
+    `<section class="slide sl-coral" aria-label="Pergunta do dia"><span class="eyebrow">Pergunta de hoje · ${esc(todayQ.theme)}</span><h2>${esc(todayQ.q || todayQ.text || "")}</h2><p>${st ? `${pl(st,"dia seguido","dias seguidos")}. ` : ""}${qStatus}</p><button class="btn sm" data-act="go" data-v="pergunta">${mine && theirs ? "Ver as respostas" : mine ? "Ver a pergunta" : "Responder agora"}</button><span class="art">💬</span></section>`,
+    nx ? `<section class="slide sl-lilac" aria-label="Próxima data"><span class="eyebrow">Próxima data · ${esc(inDaysText(nx.inDays))}</span><h2>${esc(nx.title)}</h2><p>${up.length>1 ? `E mais ${pl(up.length-1,"data","datas")} pela frente.` : "Só essa por enquanto."}</p><button class="btn sm" data-act="go" data-v="datas">Ver datas</button><span class="art">🗓️</span></section>`
+       : `<section class="slide sl-lilac" aria-label="Próxima data"><h2>Nada marcado! 😌 Planejem um momento a dois</h2><p>Um jantar, um filme, uma volta. A gente sugere.</p><button class="btn sm" data-act="go" data-v="ideias">Ver ideias</button><span class="art">🗓️</span></section>`,
+    `<section class="slide sl-sky" aria-label="Casa"><span class="eyebrow">A casa</span><h2>${open.length ? `${pl(myOpen,"tarefa","tarefas")} com você` : "Casa em dia ✨"}</h2><p>${open.length ? `${pl(open.length,"aberta","abertas")} no total. Dividir é cuidar.` : "Nenhuma tarefa aberta. Aproveitem!"}</p><button class="btn sm" data-act="go" data-v="tarefas">Ver tarefas</button><span class="art">🧺</span></section>`
+  ];
+  const nLists = Object.keys(S.lists||{}).length;
   return `
-  <div class="top">
-    <div><div class="eyebrow">Nós</div><h1 style="margin-top:4px">${esc(nameOf("a"))} <em class="acc">&amp;</em> ${esc(nameOf("b"))}</h1></div>
-    <button class="iconbtn" data-act="go" data-v="ajustes" aria-label="Ajustes">${ic("gear")}</button>
+  <div class="hhead">
+    <h1>${esc(nameOf("a"))} <em class="acc">&amp;</em> ${esc(nameOf("b"))}</h1>
+    <button class="me" data-act="go" data-v="ajustes" aria-label="Ajustes">${avatar(me)}</button>
   </div>
   ${trialBar()}
+  <div class="carousel" data-carousel>${slides.join("")}</div>
+  <div class="dots" aria-hidden="true">${slides.map((_,k)=>`<i class="${k?"":"on"}"></i>`).join("")}</div>
   <div class="stack" style="gap:14px">
     ${delightCards()}
     ${rec && recadoVisible(rec) && (rec.text || recImg) ? `<section class="card recado" aria-label="Recado de ${esc(pn)}">
@@ -1582,25 +1724,7 @@ function home(){
     ${pendingPoll ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${esc(pn)} quer decidir com você</b><p class="small" style="color:var(--fg)">${esc(pendingPoll[1].question)}</p></div><button class="btn sm coral" data-act="go" data-v="decidir">Votar</button></section>` : ""}
     ${capsReady ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)"><div class="grow"><b style="color:var(--coral)">${pl(capsReady,"cápsula abriu","cápsulas abriram")}</b><p class="small" style="color:var(--fg)">Uma mensagem guardada para hoje.</p></div><button class="btn sm coral" data-act="go" data-v="capsulas">Abrir</button></section>` : ""}
     ${mode==="cloud" && pushState==="off" && partnerJoined() && lsGet("nd-push-later")!==today() && !(lsGet("nd-push-later")||"").startsWith("x") ? `<section class="card row" style="gap:12px"><span class="iconbtn" style="color:var(--accent);background:var(--accent-soft);border-color:transparent;box-shadow:none">${ic("phone")}</span><div class="grow"><b>Saber na hora</b><p class="small muted">Receba um aviso quando ${esc(pn)} responder ou mandar recado.</p></div><div class="stack" style="gap:6px"><button class="btn sm" data-act="pushOn">Ativar</button><button class="linkrow small muted" data-act="pushLater" style="justify-content:center">Agora não</button></div></section>` : ""}
-    <section class="hero stack" style="gap:12px" aria-label="Tempo juntos">
-      <div class="row between" style="align-items:center">
-        <div class="stack" style="gap:6px;min-width:0">
-          <span class="eyebrow">Juntos há</span>
-          <span class="big num" data-act="egg" style="cursor:default;-webkit-user-select:none;user-select:none">${pl(days,"dia","dias")}</span>
-          <span class="small muted">desde ${c.start?fmt(c.start):"—"}</span>
-        </div>
-        ${ring(((days%1000)||(days?1000:0))/1000, `${Math.floor(((days%1000)||(days?1000:0))/10)}%`, `até ${nf(nextRound)}`)}
-      </div>
-      <div class="legend">
-        <span><i></i>Anos<b class="num">${p.y||0}</b></span>
-        <span><i class="c"></i>Meses<b class="num">${p.m||0}</b></span>
-        <span><i class="g"></i>Dias<b class="num">${p.d||0}</b></span>
-      </div>
-      <div class="row between small" style="flex-wrap:wrap;gap:6px">
-        <span class="tag acc">${ann && ann.inDays===0 ? `Hoje: ${pl(ann.turns,"ano","anos")} juntos!` : `Faltam ${pl(nextRound-days,"dia","dias")} para os ${nf(nextRound)}`}</span>
-        <button class="linkrow" data-act="go" data-v="numeros">Os nossos números ${ic("chev")}</button>
-      </div>
-    </section>
+
 
     ${showSteps ? `<section class="card stack steps" aria-label="Primeira semana">
       <div class="row between"><span class="eyebrow">Primeira semana a dois</span><span class="small muted num">${stepsDone} de ${steps.length}</span></div>
@@ -1610,30 +1734,25 @@ function home(){
       <button class="linkrow small muted" data-act="hideSteps">Esconder este guia</button>
     </section>` : ""}
 
-    <section class="card stack" aria-label="Pergunta do dia">
-      <div class="row between"><span class="eyebrow">A nossa sequência</span><span class="tag">${esc(todayQ.theme)}</span></div>
-      <h2 class="num">${st ? pl(st,"dia seguido","dias seguidos") : "Comecem hoje"}</h2>
-      <p class="small muted">${qStatus}</p>
-      ${weekBars()}
-      <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn grow" data-act="go" data-v="pergunta">${mine && theirs ? "Ver as respostas" : mine ? "Ver a pergunta" : "Responder agora"}</button>${mine && !theirs && mode!=="demo" ? waBtn(`Respondi a pergunta de hoje no Nós Dois. Sua vez! ${appUrl()}`, "Cutucar", "btn ghost") : ""}</div>
-    </section>
+
 
     ${since!==null && since>21 || since===null ? `<section class="card flat row" style="background:var(--coral-soft);border-color:var(--line)">
       <div class="grow"><b style="color:var(--coral)">Momento a dois</b><p class="small" style="color:var(--fg)">${since===null?"Registrem o próximo encontro só de vocês.":`Já faz ${pl(since,"dia","dias")} desde o último encontro só de vocês.`}</p></div>
       <button class="btn sm coral" data-act="go" data-v="ideias">Ver ideias</button></section>` : ""}
 
-    <div class="grid2">
-      <button class="tile" data-act="go" data-v="datas"><span class="ic">${ic("cal")}${ic("chev")}</span><span class="eyebrow">Próxima data</span><b>${nx?esc(nx.title):"Nenhuma ainda"}</b><span class="small muted">${nx?inDaysText(nx.inDays):"Adicione uma data"}</span></button>
-      <button class="tile" data-act="go" data-v="tarefas"><span class="ic">${ic("check")}${ic("chev")}</span><span class="eyebrow">Tarefas</span><b>${pl(open.length,"aberta","abertas")}</b><span class="small muted">${myOpen} com você</span></button>
-      <button class="tile" data-act="go" data-v="ideias"><span class="ic">${ic("spark")}${ic("chev")}</span><span class="eyebrow">Fazer juntos</span><b>${IDEAS.length} ideias</b><span class="small muted">Em casa ou numa escapada</span></button>
-      <button class="tile" data-act="go" data-v="desejos"><span class="ic">${ic("gift")}${ic("chev")}</span><span class="eyebrow">Desejos</span><b>${pl(wishes,"desejo","desejos")}</b><span class="small muted">Ideias de presente</span></button>
-      <button class="tile ${fam?"":"wide"}" data-act="go" data-v="contas"><span class="ic">${ic("coin")}${ic("chev")}</span><span class="eyebrow">Contas da casa</span><b>${fixedDueSoon() ? pl(fixedDueSoon(),"conta vencendo","contas vencendo") : Math.abs(bal)<0.01 ? "Tudo certo" : money2(Math.abs(bal))}</b><span class="small muted">${fixedDueSoon() ? "Nos próximos 3 dias" : Math.abs(bal)<0.01 ? (nBills?"Nada a acertar":"Fixas e gastos do mês") : esc(balanceText())}</span></button>
-      ${fam ? `<button class="tile" data-act="go" data-v="familia"><span class="ic">${ic("family")}${ic("chev")}</span><span class="eyebrow">Família</span>${fam}</button>` : ""}
-      <button class="tile" data-act="go" data-v="decidir"><span class="ic">${ic("vote")}${ic("chev")}</span><span class="eyebrow">Decidir juntos</span><b>${(()=>{ const o = Object.values(S.polls).filter(q=>!(q.votes&&q.votes[me]!=null)).length; return o ? pl(o,"votação","votações") : "Sem pendências"; })()}</b><span class="small muted">Sem um influenciar o outro</span></button>
-      <button class="tile" data-act="go" data-v="recado"><span class="ic">${ic("phone")}${ic("chev")}</span><span class="eyebrow">Recado na tela</span><b>${S.meta["recado_"+me] ? "Recado enviado" : "Deixar um recado"}</b><span class="small muted">Aparece no início de ${esc(pn)}</span></button>
-      <button class="tile" data-act="go" data-v="radar"><span class="ic">${ic("gift")}${ic("chev")}</span><span class="eyebrow">Radar de presentes</span><b>${(()=>{ const r = radarEvents(); return r[0] ? esc(r[0].title) : "Nada à vista"; })()}</b><span class="small muted">${(()=>{ const r = radarEvents(); return r[0] ? inDaysText(r[0].inDays) : "Datas que pedem presente"; })()}</span></button>
-      <button class="tile" data-act="go" data-v="bomsaber"><span class="ic">${ic("info")}${ic("chev")}</span><span class="eyebrow">Bom saber</span><b>Tamanhos e gostos</b><span class="small muted">O que agrada e o que não</span></button>
-      <button class="tile wide" data-act="go" data-v="secoes"><span class="ic">${ic("grid")}${ic("chev")}</span><span class="eyebrow">Todas as seções</span><b>Cápsulas, planos, notas, cartões, cofre</b><span class="small muted">E o nosso ano em números</span></button>
+    <div class="ftiles">
+      ${ftile("pergunta","Pergunta do dia", mine && theirs ? "Os dois responderam" : theirs ? `${esc(pn)} já respondeu` : mine ? `Falta ${esc(pn)}` : "Sua vez de responder","chat","coral")}
+      ${ftile("tarefas","Tarefas", open.length ? `${pl(open.length,"aberta","abertas")} · ${myOpen} com você` : "Tudo em dia","check","green")}
+      ${ftile("listas","Listas", nLists ? pl(nLists,"lista","listas") : "Mercado, viagem, enxoval","list","yellow")}
+      ${ftile("datas","Datas", nx ? `${esc(nx.title)} · ${esc(inDaysText(nx.inDays).toLowerCase())}` : "Aniversários e encontros","cal","lilac")}
+      ${ftile("contas","Contas da casa", fixedDueSoon() ? pl(fixedDueSoon(),"conta vencendo","contas vencendo") : Math.abs(bal)<0.01 ? "Tudo certo" : esc(balanceText()),"coin","teal")}
+      ${ftile("familia","Família", fam ? fam.replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim() : "Gestação, filhos e nomes","family","blue")}
+      ${ftile("decidir","Decidir juntos", (()=>{ const o = Object.values(S.polls).filter(q=>!(q.votes&&q.votes[me]!=null)).length; return o ? pl(o,"votação","votações") : "Cada um vota sem ver"; })(),"vote","pink")}
+      ${ftile("recado","Recado na tela", S.meta["recado_"+me] ? "Recado enviado" : `Aparece no início de ${esc(pn)}`,"phone","orange")}
+      ${ftile("desejos","Desejos", wishes ? pl(wishes,"desejo","desejos") : "Ideias de presente","star","yellow")}
+      ${ftile("ideias","Fazer juntos", `${IDEAS.length} ideias em casa ou fora`,"cup","orange")}
+      ${paid() ? "" : `<button class="ftile prem" data-act="go" data-v="assinar"><b>Premium</b><small>${plan.status==="trial" ? `Teste grátis: ${pl(daysLeft(plan.trialEnds),"dia","dias")}` : "Liberem tudo para os dois"}</small><span class="fic">👑</span></button>`}
+      <button class="ftile t-green${paid()?" wide":""}" data-act="go" data-v="secoes"><b>Explorar</b><small>Cofre, cápsulas, notas, planos e mais</small><span class="fic">${ic("grid")}</span></button>
     </div>
   </div>`;
 }
@@ -1912,35 +2031,19 @@ const topBack = (title, sub, to="home") => `<div class="top"><div class="row" st
 const emptyBox = (icon, title, text, extra="") => `<div class="card empty"><span class="iconbtn" style="width:64px;height:64px;color:var(--accent)">${ic(icon)}</span><h3>${title}</h3><p>${text}</p>${extra}</div>`;
 
 function secoes(){
-  const row = (v, icon, t, sub) => `<button class="secrow" data-act="go" data-v="${v}"><span class="iconbtn">${ic(icon)}</span><span class="grow">${t}<small>${sub}</small></span>${ic("chev")}</button>`;
-  return `${topBack("Todas as seções", "Tudo o que é de vocês dois")}
-  <div class="section" style="margin-top:0"><span class="eyebrow">Para os dois</span><div class="card seclist">
-    ${row("pergunta","chat","Pergunta do dia","2 minutos, a resposta aparece depois da sua")}
-    ${row("decidir","vote","Decidir juntos","Cada um vota sem ver o voto do outro")}
-    ${row("recado","phone","Recado na tela","Uma linha no início do outro")}
-    ${row("desejos","star","Desejos","O que cada um gostaria de ter")}
-    ${row("ideias","cup","Fazer juntos","Programas em casa ou fora")}
-    ${row("radar","gift","Radar de presentes","Datas que pedem presente")}
-    ${row("desafios","target","Desafios a dois","Sete dias, uma missão, uma medalha")}
-    <button class="secrow" data-act="retroOpen" data-m="${monthOf(today())}"><span class="iconbtn">${ic("image")}</span><span class="grow">Retrospectiva do mês<small>O mês de vocês em stories</small></span>${ic("chev")}</button>
+  return `<div class="hhead"><h1>Explorar</h1></div>
+  <section class="xban"><h2>Tudo o que é de vocês</h2><p>Escolham o que usar no dia a dia. O resto fica guardado aqui.</p><span class="art">🧭</span></section>
+  <div class="section"><span class="eyebrow">Essenciais</span><div class="xgrid">
+    ${["pergunta","tarefas","listas","datas","ideias","desafios"].map(xit).join("")}
+    <button class="xit t-lilac" data-act="retroOpen" data-m="${monthOf(today())}"><span class="sq">${ic("image")}</span><span class="l">Retrospectiva</span></button>
   </div></div>
-  <div class="section"><span class="eyebrow">O que guardam</span><div class="card seclist">
-    ${row("bomsaber","info","Bom saber","Tamanhos, gostos e o que não agrada")}
-    ${row("cartoes","card","Cartões","Fidelidade, convênios, carteirinhas")}
-    ${row("cofre","shield","Cofre","Documentos cifrados no celular")}
-    ${row("notas","pencil","Notas","Senha do wi-fi, receitas, combinados")}
-    ${row("numeros","star","O nosso ano","Os números de vocês")}
-    ${row("livro","image","Livro do casal","A história de vocês em PDF")}
-    ${row("planos","target","Planos","Metas com passos")}
-    ${row("capsulas","hourglass","Cápsulas","Mensagens que só abrem numa data")}
+  <div class="section"><span class="eyebrow">Para os dois</span><div class="xgrid">
+    ${["recado","decidir","desejos","radar","capsulas","numeros","livro"].map(xit).join("")}
   </div></div>
-  <div class="section"><span class="eyebrow">A casa</span><div class="card seclist">
-    ${row("tarefas","check","Tarefas","Quem faz o quê")}
-    ${row("listas","list","Listas","Mercado, viagem, enxoval")}
-    ${row("contas","coin","Contas da casa","Fixas, gastos e saldo")}
-    ${row("datas","cal","Datas","Aniversários, encontros, consultas")}
-    ${row("familia","family","Família","Gestação, filhos e nomes")}
-  </div></div>`;
+  <div class="section"><span class="eyebrow">A casa e o que guardam</span><div class="xgrid">
+    ${["contas","familia","bomsaber","cofre","notas","planos","cartoes"].map(xit).join("")}
+  </div></div>
+  ${paid() ? "" : `<p class="small muted" style="margin-top:14px;text-align:center">👑 = Premium${plan.status==="trial" ? `, liberado no teste grátis por mais ${pl(daysLeft(plan.trialEnds),"dia","dias")}` : ""}.</p>`}`;
 }
 
 /* ----- Recado na tela ----- */
@@ -2577,7 +2680,12 @@ const FORMS = {
   }
 };
 
+document.addEventListener("scroll", e => { const c = e.target; if(!(c instanceof Element) || !c.matches("[data-carousel]")) return;
+  const k = Math.round(c.scrollLeft / (c.firstElementChild ? c.firstElementChild.offsetWidth + 12 : 1)); const d = c.nextElementSibling;
+  if(d) [...d.children].forEach((x, j) => x.classList.toggle("on", j === k)); }, true);
 document.addEventListener("click", e => {
+  { const pb = e.target.closest('[data-act="pickPlan"]'); if(pb){ pickedPlan = pb.dataset.v; render(); return; }
+    if(e.target.closest('[data-act="toBuy"]')){ const el = document.getElementById("comoAssinar"); if(el) el.scrollIntoView({behavior:"smooth", block:"start"}); return; } }
   const el = e.target.closest("[data-act]"); if(!el || el.disabled) return;
   const fn = ACT[el.dataset.act]; if(fn) fn(el, e);
 });
