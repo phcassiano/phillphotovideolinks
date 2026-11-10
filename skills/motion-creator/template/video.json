@@ -1,0 +1,22 @@
+{
+  "title": "Demo — Motion Creator",
+  "fps": 30,
+  "width": 1080,
+  "height": 1920,
+  "theme": "neon-city",
+  "mascot": { "enabled": true, "shape": "cubo", "color": "#ff6a3d", "side": "right", "accessory": "nenhum" },
+  "progress": { "enabled": true, "total": 4 },
+  "sfx": true,
+  "scenes": [
+    { "type": "countdown", "duration": 2.4, "props": { "from": 30, "to": 1, "label": "SEGUNDOS", "sub": "pra fazer um vídeo desses", "bg": "street" }, "mascot": false },
+    { "type": "lock", "duration": 2.6, "props": { "title": "Editar ainda é difícil." }, "caption": "horas no *After Effects*", "captionPosition": "bottom", "mascot": false },
+    { "type": "board", "duration": 2.4, "props": { "text": "1º DA FILA", "sub": "quem posta primeiro, ganha", "mascotPose": "pula" } },
+    { "type": "chat", "duration": 3.4, "step": 1, "props": { "messages": [ { "from": "eu", "text": "faz um vídeo sobre meu lançamento" }, { "from": "ia", "text": "Roteiro pronto: 6 cenas, 25s. Aprova?" }, { "from": "eu", "text": "aprovado ✅" } ] }, "mascot": false },
+    { "type": "checklist", "duration": 3.6, "step": 2, "props": { "title": "Cenas para aprovar", "subtitle": "toque pra aprovar cada cena", "items": [ { "time": "00:00", "tag": "GANCHO", "text": "contagem regressiva · 2s" }, { "time": "00:02", "tag": "PROBLEMA", "text": "porta trancada · 3s" }, { "time": "00:05", "tag": "PROVA", "text": "contador de views · 3s" }, { "time": "00:08", "tag": "CTA", "text": "comenta a palavra · 3s" } ] } },
+    { "type": "chart", "duration": 3, "step": 3, "props": { "points": [8, 12, 10, 18, 15, 30, 22, 48, 40, 92, 70, 76], "peakLabel": "VIRAL", "from": "dia 1", "to": "dia 7" }, "caption": "alcance *explodiu*", "captionPosition": "top", "mascot": false },
+    { "type": "counter", "duration": 3.2, "step": 4, "props": { "value": 3700000, "label": "views em 1 vídeo", "badge": "POSTADO HÁ 2 MESES" }, "mascot": false },
+    { "type": "coins", "duration": 2.4, "props": { "label": "+ VENDAS" }, "caption": "e *vende* mais", "captionPosition": "top", "mascot": false },
+    { "type": "reveal", "duration": 2.8, "props": { "badge": "▶", "title": "Imagina", "sub": "o seu próximo vídeo." }, "mascot": false },
+    { "type": "cta", "duration": 3.2, "props": { "verb": "Comenta", "word": "MOTION" } }
+  ]
+}
