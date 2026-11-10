@@ -5,7 +5,7 @@ const net = require("net");
 const tls = require("tls");
 const push = require("./_push.js");
 
-const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards","challenges"]);
+const COLS = new Set(["meta","tasks","lists","items","dates","wishes","answers","kids","journal","names","logs","bills","fixed","about","polls","notes","plans","capsules","vault","cards","challenges","recipes","meals","contacts","feed"]);
 const ID_RE = /^[a-f0-9]{8,32}$/;
 const KEY_RE = /^[a-f0-9]{16,64}$/;
 const DOC_RE = /^[A-Za-z0-9_.:-]{1,80}$/;
@@ -111,7 +111,7 @@ function deepMerge(a, b) {
 // (pergunta do dia, tarefas, listas, datas) até ativarem um código. Espaços antigos (sem plano) seguem completos.
 const TRIAL_DAYS = 7;
 const DAY = 86400000;
-const PREMIUM_COLS = new Set(["bills","fixed","kids","journal","names","logs","about","polls","notes","plans","capsules","vault","cards","wishes"]);
+const PREMIUM_COLS = new Set(["recipes","meals","bills","fixed","kids","journal","names","logs","about","polls","notes","plans","capsules","vault","cards","wishes"]);
 const PREMIUM_META = /^(recado_[ab]|vault)$/;
 function planStatus(raw) {
   if (!raw) return { status: "founder" };
