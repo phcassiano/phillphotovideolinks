@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="app.css">
 <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/mux.js@7.1.0/dist/mux.min.js" defer></script>
 </head>
 <body>
 <header class="topo">
@@ -43,6 +44,21 @@
       <b>Arraste os vídeos aqui</b>
       <span>ou clique para escolher (MP4 ou MOV, de preferência). Pode subir vários.</span>
     </label>
+    <div class="cartao link-box">
+      <h3>Ou cole o link do vídeo</h3>
+      <p class="dica">Lives salvas, clipes e destaques da <b>Twitch</b>, vídeos da <b>Kick</b> ou um link direto para um arquivo <b>.mp4</b> / <b>.m3u8</b>. Para lives longas, o site baixa uma versão leve para achar os momentos e depois só os trechos escolhidos em alta qualidade.</p>
+      <div class="link-linha">
+        <input id="inputLink" type="url" inputmode="url" placeholder="https://www.twitch.tv/videos/123456789" autocomplete="off">
+        <button class="btn" id="btnLink">Adicionar</button>
+      </div>
+      <div class="campos link-opcoes">
+        <label>Qualidade dos cortes
+          <select id="linkQualidade"><option value="1080">1080p</option><option value="720" selected>720p</option><option value="480">480p</option></select>
+        </label>
+        <label>Começar em (opcional)<input id="linkDe" placeholder="ex.: 1:00:00"></label>
+        <label>Terminar em (opcional)<input id="linkAte" placeholder="ex.: 2:30:00"></label>
+      </div>
+    </div>
     <div id="listaArquivos" class="lista-arq"></div>
 
     <div class="cartao">

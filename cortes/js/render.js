@@ -147,7 +147,7 @@ function grupos(words) {
 }
 
 function desenhaLegenda(ctx, gs, t, top, tema) {
-  const gi = gs.findIndex((g, i) => t >= g[0].start - 0.03 && t < (gs[i + 1]?.[0].start ?? g[g.length - 1].end + 0.6) && t <= g[g.length - 1].end + 0.6);
+  const gi = gs.findIndex((g, i) => t >= g[0].start - 0.03 && t < (gs[i + 1]?.[0].start ?? g[g.length - 1].end + 0.6) && t <= Math.min(g[g.length - 1].end + 0.6, g[0].start + 3.5));
   if (gi < 0) return;
   const g = gs[gi];
   const s = pop(t - g[0].start, 0.2);
@@ -156,7 +156,7 @@ function desenhaLegenda(ctx, gs, t, top, tema) {
   ctx.rotate(((rand(gi) - 0.5) * 4 * Math.PI) / 180);
   ctx.scale(0.75 + 0.25 * s, 0.75 + 0.25 * s);
   ctx.font = "900 92px Rubik, Arial Black, sans-serif";
-  const ts = g.map((w) => w.text.replace(/[,.;]$/, "").toUpperCase());
+  const ts = g.map((w) => w.text.replace(/^[-–—"“]+/, "").replace(/[,.;"”]+$/, "").toUpperCase());
   const ws = ts.map((x) => ctx.measureText(x).width);
   const gap = 34;
   const total = ws.reduce((a, b) => a + b, 0) + gap * (ws.length - 1);

@@ -37,6 +37,10 @@ main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 40px; }
 .drop-ic { width: 54px; height: 54px; border-radius: 99px; background: var(--pink); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 900; }
 .drop span { color: var(--muted); font-size: 14px; }
 
+.link-linha { display: flex; gap: 8px; }
+.link-linha input { flex: 1; }
+.link-opcoes { margin: 12px 0 0; }
+.arq .rebaixar { grid-column: 1 / -1; justify-self: start; }
 .lista-arq { display: grid; gap: 8px; margin-bottom: 16px; }
 .arq { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
 .arq b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

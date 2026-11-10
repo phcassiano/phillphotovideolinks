@@ -2,6 +2,7 @@ import { db } from "./db.js";
 import { duracao, volume, mudancasDeCena, candidatos, refinar, audioTrecho, thumbnail } from "./analise.js";
 import { gravar, previa, TEMAS, introS, formatoSaida } from "./render.js";
 import { montarAgenda, ics, csv, REDES } from "./agenda.js";
+import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg } from "./link.js";
 
 /* ------------------------- estado ------------------------- */
 
@@ -13,7 +14,7 @@ const CFG_PADRAO = {
   ctas: [{ verb: "Comenta", word: "CORTES" }, { verb: "Segue pra", word: "PARTE 2" }], porCorte: 3,
   inicio: "", horarios: "12:00, 18:30, 21:00", rodadas: 1, lembrete: 10, redes: ["instagram", "tiktok", "youtube"],
 };
-const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {} };
+const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {}, links: [] };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -23,7 +24,7 @@ const fmt = (s) => {
   return (h ? `${h}:${String(m).padStart(2, "0")}` : m) + ":" + String(ss).padStart(2, "0");
 };
 const chaveArq = (f) => `${f.name}|${f.size}`;
-const salvar = () => db.put("kv", { cfg: S.cfg, momentos: S.momentos, postados: S.postados }, "estado");
+const salvar = () => db.put("kv", { cfg: S.cfg, momentos: S.momentos, postados: S.postados, links: S.links }, "estado");
 
 function toast(msg, erro = false) {
   const t = $("#toast");
@@ -89,7 +90,11 @@ function renderArquivos() {
   $("#btnAnalisar").disabled = !S.arquivos.some((a) => !a.erro && a.duracao);
   // momentos salvos cujos vídeos ainda não foram re-adicionados
   const faltam = [...new Set(S.momentos.map((m) => m.arquivoId))].filter((id) => !S.arquivos.some((a) => a.id === id));
-  if (faltam.length && S.momentos.length) $("#statusAnalise").innerHTML = `<span>Você tem ${S.momentos.length} momentos salvos. Para gerar vídeos deles, adicione de novo: <b>${faltam.map((f) => esc(f.split("|")[0])).join(", ")}</b></span>`;
+  if (faltam.length && S.momentos.length) {
+    const arqs = faltam.filter((f) => !f.startsWith("link|"));
+    const links = faltam.map((f) => S.links.find((l) => l.id === f)).filter(Boolean);
+    $("#statusAnalise").innerHTML = `<span>Você tem ${S.momentos.length} momentos salvos. Para gerar vídeos deles, ${arqs.length ? `adicione de novo: <b>${arqs.map((f) => esc(f.split("|")[0])).join(", ")}</b>` : ""}${links.map((l) => ` <button class="btn ghost peq" data-rebaixar="${esc(l.id)}">Baixar de novo: ${esc(l.titulo || l.url)}</button>`).join("")}</span>`;
+  }
 }
 $("#listaArquivos").addEventListener("click", (e) => {
   const b = e.target.closest("[data-rm]");
@@ -97,6 +102,79 @@ $("#listaArquivos").addEventListener("click", (e) => {
   S.arquivos = S.arquivos.filter((a) => a.id !== b.dataset.rm);
   renderArquivos();
 });
+
+
+/* ------------------------- 1b. link ------------------------- */
+
+$("#btnLink").addEventListener("click", () => adicionarLink());
+$("#inputLink").addEventListener("keydown", (e) => { if (e.key === "Enter") adicionarLink(); });
+
+async function adicionarLink(salvo = null) {
+  const url = salvo?.url ?? $("#inputLink").value.trim();
+  if (!/^https?:\/\//i.test(url)) return toast("Cole um link começando com https://", true);
+  const de = salvo ? salvo.de : paraSeg($("#linkDe").value);
+  const ate = salvo ? salvo.ate : paraSeg($("#linkAte").value);
+  const qualidade = salvo?.qualidade ?? +$("#linkQualidade").value;
+  if (de != null && ate != null && ate <= de) return toast("O fim precisa ser depois do início.", true);
+  const id = `link|${url}|${de ?? ""}|${ate ?? ""}`;
+  if (S.arquivos.some((a) => a.id === id)) return toast("Esse link já está na lista.");
+  const a = { id, nome: url, status: "abrindo o link...", prog: 0.001 };
+  S.arquivos.push(a);
+  renderArquivos();
+  $("#btnLink").disabled = true;
+  try {
+    const res = await resolver(url);
+    a.nome = res.titulo || url;
+    const { analise, corte } = escolherVariantes(res, qualidade, ate != null ? ate - (de ?? 0) : null);
+    a.status = `baixando ${analise.altura ? analise.altura + "p" : "o vídeo"} para analisar...`;
+    renderArquivos();
+    const onProgress = (p) => { a.prog = Math.max(0.001, p); renderArquivosLeve(); };
+    const r = analise.hls
+      ? await baixarHls(analise.url, { de, ate, nome: a.nome.slice(0, 60), onProgress })
+      : await baixarArquivo(analise.url, { nome: a.nome.slice(0, 60), onProgress });
+    a.file = r.file;
+    a.link = { url, de, ate, qualidade, corte: corte.id !== analise.id ? corte : null, inicioAnalise: r.inicio };
+    Object.assign(a, await duracao(a.file));
+    a.prog = 1;
+    a.status = `${fmt(a.duracao)} · link ${analise.altura ? `(análise em ${analise.altura}p, cortes em ${corte.altura}p)` : ""}`;
+    S.links = S.links.filter((l) => l.id !== id).concat({ id, url, de, ate, qualidade, titulo: a.nome });
+    salvar();
+    if (!salvo) $("#inputLink").value = "";
+  } catch (e) {
+    console.error(e);
+    a.erro = true;
+    a.prog = 0;
+    a.status = e.message;
+    toast(e.message, true);
+  } finally {
+    $("#btnLink").disabled = false;
+    renderArquivos();
+  }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-rebaixar]");
+  if (!b) return;
+  const l = S.links.find((x) => x.id === b.dataset.rebaixar);
+  if (l) { b.remove(); adicionarLink(l); }
+});
+
+/** arquivo usado para gravar um corte: o original, ou (link) só o trecho baixado em alta qualidade */
+const trechosHQ = new Map();
+async function fonteDoCorte(a, m, onProgress = () => {}) {
+  if (!a.link?.corte) return { file: a.file, offset: 0 };
+  const chave = `${a.id}|${m.inicio}|${m.fim}`;
+  if (!trechosHQ.has(chave)) {
+    const base = a.link.inicioAnalise ?? 0;
+    const p = baixarHls(a.link.corte.url, { de: base + Math.max(0, m.inicio - 1.5), ate: base + m.fim + 1.5, nome: "trecho", onProgress })
+      .then((r) => ({ file: r.file, offset: r.inicio - base }))
+      .catch((e) => { trechosHQ.delete(chave); throw e; });
+    trechosHQ.set(chave, p);
+    if (trechosHQ.size > 12) trechosHQ.delete(trechosHQ.keys().next().value);
+  }
+  return trechosHQ.get(chave);
+}
+/** desloca os tempos do corte para o arquivo do trecho */
+const ajustar = (c, offset) => (offset ? { ...c, inicio: c.inicio - offset, fim: c.fim - offset } : c);
 
 /* ------------------------- transcrição (worker) ------------------------- */
 
@@ -436,12 +514,13 @@ async function atualizarPrevia() {
   previaOcupada = true;
   try {
     const fase = $("#previaFase").value;
-    const c = corteDe(m, { template: $("#previaTpl").value });
+    const fonte = await fonteDoCorte(a, m, (p) => (msg.textContent = `Baixando o trecho em alta: ${Math.round(p * 100)}%`));
+    const c = ajustar(corteDe(m, { template: $("#previaTpl").value }), fonte.offset);
     const dur = c.fim - c.inicio;
-    if (fase === "cta") await previa(cv, a.file, { ...c, cta: c.cta ?? { verb: "Comenta", word: "CORTES" } }, S.cfg, "main", dur - 0.6);
-    else if (fase === "letreiro") await previa(cv, a.file, c, S.cfg, "letreiro", 0.8);
-    else if (fase === "teaser") await previa(cv, a.file, c, S.cfg, "teaser", 0.6);
-    else await previa(cv, a.file, c, S.cfg, "main");
+    if (fase === "cta") await previa(cv, fonte.file, { ...c, cta: c.cta ?? { verb: "Comenta", word: "CORTES" } }, S.cfg, "main", dur - 0.6);
+    else if (fase === "letreiro") await previa(cv, fonte.file, c, S.cfg, "letreiro", 0.8);
+    else if (fase === "teaser") await previa(cv, fonte.file, c, S.cfg, "teaser", 0.6);
+    else await previa(cv, fonte.file, c, S.cfg, "main");
     msg.textContent = `Prévia de: ${m.titulo.replace(/\*/g, "")}`;
   } catch (e) {
     msg.textContent = "Não consegui gerar a prévia: " + e.message;
@@ -513,8 +592,10 @@ $("#btnGerar").onclick = async () => {
     el.scrollIntoView({ block: "nearest" });
     const a = S.arquivos.find((f) => f.id === x.m.arquivoId);
     try {
-      const c = corteDe(x.m, { titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, parte: null });
-      const { blob, mime } = await gravar(a.file, c, S.cfg, { onProgress: (pr) => (el.querySelector("i").style.width = `${pr * 100}%`), preview: $("#canvasAoVivo"), cancelar });
+      el.querySelector("small").textContent += a.link ? " · baixando o trecho em alta..." : "";
+      const fonte = await fonteDoCorte(a, x.m, (pr) => (el.querySelector("i").style.width = `${pr * 30}%`));
+      const c = ajustar(corteDe(x.m, { titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, parte: null }), fonte.offset);
+      const { blob, mime } = await gravar(fonte.file, c, S.cfg, { onProgress: (pr) => (el.querySelector("i").style.width = `${pr * 100}%`), preview: $("#canvasAoVivo"), cancelar });
       const r = {
         id: `${x.m.id}-v${x.variacao}-${Date.now().toString(36)}`, corteId: x.m.id, ordem: x.ordem, variacao: x.variacao,
         titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, tipo: x.m.tipo, legenda: x.m.legenda,
@@ -683,6 +764,7 @@ $("#btnLimpar").onclick = async () => {
     S.cfg = { ...CFG_PADRAO, ...est.cfg };
     S.momentos = est.momentos ?? [];
     S.postados = est.postados ?? {};
+    S.links = est.links ?? [];
   }
   S.renders = (await db.all("renders")) ?? [];
   $("#cfgN").value = S.cfg.n;

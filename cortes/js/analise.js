@@ -4,6 +4,8 @@
 // Outros formatos (MKV/WebM): plano B tocando o vídeo em 4x com um analisador de áudio.
 
 const MP4Box = () => window.MP4Box;
+// posição dos fragmentos (moof) por tempo, para pular direto ao trecho pedido
+const INDICE = new WeakMap();
 const CHUNK = 8 * 1024 * 1024;
 
 export const duracao = (file) =>
@@ -25,7 +27,7 @@ export const duracao = (file) =>
 async function caixasTopo(file) {
   const boxes = [];
   let pos = 0;
-  while (pos < file.size && boxes.length < 64) {
+  while (pos < file.size && boxes.length < 500000) {
     const head = new DataView(await file.slice(pos, pos + 16).arrayBuffer());
     if (head.byteLength < 8) break;
     let size = head.getUint32(0);
@@ -76,6 +78,7 @@ export async function decodificarAudioMp4(file, onAudio, { range = null, onProgr
   let erro = null;
   let fimAlcancado = false;
   let track = null;
+  let ultimoT = null;
 
   const pronto = new Promise((res, rej) => {
     mp4.onError = (e) => rej(new Error("mp4box: " + e));
@@ -114,6 +117,7 @@ export async function decodificarAudioMp4(file, onAudio, { range = null, onProgr
     mp4.onSamples = (id, _u, samples) => {
       for (const s of samples) {
         const t = s.cts / s.timescale;
+        if (ultimoT == null) ultimoT = t;
         if (range && t > range[1] + 0.5) {
           fimAlcancado = true;
           break;
@@ -127,9 +131,9 @@ export async function decodificarAudioMp4(file, onAudio, { range = null, onProgr
     };
   });
 
-  const append = async (start, end) => {
+  const append = async (start, end, posicao = start) => {
     const buf = await file.slice(start, end).arrayBuffer();
-    buf.fileStart = start;
+    buf.fileStart = posicao;
     mp4.appendBuffer(buf);
   };
 
@@ -138,6 +142,44 @@ export async function decodificarAudioMp4(file, onAudio, { range = null, onProgr
   for (let p = moov.start; p < moov.start + moov.size; p += CHUNK) await append(p, Math.min(moov.start + moov.size, p + CHUNK));
   await pronto;
   mp4.start();
+
+  // MP4 fragmentado (vídeos baixados por link): moof+mdat em sequência
+  if (boxes.some((x) => x.type === "moof")) {
+    const frags = boxes.filter((x) => x.start > moov.start && x.type !== "mfra");
+    const idx = INDICE.get(file) ?? [];
+    let k0 = 0;
+    if (range && idx.length) {
+      for (let k = 0; k < idx.length; k++) if (idx[k].t <= range[0] - 2) k0 = idx[k].k;
+    }
+    const novoIdx = [];
+    let moofAtual = null;
+    let acum = 0;
+    // pulando fragmentos: "encosta" o primeiro fragmento logo depois do moov
+    // (os dados de cada fragmento são relativos ao próprio moof, então funciona)
+    const delta = frags[k0] ? frags[k0].start - (moov.start + moov.size) : 0;
+    for (let k = k0; k < frags.length && !fimAlcancado; k++) {
+      if (erro) throw erro;
+      const f = frags[k];
+      if (f.type === "moof") {
+        moofAtual = k;
+        ultimoT = null;
+      }
+      await append(f.start, f.start + f.size, f.start - delta);
+      if (f.type === "mdat" && ultimoT != null && moofAtual != null) {
+        novoIdx.push({ k: moofAtual, t: ultimoT });
+        moofAtual = null;
+      }
+      acum += f.size;
+      if (k % 20 === 0) onProgress(Math.min(1, acum / (file.size - moov.start)));
+      while (decoder.decodeQueueSize > 64) await new Promise((r) => setTimeout(r, 5));
+    }
+    if (!range) INDICE.set(file, novoIdx);
+    mp4.flush();
+    await decoder.flush();
+    decoder.close();
+    if (erro) throw erro;
+    return;
+  }
 
   // 2) dados (mdat) em pedaços, a partir do ponto mais próximo do trecho pedido
   let inicio = 0;

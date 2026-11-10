@@ -60,7 +60,7 @@ self.onmessage = async ({ data }) => {
         stride_length_s: 5,
       });
       const brutas = (out.chunks ?? [])
-        .map((c) => ({ text: String(c.text).trim(), start: Number(c.timestamp?.[0] ?? 0), end: Number(c.timestamp?.[1] ?? c.timestamp?.[0] ?? 0) }))
+        .map((c) => ({ text: String(c.text).trim().replace(/^[-–—]+\s*/, ""), start: Number(c.timestamp?.[0] ?? 0), end: Number(c.timestamp?.[1] ?? c.timestamp?.[0] ?? 0) }))
         .filter((w) => w.text && Number.isFinite(w.start));
       const words = limparAlucinacao(brutas, data.audio.length / 16000);
       self.postMessage({ type: "result", id: data.id, words });
