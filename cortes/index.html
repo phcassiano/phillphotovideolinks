@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cortes · estúdio de cortes virais</title>
+<meta name="description" content="Suba seus vídeos e receba cortes verticais prontos: melhores momentos encontrados sozinhos, legenda, título, zoom, CTA, variações e agenda de postagem. Tudo no seu navegador.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0f0a1a">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Rubik:wght@700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#ff2d8a"/><path d="M9 9l14 14M23 9L9 23" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="9" cy="23" r="3.2" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="23" cy="23" r="3.2" fill="none" stroke="#fff" stroke-width="2.4"/></svg>
+    <div><b>Cortes</b><small>estúdio de cortes virais</small></div>
+  </div>
+  <nav class="passos" id="passos" aria-label="Etapas">
+    <button data-passo="videos" class="ativo"><i>1</i>Vídeos</button>
+    <button data-passo="momentos"><i>2</i>Momentos</button>
+    <button data-passo="estilo"><i>3</i>Estilo</button>
+    <button data-passo="gerar"><i>4</i>Gerar</button>
+    <button data-passo="agenda"><i>5</i>Agenda</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 1. VÍDEOS -->
+  <section id="videos" class="passo ativo">
+    <div class="hero">
+      <h1>Suba a live. <span>Receba os cortes.</span></h1>
+      <p>O site encontra sozinho os melhores momentos (gritos, reações, ação), corta, legenda, coloca título, zoom e CTA, gera variações e monta sua agenda. <b>Tudo roda no seu computador</b>: nada é enviado para a internet.</p>
+    </div>
+    <label class="drop" id="drop">
+      <input type="file" id="inputArquivos" accept="video/*,.mkv" multiple hidden>
+      <div class="drop-ic">⬆</div>
+      <b>Arraste os vídeos aqui</b>
+      <span>ou clique para escolher (MP4 ou MOV, de preferência). Pode subir vários.</span>
+    </label>
+    <div id="listaArquivos" class="lista-arq"></div>
+
+    <div class="cartao">
+      <h3>Como procurar</h3>
+      <div class="campos">
+        <label>Quantos cortes<input type="number" id="cfgN" min="1" max="30" value="6"></label>
+        <label>Duração de cada corte (s)<input type="number" id="cfgAlvo" min="12" max="90" value="30"></label>
+        <label>Idioma da fala
+          <select id="cfgIdioma"><option value="portuguese">Português</option><option value="english">Inglês</option><option value="spanish">Espanhol</option></select>
+        </label>
+        <label>Legenda
+          <select id="cfgModelo">
+            <option value="onnx-community/whisper-base_timestamped">Equilibrada (recomendado)</option>
+            <option value="onnx-community/whisper-tiny_timestamped">Rápida</option>
+            <option value="onnx-community/whisper-small_timestamped">Precisa (mais lenta)</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="cfgCenas" checked> Analisar a imagem também (ação, explosões, cortes de cena)</label>
+      </div>
+      <button class="btn grande" id="btnAnalisar" disabled>Encontrar melhores momentos</button>
+      <div id="statusAnalise" class="status"></div>
+    </div>
+  </section>
+
+  <!-- 2. MOMENTOS -->
+  <section id="momentos" class="passo">
+    <div class="titulo-passo">
+      <div><h2>Momentos para aprovar</h2><p>Confira, ajuste o título e aprove. O 1º título é a aposta principal; os extras viram variações.</p></div>
+      <div class="acoes"><button class="btn ghost" id="btnAprovarTodos">Aprovar todos</button><button class="btn" data-ir="estilo">Continuar →</button></div>
+    </div>
+    <div id="gradeMomentos" class="grade-momentos"><p class="vazio">Nenhum momento ainda. Comece pela etapa 1.</p></div>
+  </section>
+
+  <!-- 3. ESTILO -->
+  <section id="estilo" class="passo">
+    <div class="titulo-passo">
+      <div><h2>Estilo dos cortes</h2><p>Escolha o visual. O multiplicador combina templates, aberturas e CTAs para cada corte sair em versões diferentes.</p></div>
+      <div class="acoes"><button class="btn" data-ir="gerar">Continuar →</button></div>
+    </div>
+    <div class="estilo-grid">
+      <div>
+        <div class="cartao">
+          <h3>Seu perfil</h3>
+          <div class="campos">
+            <label>@ do perfil<input id="cfgHandle" placeholder="@seuperfil"></label>
+            <label>Nome da página (template notícia)<input id="cfgPagina" placeholder="Portal GTA 6"></label>
+            <label class="largo">Hashtags<input id="cfgHashtags" placeholder="#gta6 #gtavi #gta #cortes #gameplay"></label>
+          </div>
+        </div>
+        <div class="cartao">
+          <h3>Cores</h3>
+          <div id="temas" class="temas"></div>
+        </div>
+        <div class="cartao">
+          <h3>Layout</h3>
+          <div class="opcoes" id="layouts">
+            <label><input type="radio" name="layout" value="blur" checked><span><b>Fundo desfocado</b>vídeo no meio, título em cima, legenda embaixo</span></label>
+            <label><input type="radio" name="layout" value="split"><span><b>Jogo + facecam</b>jogo em cima, rosto do streamer embaixo</span></label>
+            <label><input type="radio" name="layout" value="crop"><span><b>Tela cheia</b>recorta o centro do vídeo</span></label>
+          </div>
+          <div id="facecamBox" class="facecam" hidden>
+            <p>Arraste um retângulo em cima da <b>facecam</b>:</p>
+            <div class="facecam-area"><canvas id="facecamCanvas" width="640" height="360"></canvas></div>
+          </div>
+        </div>
+        <div class="cartao">
+          <h3>Multiplicador</h3>
+          <p class="dica">Cada corte vira várias versões. Cada rede recebe uma versão diferente, então nenhum vídeo se repete entre Instagram, TikTok e YouTube.</p>
+          <div class="sub">Templates</div>
+          <div class="chips" id="templates">
+            <label><input type="checkbox" value="padrao" checked><span>Caixa branca</span></label>
+            <label><input type="checkbox" value="noticia" checked><span>Página de notícias</span></label>
+            <label><input type="checkbox" value="faixa" checked><span>Urgente</span></label>
+            <label><input type="checkbox" value="minimal" checked><span>Minimalista</span></label>
+          </div>
+          <div class="sub">Abertura</div>
+          <div class="chips" id="intros">
+            <label><input type="checkbox" value="teaser" checked><span>Clímax primeiro ("espera essa")</span></label>
+            <label><input type="checkbox" value="letreiro" checked><span>Letreiro</span></label>
+            <label><input type="checkbox" value="nenhuma"><span>Direto</span></label>
+          </div>
+          <div class="sub">Chamada final (CTA)</div>
+          <div id="ctas" class="ctas"></div>
+          <button class="btn ghost peq" id="btnAddCta">+ outra chamada</button>
+          <div class="campos" style="margin-top:14px">
+            <label>Versões por corte<input type="number" id="cfgPorCorte" min="1" max="8" value="3"></label>
+          </div>
+        </div>
+      </div>
+      <div class="previa-col">
+        <div class="cartao previa">
+          <h3>Prévia</h3>
+          <canvas id="canvasPrevia" width="360" height="640"></canvas>
+          <div class="campos">
+            <label>Template<select id="previaTpl"><option value="padrao">Caixa branca</option><option value="noticia">Página de notícias</option><option value="faixa">Urgente</option><option value="minimal">Minimalista</option></select></label>
+            <label>Momento<select id="previaFase"><option value="main">Pico</option><option value="cta">Chamada final</option><option value="letreiro">Letreiro</option><option value="teaser">Clímax primeiro</option></select></label>
+          </div>
+          <button class="btn ghost" id="btnPrevia">Atualizar prévia</button>
+          <p class="dica" id="previaMsg"></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. GERAR -->
+  <section id="gerar" class="passo">
+    <div class="titulo-passo">
+      <div><h2>Gerar os vídeos</h2><p id="resumoGerar"></p></div>
+      <div class="acoes"><button class="btn ghost" id="btnZip">Baixar tudo (.zip)</button><button class="btn" data-ir="agenda">Agenda →</button></div>
+    </div>
+    <div class="gerar-grid">
+      <div class="cartao">
+        <button class="btn grande" id="btnGerar">Gerar vídeos</button>
+        <button class="btn ghost" id="btnCancelar" hidden>Parar</button>
+        <p class="aviso">Deixe esta aba aberta e visível enquanto gera. Cada vídeo leva o tempo dele (um corte de 30 s leva uns 35 s).</p>
+        <div id="fila" class="fila"></div>
+      </div>
+      <div class="cartao previa"><h3>Gravando agora</h3><canvas id="canvasAoVivo" width="270" height="480"></canvas></div>
+    </div>
+    <h3 class="sec">Prontos</h3>
+    <div id="gradeRenders" class="grade-renders"><p class="vazio">Nenhum vídeo gerado ainda.</p></div>
+  </section>
+
+  <!-- 5. AGENDA -->
+  <section id="agenda" class="passo">
+    <div class="titulo-passo">
+      <div><h2>Agenda de postagens</h2><p id="statsAgenda"></p></div>
+      <div class="acoes"><button class="btn ghost" id="btnIcs">Calendário (.ics)</button><button class="btn ghost" id="btnCsv">Planilha (.csv)</button></div>
+    </div>
+    <div class="cartao">
+      <div class="campos">
+        <label>Começar em<input type="date" id="cfgInicio"></label>
+        <label class="largo">Horários (por dia)<input id="cfgHorarios" value="12:00, 18:30, 21:00"></label>
+        <label>Rodadas<input type="number" id="cfgRodadas" min="1" max="5" value="1"></label>
+        <label>Lembrete (min antes)<input type="number" id="cfgLembrete" min="0" max="120" value="10"></label>
+      </div>
+      <div class="chips" id="redes">
+        <label><input type="checkbox" value="instagram" checked><span>Instagram</span></label>
+        <label><input type="checkbox" value="tiktok" checked><span>TikTok</span></label>
+        <label><input type="checkbox" value="youtube" checked><span>YouTube Shorts</span></label>
+      </div>
+      <div class="barra"><i id="barraAgenda"></i></div>
+    </div>
+    <div id="listaAgenda"><p class="vazio">Gere os vídeos na etapa 4 para montar a agenda.</p></div>
+  </section>
+</main>
+
+<footer class="rodape">
+  <p>Processamento 100% local: os vídeos não saem do seu computador. Funciona melhor no Google Chrome do computador.
+  Use só vídeos seus ou com autorização do criador original.</p>
+  <button class="link" id="btnLimpar">Apagar tudo deste navegador</button>
+</footer>
+
+<div class="modal" id="modal" hidden><div class="modal-in"><button class="fechar" id="modalFechar" aria-label="Fechar">×</button><video id="modalVideo" controls playsinline></video></div></div>
+<div class="toast" id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
