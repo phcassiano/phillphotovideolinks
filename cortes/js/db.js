@@ -20,7 +20,7 @@ const tx = async (store, mode, fn) => {
     const t = db.transaction(store, mode);
     const s = t.objectStore(store);
     const out = fn(s);
-    t.oncomplete = () => res(out?.result ?? out);
+    t.oncomplete = () => res(out instanceof IDBRequest ? out.result : out);
     t.onerror = () => rej(t.error);
     t.onabort = () => rej(t.error);
   });

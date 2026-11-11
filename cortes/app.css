@@ -224,3 +224,11 @@ h3.sec { margin: 26px 0 12px; }
 .rv .info .n { color: var(--text); }
 .rv .acs { display: flex; gap: 6px; padding: 0 8px 8px; }
 .rv .acs .btn { flex: 1; padding: 6px 8px; font-size: 12px; }
+
+.drop-mini { cursor: pointer; }
+.ganchos { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.gancho { position: relative; width: 90px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+.gancho video { width: 100%; aspect-ratio: 9 / 16; object-fit: cover; display: block; }
+.gancho small { display: block; padding: 3px 6px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #120c1e; }
+.gancho button { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.7); border: 0; color: #fff; border-radius: 99px; width: 24px; height: 24px; cursor: pointer; }
+.check-linha { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 4px; }

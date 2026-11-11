@@ -16,7 +16,7 @@ const CFG_PADRAO = {
   ctas: [{ verb: "Comenta", word: "CORTES" }, { verb: "Segue pra", word: "PARTE 2" }], porCorte: 3,
   inicio: "", horarios: "12:00, 18:30, 21:00", rodadas: 1, lembrete: 10, redes: ["instagram", "tiktok", "youtube"],
 };
-const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {}, links: [], enviados: {} };
+const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {}, links: [], enviados: {}, ganchos: [] };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -501,6 +501,7 @@ function renderEstilo() {
   $$("#templates input").forEach((i) => (i.checked = c.templates.includes(i.value)));
   $$("#intros input").forEach((i) => (i.checked = c.intros.includes(i.value)));
   renderCtas();
+  renderGanchos();
   $("#facecamBox").hidden = c.layout !== "split";
   if (c.layout === "split") desenharFacecam();
 }
@@ -634,16 +635,54 @@ $("#btnPrevia").onclick = atualizarPrevia;
 $("#previaTpl").onchange = atualizarPrevia;
 $("#previaFase").onchange = atualizarPrevia;
 
+
+/* ------------------------- ganchos ------------------------- */
+
+async function carregarGanchos() {
+  const lista = await db.get("kv", "ganchos");
+  S.ganchos = Array.isArray(lista) ? lista.filter((g) => g.file) : [];
+}
+function renderGanchos() {
+  $("#cfgUsarGanchos").checked = !!S.cfg.usarGanchos;
+  $("#listaGanchos").innerHTML = S.ganchos
+    .map((g) => `<div class="gancho"><video src="${urlGancho(g)}" muted loop playsinline autoplay></video><small title="${esc(g.nome)}">${esc(g.nome)}</small><button data-rm-gancho="${g.id}" aria-label="Remover">×</button></div>`)
+    .join("");
+}
+const urlsG = new Map();
+const urlGancho = (g) => (urlsG.has(g.id) ? urlsG.get(g.id) : (urlsG.set(g.id, URL.createObjectURL(g.file)), urlsG.get(g.id)));
+$("#inputGanchos").addEventListener("change", async (e) => {
+  for (const f of e.target.files) {
+    const d = await duracao(f).catch(() => null);
+    if (!d) { toast(`Não consegui abrir ${f.name}`, true); continue; }
+    if (d.duracao > 8) toast(`${f.name} tem ${Math.round(d.duracao)} s: vou usar só os primeiros 5 s.`);
+    S.ganchos.push({ id: `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, nome: f.name, file: f });
+  }
+  e.target.value = "";
+  if (S.ganchos.length) S.cfg.usarGanchos = true;
+  await db.put("kv", S.ganchos, "ganchos");
+  salvar();
+  renderGanchos();
+});
+$("#listaGanchos").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-rm-gancho]");
+  if (!b) return;
+  S.ganchos = S.ganchos.filter((g) => g.id !== b.dataset.rmGancho);
+  await db.put("kv", S.ganchos, "ganchos");
+  renderGanchos();
+});
+$("#cfgUsarGanchos").onchange = () => { S.cfg.usarGanchos = $("#cfgUsarGanchos").checked; salvar(); };
+
 /* ------------------------- 4. gerar (multiplicador) ------------------------- */
 
 /** combina título × template × abertura × CTA e escolhe as N mais diferentes entre si */
 function planejarVariacoes(m) {
   const titulos = [m.titulo, ...String(m.titulosExtras || "").split("\n").map((s) => s.trim()).filter(Boolean)].filter((t, i, a) => t && a.indexOf(t) === i);
   const ctas = S.cfg.ctas.filter((c) => c.word?.trim());
-  const dims = [titulos, S.cfg.templates, S.cfg.intros, ctas.length ? ctas : [null]];
+  const ganchos = S.cfg.usarGanchos && S.ganchos.length ? [null, ...S.ganchos.map((g) => g.id)] : [null];
+  const dims = [titulos, S.cfg.templates, S.cfg.intros, ctas.length ? ctas : [null], ganchos];
   const all = dims.reduce((acc, l) => acc.flatMap((a) => l.map((x) => [...a, x])), [[]]);
   const k = (v) => JSON.stringify(v);
-  const pesos = [1.5, 1.3, 1, 1];
+  const pesos = [1.5, 1.3, 1, 1, 1.2];
   const esc1 = [all[0]];
   while (esc1.length < Math.min(S.cfg.porCorte, all.length)) {
     let best = null, bs = -1;
@@ -656,7 +695,7 @@ function planejarVariacoes(m) {
     }
     esc1.push(best);
   }
-  return esc1.map(([titulo, template, intro, cta]) => ({ titulo, template, intro, cta }));
+  return esc1.map(([titulo, template, intro, cta, gancho]) => ({ titulo, template, intro, cta, gancho }));
 }
 
 function plano() {
@@ -666,7 +705,7 @@ function plano() {
 
 function renderGerar() {
   const p = plano();
-  const seg = p.reduce((a, x) => a + (x.m.fim - x.m.inicio) + introS(x.intro) + 1.5, 0);
+  const seg = p.reduce((a, x) => a + (x.m.fim - x.m.inicio) + introS(x.intro) + (x.gancho ? 4 : 0) + 1.5, 0);
   const n = S.momentos.filter((m) => m.aprovado).length;
   $("#resumoGerar").textContent = n
     ? `${n} cortes × até ${S.cfg.porCorte} versões = ${p.length} vídeos. Tempo estimado: ${Math.ceil(seg / 60)} min. Formato: ${formatoSaida().startsWith("video/mp4") ? "MP4" : "WebM (use o Chrome para sair em MP4)"}.`
@@ -684,7 +723,7 @@ $("#btnGerar").onclick = async () => {
   $("#btnGerar").disabled = true;
   $("#btnCancelar").hidden = false;
   const fila = $("#fila");
-  fila.innerHTML = p.map((x, i) => `<div class="item-fila" id="fi${i}"><b>${esc(x.titulo.replace(/\*/g, ""))}</b><small>corte ${x.ordem + 1} · versão ${x.variacao} · ${x.template} · ${x.intro}${x.cta ? " · " + esc(x.cta.word) : ""}</small><div class="barra"><i></i></div></div>`).join("");
+  fila.innerHTML = p.map((x, i) => `<div class="item-fila" id="fi${i}"><b>${esc(x.titulo.replace(/\*/g, ""))}</b><small>corte ${x.ordem + 1} · versão ${x.variacao} · ${x.template} · ${x.intro}${x.cta ? " · " + esc(x.cta.word) : ""}${x.gancho ? " · gancho" : ""}</small><div class="barra"><i></i></div></div>`).join("");
   const wake = await navigator.wakeLock?.request("screen").catch(() => null);
   let ok = 0;
   for (const [i, x] of p.entries()) {
@@ -695,7 +734,8 @@ $("#btnGerar").onclick = async () => {
     try {
       el.querySelector("small").textContent += a.link ? " · baixando o trecho em alta..." : "";
       const fonte = await fonteDoCorte(a, x.m, (pr) => (el.querySelector("i").style.width = `${pr * 30}%`));
-      const c = ajustar(corteDe(x.m, { titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, parte: null }), fonte.offset);
+      const gancho = x.gancho ? S.ganchos.find((g) => g.id === x.gancho)?.file : null;
+      const c = ajustar(corteDe(x.m, { titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, parte: null, ranking: x.ordem + 1, gancho }), fonte.offset);
       const { blob, mime } = await gravar(fonte.file, c, S.cfg, { onProgress: (pr) => (el.querySelector("i").style.width = `${pr * 100}%`), preview: $("#canvasAoVivo"), cancelar });
       const r = {
         id: `${x.m.id}-v${x.variacao}-${Date.now().toString(36)}`, corteId: x.m.id, ordem: x.ordem, variacao: x.variacao,
@@ -943,6 +983,7 @@ $("#btnLimpar").onclick = async () => {
     S.enviados = est.enviados ?? {};
   }
   S.renders = (await db.all("renders")) ?? [];
+  await carregarGanchos();
   $("#cfgN").value = S.cfg.n;
   $("#cfgAlvo").value = S.cfg.alvo;
   $("#cfgIdioma").value = S.cfg.idioma;

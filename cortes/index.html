@@ -158,6 +158,9 @@
             <label><input type="checkbox" value="noticia" checked><span>Página de notícias</span></label>
             <label><input type="checkbox" value="faixa" checked><span>Urgente</span></label>
             <label><input type="checkbox" value="minimal" checked><span>Minimalista</span></label>
+            <label><input type="checkbox" value="meme"><span>Meme</span></label>
+            <label><input type="checkbox" value="pergunta"><span>Pergunta</span></label>
+            <label><input type="checkbox" value="ranking"><span>Ranking #1</span></label>
           </div>
           <div class="sub">Abertura</div>
           <div class="chips" id="intros">
@@ -165,6 +168,11 @@
             <label><input type="checkbox" value="letreiro" checked><span>Letreiro</span></label>
             <label><input type="checkbox" value="nenhuma"><span>Direto</span></label>
           </div>
+          <div class="sub">Ganchos (vídeo curto antes do corte)</div>
+          <p class="dica">Suba clipes de 2 a 5 s (uma reação, uma explosão, um susto). O multiplicador combina cada gancho com cada corte: o vídeo abre com o gancho e entra no corte.</p>
+          <label class="drop-mini btn ghost peq"><input type="file" id="inputGanchos" accept="video/*" multiple hidden>+ Adicionar ganchos</label>
+          <div id="listaGanchos" class="ganchos"></div>
+          <label class="check-linha"><input type="checkbox" id="cfgUsarGanchos"> Usar os ganchos no multiplicador</label>
           <div class="sub">Chamada final (CTA)</div>
           <div id="ctas" class="ctas"></div>
           <button class="btn ghost peq" id="btnAddCta">+ outra chamada</button>
@@ -178,7 +186,7 @@
           <h3>Prévia</h3>
           <canvas id="canvasPrevia" width="360" height="640"></canvas>
           <div class="campos">
-            <label>Template<select id="previaTpl"><option value="padrao">Caixa branca</option><option value="noticia">Página de notícias</option><option value="faixa">Urgente</option><option value="minimal">Minimalista</option></select></label>
+            <label>Template<select id="previaTpl"><option value="padrao">Caixa branca</option><option value="noticia">Página de notícias</option><option value="faixa">Urgente</option><option value="minimal">Minimalista</option><option value="meme">Meme</option><option value="pergunta">Pergunta</option><option value="ranking">Ranking #1</option></select></label>
             <label>Momento<select id="previaFase"><option value="main">Pico</option><option value="cta">Chamada final</option><option value="letreiro">Letreiro</option><option value="teaser">Clímax primeiro</option></select></label>
           </div>
           <button class="btn ghost" id="btnPrevia">Atualizar prévia</button>

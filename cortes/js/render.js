@@ -335,6 +335,93 @@ function tituloFaixa(ctx, c, t, top, tema, layout, cfg) {
   }
 }
 
+function tituloMeme(ctx, c, t, layout) {
+  const s = easeOut(clamp01(t / 0.25));
+  const altura = layout === "blur" ? 540 : 400;
+  ctx.save();
+  ctx.globalAlpha = s;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, W, altura);
+  const { size, ls } = ajustaFonte(ctx, c.titulo, W - 120, 4, 74, 46, 800, "Inter");
+  const lh = size * 1.15;
+  const y0 = altura / 2 - (ls.length * lh) / 2 + size * 0.85 + (layout === "blur" ? 60 : 30);
+  ctx.font = `800 ${size}px Inter, Arial, sans-serif`;
+  desenhaLinhas(ctx, ls, { x: W / 2, y: y0, lh, cor: "#111", corHL: "#e11d2e" });
+  ctx.restore();
+}
+
+function tituloPergunta(ctx, c, t, top, tema) {
+  const s = pop(t, 0.35);
+  const { size, ls } = ajustaFonte(ctx, c.titulo, W - 160, 3, 72, 48);
+  const lh = size * 1.08;
+  const bh = ls.length * lh + 110;
+  ctx.save();
+  ctx.translate(0, (1 - s) * -bh);
+  ctx.fillStyle = tema.primary;
+  ctx.beginPath();
+  ctx.moveTo(0, top - 30);
+  ctx.lineTo(W, top - 30);
+  ctx.lineTo(W, top - 30 + bh);
+  ctx.lineTo(W / 2 + 40, top - 30 + bh);
+  ctx.lineTo(W / 2, top - 30 + bh + 34);
+  ctx.lineTo(W / 2 - 40, top - 30 + bh);
+  ctx.lineTo(0, top - 30 + bh);
+  ctx.closePath();
+  ctx.fill();
+  ctx.font = "900 34px Rubik, sans-serif";
+  ctx.fillStyle = tema.accent;
+  ctx.textAlign = "center";
+  ctx.fillText(`${c.emoji ? c.emoji + " " : ""}${(c.pergunta || "VOCÊ SABIA?").toUpperCase()}`, W / 2, top + 22);
+  ctx.font = `900 ${size}px Rubik, Arial Black, sans-serif`;
+  desenhaLinhas(ctx, ls, { x: W / 2, y: top + 52 + size * 0.88, lh, cor: "#fff", corHL: tema.accent, stroke: 8, corStroke: "rgba(0,0,0,.35)" });
+  ctx.restore();
+}
+
+function tituloRanking(ctx, c, t, top, tema) {
+  const s = pop(t, 0.35);
+  const s2 = pop(t - 0.15, 0.35);
+  const n = `#${c.ranking ?? 1}`;
+  ctx.save();
+  // número
+  ctx.translate(150, top + 110);
+  ctx.scale(s, s);
+  ctx.rotate((-8 * Math.PI) / 180);
+  ctx.beginPath();
+  ctx.arc(0, 0, 110, 0, Math.PI * 2);
+  ctx.fillStyle = tema.primary;
+  ctx.shadowColor = tema.primary;
+  ctx.shadowBlur = 40;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#fff";
+  ctx.font = `900 ${n.length > 3 ? 90 : 120}px Rubik, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.fillText(n, 0, 42);
+  ctx.restore();
+  // título
+  const { size, ls } = ajustaFonte(ctx, c.titulo, W - 360, 4, 58, 40);
+  const lh = size * 1.08;
+  const bh = ls.length * lh + 36;
+  ctx.save();
+  ctx.globalAlpha = clamp01(s2 * 1.5);
+  ctx.translate((1 - s2) * 400, 0);
+  roundRect(ctx, 280, top + 110 - bh / 2, W - 320, bh, 22, "#fff");
+  ctx.font = `900 ${size}px Rubik, Arial Black, sans-serif`;
+  desenhaLinhas(ctx, ls, { x: 304, y: top + 110 - bh / 2 + 18 + size * 0.88, lh, align: "left", cor: "#111", corHL: tema.primary });
+  ctx.restore();
+}
+
+function desenhaTitulo(ctx, c, t, top, tema, layout, cfg) {
+  const tpl = c.template ?? "padrao";
+  if (tpl === "noticia") tituloNoticia(ctx, c, t, top, tema, cfg);
+  else if (tpl === "faixa") tituloFaixa(ctx, c, t, top, tema, layout, cfg);
+  else if (tpl === "minimal") tituloMinimal(ctx, c, t, top, tema);
+  else if (tpl === "meme") tituloMeme(ctx, c, t, layout);
+  else if (tpl === "pergunta") tituloPergunta(ctx, c, t, top, tema);
+  else if (tpl === "ranking") tituloRanking(ctx, c, t, top, tema);
+  else tituloPadrao(ctx, c, t, top, tema);
+}
+
 function tituloMinimal(ctx, c, t, top, tema) {
   const s = pop(t, 0.3);
   const { size, ls } = ajustaFonte(ctx, c.titulo, W - 100, 3, 86, 62);
@@ -529,11 +616,27 @@ function molduraNeon(cor) {
  * fase: "teaser" | "letreiro" | "main"
  * t: segundos dentro da fase (no "main", tempo dentro do corte)
  */
-export function desenhaQuadro(ctx, v, c, cfg, fase, t) {
+export function desenhaQuadro(ctx, v, c, cfg, fase, t, vGancho = null) {
   const tema = TEMAS[c.tema] ?? TEMAS.neon;
   const layout = c.layout ?? "blur";
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, W, H);
+
+  if (fase === "gancho" && vGancho) {
+    // gancho: vídeo curto em tela cheia com o título por cima
+    drawCrop(ctx, vGancho, null, 0, 0, W, H, { zoom: 1 + t * 0.03 });
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "rgba(0,0,0,.45)");
+    g.addColorStop(0.35, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    desenhaTitulo(ctx, c, t, 250, tema, "crop", cfg);
+    if (t < 0.25) {
+      ctx.fillStyle = `rgba(255,255,255,${(1 - t / 0.25) * 0.5})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    return;
+  }
 
   if (fase === "letreiro") {
     fundoDesfocado(ctx, v, c.jogo, 0.5);
@@ -618,11 +721,7 @@ export function desenhaQuadro(ctx, v, c, cfg, fase, t) {
       ctx.fillText("◀◀", W / 2, 980);
     }
   } else {
-    const tpl = c.template ?? "padrao";
-    if (tpl === "noticia") tituloNoticia(ctx, c, t, top, tema, cfg);
-    else if (tpl === "faixa") tituloFaixa(ctx, c, t, top, tema, layout, cfg);
-    else if (tpl === "minimal") tituloMinimal(ctx, c, t, top, tema);
-    else tituloPadrao(ctx, c, t, top, tema);
+    desenhaTitulo(ctx, c, t, top, tema, layout, cfg);
   }
 
   if (!emCTA) desenhaLegenda(ctx, c._grupos ?? (c._grupos = grupos(c.words ?? [])), tt, capTop, tema);
@@ -735,7 +834,20 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
 
   const dur = c.fim - c.inicio;
   const intro = c.intro ?? "nenhuma";
-  const total = introS(intro) + dur;
+  // gancho (vídeo curto de abertura, opcional)
+  let vg = null, gDur = 0;
+  if (c.gancho) {
+    vg = document.createElement("video");
+    vg.src = URL.createObjectURL(c.gancho);
+    vg.playsInline = true;
+    await new Promise((r, j) => {
+      vg.onloadeddata = r;
+      vg.onerror = () => j(new Error("Não consegui abrir o vídeo do gancho."));
+    });
+    gDur = Math.min(5, vg.duration || 3);
+    actx.createMediaElementSource(vg).connect(comp);
+  }
+  const total = gDur + introS(intro) + dur;
   let fase = intro === "nenhuma" ? "main" : intro;
   let tFase = 0;
   let rodando = true;
@@ -743,23 +855,43 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
 
   const loop = () => {
     if (!rodando) return;
-    desenhaQuadro(ctx, v, c, cfg, fase, fase === "main" ? v.currentTime - c.inicio : tFase);
+    desenhaQuadro(ctx, v, c, cfg, fase, fase === "main" ? v.currentTime - c.inicio : tFase, vg);
     espelho();
     requestAnimationFrame(loop);
   };
 
+  const gravando = () => {
+    if (rec.state === "inactive") {
+      rec.start(500);
+      requestAnimationFrame(loop);
+    } else if (rec.state === "paused") rec.resume();
+  };
   try {
     if (actx.state === "suspended") await actx.resume();
     const pico = c.picos?.[0] ?? dur * 0.6;
+    if (vg) {
+      fase = "gancho";
+      gravando();
+      const t0 = performance.now();
+      await vg.play();
+      while ((tFase = (performance.now() - t0) / 1000) < gDur && !vg.ended) {
+        if (cancelar.valor) throw new Error("cancelado");
+        onProgress(tFase / total);
+        await espera(30);
+      }
+      vg.pause();
+      rec.pause();
+      fase = intro === "nenhuma" ? "main" : intro;
+      tFase = 0;
+    }
     if (intro === "teaser") {
       await esperaSeek(v, Math.max(0, c.inicio + pico - 1));
-      rec.start(500);
-      requestAnimationFrame(loop);
+      gravando();
       const t0 = performance.now();
       await v.play();
       while ((tFase = (performance.now() - t0) / 1000) < TEASER_S) {
         if (cancelar.valor) throw new Error("cancelado");
-        onProgress(tFase / total);
+        onProgress((gDur + tFase) / total);
         await espera(30);
       }
       v.pause();
@@ -770,8 +902,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
       rec.resume();
     } else if (intro === "letreiro") {
       await esperaSeek(v, c.inicio + pico);
-      rec.start(500);
-      requestAnimationFrame(loop);
+      gravando();
       sfxWhoosh(actx, sfx);
       const t0 = performance.now();
       while ((tFase = (performance.now() - t0) / 1000) < LETREIRO_S) {
@@ -786,8 +917,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
       rec.resume();
     } else {
       await esperaSeek(v, c.inicio);
-      rec.start(500);
-      requestAnimationFrame(loop);
+      gravando();
     }
     // corpo do corte
     const tocados = new Set();
@@ -799,7 +929,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
         tocados.add(p);
         sfxBoom(actx, sfx);
       }
-      onProgress((introS(intro) + t) / total);
+      onProgress((gDur + introS(intro) + t) / total);
       await espera(20);
     }
     v.pause();
@@ -813,6 +943,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
     }
     actx.close();
     URL.revokeObjectURL(v.src);
+    if (vg) URL.revokeObjectURL(vg.src);
   }
   onProgress(1);
   return { blob: new Blob(chunks, { type: mime.split(";")[0] }), mime };
