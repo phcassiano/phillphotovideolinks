@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
 
-PERMITIDOS = re.compile(r"(^|\.)(twitch\.tv|kick\.com)$")
+PERMITIDOS = re.compile(r"(^|\.)(twitch\.tv|kick\.com|tiktok\.com)$")
 YOUTUBE = re.compile(r"(^|\.)(youtube\.com|youtu\.be)$")
 
 
@@ -22,10 +22,14 @@ def resolver(url: str) -> dict:
             "O YouTube bloqueia servidores. Baixe o vídeo (no YouTube Studio, se for seu) e suba o arquivo."
         )
     if not PERMITIDOS.search(host):
-        raise ValueError("Por enquanto aceito links da Twitch e da Kick, ou um link direto para um arquivo .mp4/.m3u8.")
+        if re.search(r"(^|\.)instagram\.com$", host):
+            raise ValueError("O Instagram exige login até para posts públicos, então não dá para abrir pelo site. Baixe o vídeo e suba o arquivo.")
+        raise ValueError("Aceito links da Twitch, Kick, TikTok e YouTube (com o Ajudante), ou um link direto para um arquivo .mp4/.m3u8.")
     opts = {"quiet": True, "skip_download": True, "noplaylist": True, "socket_timeout": 15}
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
+        # TikTok: o arquivo só baixa com os cookies desta mesma visita
+        cookies = "; ".join(f"{c.name}={c.value}" for c in ydl.cookiejar if "tiktok" in (c.domain or ""))
     if info.get("_type") == "playlist":
         raise ValueError("Esse link é de uma lista. Cole o link de um vídeo só.")
     variantes = []
@@ -35,6 +39,12 @@ def resolver(url: str) -> dict:
         proto = f.get("protocol") or ""
         if f.get("acodec") == "none":
             continue  # precisa ter áudio junto
+        if "watermark" in (f.get("format_note") or "").lower() or f.get("format_id") == "download":
+            continue  # versão com marca d'água do TikTok
+        cab = None
+        if "tiktok" in (info.get("extractor_key") or "").lower():
+            ua = (f.get("http_headers") or {}).get("User-Agent")
+            cab = {"cookie": cookies, "referer": "https://www.tiktok.com/", "user-agent": ua}
         variantes.append(
             {
                 "id": f.get("format_id"),
@@ -42,6 +52,7 @@ def resolver(url: str) -> dict:
                 "fps": f.get("fps"),
                 "url": f["url"],
                 "hls": proto.startswith("m3u8"),
+                "cabecalhos": cab,
             }
         )
     if not variantes:

@@ -153,12 +153,12 @@ async function adicionarLink(salvo = null) {
     const onProgress = (p) => { a.prog = Math.max(0.001, p); renderArquivosLeve(); };
     const r = analise.hls
       ? await baixarHls(analise.url, { de, ate, nome: a.nome.slice(0, 60), onProgress })
-      : await baixarArquivo(analise.url, { nome: a.nome.slice(0, 60), onProgress });
+      : await baixarArquivo(analise.url, { nome: a.nome.slice(0, 60), onProgress, cab: analise.cabecalhos });
     a.file = r.file;
     a.link = { url, de, ate, qualidade, corte: corte.id !== analise.id ? corte : null, inicioAnalise: r.inicio };
     Object.assign(a, await duracao(a.file));
     a.prog = 1;
-    a.status = `${fmt(a.duracao)} · link ${analise.altura ? `(análise em ${analise.altura}p, cortes em ${corte.altura}p)` : ""}`;
+    a.status = `${fmt(a.duracao)} · ${res.origem || "link"} ${analise.id !== corte.id && analise.altura ? `(análise em ${analise.altura}p, cortes em ${corte.altura}p)` : a.h ? `(${a.w}×${a.h})` : ""}`;
     S.links = S.links.filter((l) => l.id !== id).concat({ id, url, de, ate, qualidade, titulo: a.nome });
     salvar();
     if (!salvo) $("#inputLink").value = "";

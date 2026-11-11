@@ -2,11 +2,12 @@
 // HLS (.m3u8): baixa os pedaços e monta um MP4 no navegador (mux.js para pedaços .ts).
 // Só baixa o trecho necessário: a análise usa uma versão leve, e os cortes buscam só os seus trechos em alta.
 
-const HOSTS_PROXY = [/\.cloudfront\.net$/, /\.ttvnw\.net$/, /\.twitchcdn\.net$/, /\.jtvnw\.net$/, /\.live-video\.net$/, /(^|\.)kick\.com$/];
-const viaProxy = (u) => {
+const HOSTS_PROXY = [/\.cloudfront\.net$/, /\.ttvnw\.net$/, /\.twitchcdn\.net$/, /\.jtvnw\.net$/, /\.live-video\.net$/, /(^|\.)kick\.com$/, /\.tiktok\.com$/, /\.tiktokcdn\.com$/, /\.tiktokcdn-us\.com$/, /\.tiktokv\.com$/];
+const b64 = (o) => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const viaProxy = (u, cab = null) => {
   try {
     const h = new URL(u).hostname;
-    return HOSTS_PROXY.some((r) => r.test(h)) ? `/api/proxy?u=${encodeURIComponent(u)}` : u;
+    return HOSTS_PROXY.some((r) => r.test(h)) ? `/api/proxy?u=${encodeURIComponent(u)}${cab ? `&h=${b64(cab)}` : ""}` : u;
   } catch {
     return u;
   }
@@ -34,11 +35,11 @@ export async function resolver(url) {
   return j;
 }
 
-async function baixar(url, { tentativas = 3, tipo = "arraybuffer", onBytes } = {}) {
+async function baixar(url, { tentativas = 3, tipo = "arraybuffer", onBytes, cab = null } = {}) {
   let erro;
   for (let i = 0; i < tentativas; i++) {
     try {
-      const r = await fetch(viaProxy(url));
+      const r = await fetch(viaProxy(url, cab));
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       if (tipo === "text") return await r.text();
       if (!onBytes || !r.body) return await r.arrayBuffer();
@@ -157,13 +158,15 @@ export async function baixarHls(url, { de = null, ate = null, nome = "video", on
 }
 
 /** Baixa um arquivo de vídeo inteiro (link direto) */
-export async function baixarArquivo(url, { nome = "video", onProgress = () => {} } = {}) {
+export async function baixarArquivo(url, { nome = "video", onProgress = () => {}, cab = null } = {}) {
   let total = 0, lido = 0;
-  try {
-    const h = await fetch(viaProxy(url), { method: "HEAD" });
-    total = +h.headers.get("content-length") || 0;
-  } catch {}
-  const buf = await baixar(url, { onBytes: (n) => { lido += n; if (total) onProgress(lido / total); } });
+  const buf = await baixar(url, {
+    cab,
+    onBytes: (n) => {
+      lido += n;
+      onProgress(total ? lido / total : Math.min(0.95, lido / 30e6));
+    },
+  });
   const tipo = /\.webm/i.test(url) ? "video/webm" : "video/mp4";
   return { file: new File([buf], `${nome}.${tipo === "video/webm" ? "webm" : "mp4"}`, { type: tipo }), inicio: 0, duracao: null };
 }
@@ -172,6 +175,11 @@ export async function baixarArquivo(url, { nome = "video", onProgress = () => {}
 export function escolherVariantes(res, qualidade, duracao) {
   const vs = [...res.variantes].sort((a, b) => a.altura - b.altura);
   if (vs.length === 1) return { analise: vs[0], corte: vs[0] };
+  if (!vs.some((v) => v.hls)) {
+    // arquivo único (TikTok, links diretos): baixa uma vez só, na qualidade escolhida
+    const v = vs.filter((x) => x.altura <= qualidade).pop() ?? vs[vs.length - 1];
+    return { analise: v, corte: v };
+  }
   const longo = (duracao ?? res.duracao ?? 0) > 45 * 60;
   const leves = vs.filter((v) => v.altura >= 144);
   const analise = (longo ? leves[0] : leves.filter((v) => v.altura <= 360).pop()) ?? vs[0];

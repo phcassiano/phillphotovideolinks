@@ -2,7 +2,9 @@
 // Só aceita servidores de vídeo conhecidos e pedidos vindos do próprio site.
 export const config = { runtime: "edge" };
 
-const HOSTS = [/\.cloudfront\.net$/, /\.ttvnw\.net$/, /\.twitchcdn\.net$/, /\.jtvnw\.net$/, /\.live-video\.net$/, /(^|\.)kick\.com$/, /\.kick\.com$/];
+const HOSTS = [/\.cloudfront\.net$/, /\.ttvnw\.net$/, /\.twitchcdn\.net$/, /\.jtvnw\.net$/, /\.live-video\.net$/, /(^|\.)kick\.com$/, /\.tiktok\.com$/, /\.tiktokcdn\.com$/, /\.tiktokcdn-us\.com$/, /\.tiktokv\.com$/];
+// cabeçalhos extras (cookies da visita) só para o TikTok, que exige
+const COM_CABECALHOS = [/\.tiktok\.com$/, /\.tiktokcdn\.com$/, /\.tiktokcdn-us\.com$/, /\.tiktokv\.com$/];
 const ORIGENS = /^https:\/\/(cortes\.phillcassiano\.com|cortes[a-z0-9-]*\.vercel\.app)(\/|$)|^http:\/\/localhost(:\d+)?(\/|$)/;
 
 export default async function handler(req) {
@@ -20,6 +22,15 @@ export default async function handler(req) {
   const headers = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36" };
   const range = req.headers.get("range");
   if (range) headers.Range = range;
+  const extra = new URL(req.url).searchParams.get("h");
+  if (extra && COM_CABECALHOS.some((h) => h.test(alvo.hostname))) {
+    try {
+      const j = JSON.parse(atob(extra.replace(/-/g, "+").replace(/_/g, "/")));
+      if (j.cookie) headers.Cookie = String(j.cookie).slice(0, 4000);
+      if (j.referer) headers.Referer = "https://www.tiktok.com/";
+      if (j["user-agent"]) headers["User-Agent"] = String(j["user-agent"]).slice(0, 400);
+    } catch {}
+  }
   const r = await fetch(alvo, { headers, redirect: "follow" });
   const out = cors();
   for (const k of ["content-type", "content-length", "content-range", "accept-ranges"]) {
