@@ -2,12 +2,18 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cortes · estúdio de cortes virais</title>
 <meta name="description" content="Suba seus vídeos e receba cortes verticais prontos: melhores momentos encontrados sozinhos, legenda, título, zoom, CTA, variações e agenda de postagem. Tudo no seu navegador.">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#0f0a1a">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cortes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Rubik:wght@700;800;900&display=swap" rel="stylesheet">
@@ -36,13 +42,14 @@
   <section id="videos" class="passo ativo">
     <div class="hero">
       <h1>Suba a live. <span>Receba os cortes.</span></h1>
-      <p>O site encontra sozinho os melhores momentos (gritos, reações, ação), corta, legenda, coloca título, zoom e CTA, gera variações e monta sua agenda. <b>Tudo roda no seu computador</b>: os arquivos que você sobe não saem dele.</p>
+      <p>O site encontra sozinho os melhores momentos (gritos, reações, ação), corta, legenda, coloca título, zoom e CTA, gera variações e monta sua agenda. <b>Tudo roda no seu aparelho</b>: os arquivos que você sobe não saem dele.</p>
     </div>
     <label class="drop" id="drop">
       <input type="file" id="inputArquivos" accept="video/*,.mkv" multiple hidden>
       <div class="drop-ic">⬆</div>
-      <b>Arraste os vídeos aqui</b>
-      <span>ou clique para escolher (MP4 ou MOV, de preferência). Pode subir vários.</span>
+      <b class="so-pc">Arraste os vídeos aqui</b><b class="so-cel">Toque para escolher vídeos</b>
+      <span class="so-pc">ou clique para escolher (MP4 ou MOV, de preferência). Pode subir vários.</span>
+      <span class="so-cel">da galeria ou dos arquivos do celular. Pode escolher vários.</span>
     </label>
     <div class="cartao link-box">
       <h3>Ou cole o link do vídeo</h3>
@@ -206,7 +213,7 @@
       <div class="cartao">
         <button class="btn grande" id="btnGerar">Gerar vídeos</button>
         <button class="btn ghost" id="btnCancelar" hidden>Parar</button>
-        <p class="aviso">Deixe esta aba aberta e visível enquanto gera. Cada vídeo leva o tempo dele (um corte de 30 s leva uns 35 s).</p>
+        <p class="aviso">Deixe o site aberto e na tela enquanto gera<span class="so-cel">: não troque de app nem bloqueie o celular (se sair, ele pausa e continua quando você voltar)</span>. Cada vídeo leva o tempo dele (um corte de 30 s leva uns 35 s).</p>
         <div id="fila" class="fila"></div>
       </div>
       <div class="cartao previa"><h3>Gravando agora</h3><canvas id="canvasAoVivo" width="270" height="480"></canvas></div>
@@ -264,7 +271,7 @@
 </main>
 
 <footer class="rodape">
-  <p>Processamento 100% local: os arquivos que você sobe não saem do seu computador (links da Twitch/Kick passam pelo nosso servidor só para baixar o vídeo). Funciona melhor no Google Chrome do computador.
+  <p>Processamento 100% local: os arquivos que você sobe não saem do seu aparelho (links da Twitch, Kick e TikTok passam pelo nosso servidor só para baixar o vídeo). Funciona melhor no Google Chrome, no computador ou no celular.
   Use só vídeos seus ou com autorização do criador original.</p>
   <button class="link" id="btnLimpar">Apagar tudo deste navegador</button>
 </footer>

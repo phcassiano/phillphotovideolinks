@@ -68,7 +68,7 @@ function descricao(mp4, track) {
  * range = [inicio, fim] em segundos (opcional): só decodifica esse trecho.
  */
 export async function decodificarAudioMp4(file, onAudio, { range = null, onProgress = () => {} } = {}) {
-  if (!window.AudioDecoder) throw new Error("Seu navegador não tem WebCodecs. Use o Google Chrome atualizado.");
+  if (!window.AudioDecoder) throw new Error("NAO_MP4"); // sem WebCodecs: cai no plano B (tocando o vídeo)
   const boxes = await caixasTopo(file);
   const moov = boxes.find((b) => b.type === "moov");
   const ftyp = boxes.find((b) => b.type === "ftyp");
@@ -290,7 +290,7 @@ export async function mudancasDeCena(file, dur, { onProgress = () => {} } = {}) 
   c.width = 48;
   c.height = 27;
   const g = c.getContext("2d", { willReadFrequently: true });
-  const passo = Math.max(1, dur / 1200);
+  const passo = Math.max(1, dur / (matchMedia("(pointer: coarse)").matches ? 450 : 1200));
   let prev = null;
   const diffs = [];
   for (let t = 0; t < dur; t += passo) {

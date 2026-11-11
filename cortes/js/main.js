@@ -1,8 +1,9 @@
 import { db } from "./db.js";
 import { duracao, volume, mudancasDeCena, candidatos, refinar, audioTrecho, thumbnail } from "./analise.js";
 import { gravar, previa, TEMAS, introS, formatoSaida } from "./render.js";
-import { montarAgenda, ics, csv, REDES } from "./agenda.js";
+import { montarAgenda, ics, csv, REDES, legenda } from "./agenda.js";
 import { abrirEditor } from "./editor.js";
+import { CELULAR, podeCompartilhar } from "./dispositivo.js";
 import { canais as pzCanais, redeDoCanal, agendar as pzAgendar } from "./publicar.js";
 import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg, ehYoutube, ajudanteOnline, baixarPeloAjudante } from "./link.js";
 
@@ -120,6 +121,7 @@ async function adicionarLink(salvo = null) {
   if (de != null && ate != null && ate <= de) return toast("O fim precisa ser depois do início.", true);
   const id = `link|${url}|${de ?? ""}|${ate ?? ""}`;
   if (S.arquivos.some((a) => a.id === id)) return toast("Esse link já está na lista.");
+  if (ehYoutube(url) && CELULAR) return toast("Links do YouTube só funcionam no computador. No celular, use Twitch, Kick, TikTok ou envie o arquivo.", true);
   if (ehYoutube(url) && !(await ajudanteOnline())) {
     $("#ajudanteBox").hidden = false;
     $("#ajudanteBox").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -149,7 +151,7 @@ async function adicionarLink(salvo = null) {
     }
     const res = await resolver(url);
     a.nome = res.titulo || url;
-    const { analise, corte } = escolherVariantes(res, qualidade, ate != null ? ate - (de ?? 0) : null);
+    const { analise, corte } = escolherVariantes(res, qualidade, ate != null ? ate - (de ?? 0) : null, CELULAR);
     a.status = `baixando ${analise.altura ? analise.altura + "p" : "o vídeo"} para analisar...`;
     renderArquivos();
     const onProgress = (p) => { a.prog = Math.max(0.001, p); renderArquivosLeve(); };
@@ -724,11 +726,15 @@ $("#btnGerar").onclick = async () => {
   $("#btnCancelar").hidden = false;
   const fila = $("#fila");
   fila.innerHTML = p.map((x, i) => `<div class="item-fila" id="fi${i}"><b>${esc(x.titulo.replace(/\*/g, ""))}</b><small>corte ${x.ordem + 1} · versão ${x.variacao} · ${x.template} · ${x.intro}${x.cta ? " · " + esc(x.cta.word) : ""}${x.gancho ? " · gancho" : ""}</small><div class="barra"><i></i></div></div>`).join("");
-  const wake = await navigator.wakeLock?.request("screen").catch(() => null);
+  let wake = await navigator.wakeLock?.request("screen").catch(() => null);
   let ok = 0;
-  for (const [i, x] of p.entries()) {
+  for (let i = 0; i < p.length; i++) {
+    const x = p[i];
     if (cancelar.valor) break;
     const el = $(`#fi${i}`);
+    el.dataset.rotulo ??= el.querySelector("small").textContent;
+    el.querySelector("small").textContent = el.dataset.rotulo;
+    el.classList.remove("erro");
     el.scrollIntoView({ block: "nearest" });
     const a = S.arquivos.find((f) => f.id === x.m.arquivoId);
     try {
@@ -736,7 +742,7 @@ $("#btnGerar").onclick = async () => {
       const fonte = await fonteDoCorte(a, x.m, (pr) => (el.querySelector("i").style.width = `${pr * 30}%`));
       const gancho = x.gancho ? S.ganchos.find((g) => g.id === x.gancho)?.file : null;
       const c = ajustar(corteDe(x.m, { titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, parte: null, ranking: x.ordem + 1, gancho }), fonte.offset);
-      const { blob, mime } = await gravar(fonte.file, c, S.cfg, { onProgress: (pr) => (el.querySelector("i").style.width = `${pr * 100}%`), preview: $("#canvasAoVivo"), cancelar });
+      const { blob, mime } = await gravar(fonte.file, c, S.cfg, { onProgress: (pr) => (el.querySelector("i").style.width = `${pr * 100}%`), preview: $("#canvasAoVivo"), cancelar, escala: CELULAR ? 2 / 3 : 1 });
       const r = {
         id: `${x.m.id}-v${x.variacao}-${Date.now().toString(36)}`, corteId: x.m.id, ordem: x.ordem, variacao: x.variacao,
         titulo: x.titulo, template: x.template, intro: x.intro, cta: x.cta, tipo: x.m.tipo, legenda: x.m.legenda,
@@ -750,6 +756,24 @@ $("#btnGerar").onclick = async () => {
       renderRenders();
     } catch (e) {
       if (e.message === "cancelado") break;
+      if (e.message === "segundo-plano") {
+        // o site saiu da tela (troca de app, tela bloqueada): espera voltar e refaz este vídeo
+        el.querySelector("small").textContent = "Pausado: o site saiu da tela. Volte para continuar.";
+        el.querySelector("i").style.width = "0%";
+        await new Promise((res) => {
+          const f = () => {
+            if (document.hidden) return;
+            document.removeEventListener("visibilitychange", f);
+            res();
+          };
+          document.addEventListener("visibilitychange", f);
+          f();
+        });
+        wake = await navigator.wakeLock?.request("screen").catch(() => null);
+        toast("Continuando de onde parou...");
+        i--;
+        continue;
+      }
       console.error(e);
       el.classList.add("erro");
       el.querySelector("small").textContent = "Erro: " + e.message;
@@ -782,7 +806,7 @@ function renderRenders() {
     return;
   }
   g.innerHTML = rs
-    .map((r) => `<div class="rend"><video src="${urlDe(r)}" controls preload="metadata" playsinline></video><div class="info"><b>${esc(r.titulo.replace(/\*/g, ""))}</b><small>${nomeArq(r)} · ${r.template} · ${r.intro}</small><div class="linha"><a class="btn peq" href="${urlDe(r)}" download="${nomeArq(r)}">Baixar</a><button class="btn ghost peq" data-del-r="${r.id}">Apagar</button></div></div></div>`)
+    .map((r) => `<div class="rend"><video src="${urlDe(r)}" controls preload="metadata" playsinline></video><div class="info"><b>${esc(r.titulo.replace(/\*/g, ""))}</b><small>${nomeArq(r)} · ${r.template} · ${r.intro}</small><div class="linha">${podeCompartilhar(r.mime) ? `<button class="btn peq" data-share-r="${r.id}">Compartilhar</button>` : ""}<a class="btn ${podeCompartilhar(r.mime) ? "ghost " : ""}peq" href="${urlDe(r)}" download="${nomeArq(r)}">Baixar</a><button class="btn ghost peq" data-del-r="${r.id}" aria-label="Apagar">🗑</button></div></div></div>`)
     .join("");
 }
 $("#gradeRenders").addEventListener("click", async (e) => {
@@ -854,6 +878,7 @@ function renderAgenda() {
       <div class="corpo">${p.tituloYt ? `<div class="yt">${esc(p.tituloYt)}</div>` : ""}
         <textarea rows="4">${esc(p.texto)}</textarea>
         <div class="linha"><button class="btn peq" data-copy>Copiar legenda</button>${p.tituloYt ? `<button class="btn ghost peq" data-copy-t>Copiar título</button>` : ""}
+          ${podeCompartilhar(r.mime) ? `<button class="btn peq" data-share-p>Postar</button>` : ""}
           <a class="btn ghost peq" href="${urlDe(r)}" download="${p.dia}_${p.hora.replace(":", "")}_${p.rede}_${nomeArq(r)}">Baixar</a>
           <label class="ok"><input type="checkbox" ${S.postados[p.id] ? "checked" : ""}> Postado</label></div></div></article>`;
   }
@@ -891,6 +916,47 @@ const nomeDoPost = (p) => nomeArq(S.renders.find((r) => r.id === p.renderId));
 $("#btnIcs").onclick = () => { if (!postsAtuais.length) return toast("Gere os vídeos primeiro.", true); baixar(new Blob([ics(postsAtuais, S.cfg, nomeDoPost)], { type: "text/calendar" }), "agenda-cortes.ics"); };
 $("#btnCsv").onclick = () => { if (!postsAtuais.length) return toast("Gere os vídeos primeiro.", true); baixar(new Blob(["﻿" + csv(postsAtuais, nomeDoPost)], { type: "text/csv" }), "agenda-cortes.csv"); };
 
+
+
+/* ------------------------- compartilhar (celular) ------------------------- */
+
+/** abre o menu Compartilhar do aparelho com o vídeo; a legenda vai para a área de transferência */
+async function compartilhar(r, texto = "") {
+  const tipo = (r.mime || "video/mp4").split(";")[0];
+  const arq = new File([r.blob], nomeArq(r), { type: tipo });
+  try {
+    if (texto) await navigator.clipboard?.writeText(texto).catch(() => {});
+    await navigator.share({ files: [arq], title: r.titulo.replace(/\*/g, "") });
+    if (texto) toast("Legenda copiada: é só colar no post");
+    return true;
+  } catch (e) {
+    if (e.name !== "AbortError") toast("Não consegui abrir o compartilhamento. Use Baixar.", true);
+    return false;
+  }
+}
+document.addEventListener("click", async (e) => {
+  const br = e.target.closest("[data-share-r]");
+  if (br) {
+    const r = S.renders.find((x) => x.id === br.dataset.shareR);
+    if (r) compartilhar(r, legenda(r, "instagram", S.cfg).texto);
+    return;
+  }
+  const bp = e.target.closest("[data-share-p]");
+  if (bp) {
+    const card = bp.closest(".post");
+    const p = postsAtuais.find((x) => x.id === card.dataset.p);
+    const r = S.renders.find((x) => x.id === p.renderId);
+    const okShare = await compartilhar(r, (p.tituloYt ? p.tituloYt + "\n\n" : "") + card.querySelector("textarea").value);
+    if (okShare && !S.postados[p.id]) {
+      // marca como postado (dá para desmarcar)
+      S.postados[p.id] = Date.now();
+      card.classList.add("feito");
+      card.querySelector("input[type=checkbox]").checked = true;
+      salvar();
+      statsAgenda();
+    }
+  }
+});
 
 /* ------------------------- 5b. Postiz ------------------------- */
 
@@ -975,6 +1041,10 @@ $("#btnLimpar").onclick = async () => {
 
 (async function iniciar() {
   const est = await db.get("kv", "estado");
+  if (!est && CELULAR) {
+    // 1ª vez no celular: ajustes mais leves (legenda rápida, menos cortes e versões)
+    Object.assign(S.cfg, { modelo: "onnx-community/whisper-tiny_timestamped", n: 4, porCorte: 2 });
+  }
   if (est) {
     S.cfg = { ...CFG_PADRAO, ...est.cfg };
     S.momentos = est.momentos ?? [];
@@ -992,7 +1062,8 @@ $("#btnLimpar").onclick = async () => {
   ["#cfgN", "#cfgAlvo", "#cfgIdioma", "#cfgModelo", "#cfgCenas"].forEach((s) => $(s).addEventListener("change", lerCfg1));
   renderArquivos();
   marcarFeito();
-  if (!window.AudioDecoder || !window.MediaRecorder) toast("Use o Google Chrome atualizado no computador para tudo funcionar.", true);
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) toast("Este navegador não consegue gerar os vídeos. Use o Google Chrome atualizado.", true);
+  document.documentElement.classList.toggle("celular", CELULAR);
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
   abrirPeloLink();
 })();

@@ -232,3 +232,83 @@ h3.sec { margin: 26px 0 12px; }
 .gancho small { display: block; padding: 3px 6px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #120c1e; }
 .gancho button { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,.7); border: 0; color: #fff; border-radius: 99px; width: 24px; height: 24px; cursor: pointer; }
 .check-linha { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 4px; }
+
+/* ---------- celular ---------- */
+.so-cel { display: none; }
+html.celular .so-cel { display: revert; }
+html.celular .so-pc { display: none; }
+html.celular #ajudanteBox { display: none; }
+.btn, .chip, .passos button, .chips span { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+@media (max-width: 720px) {
+  body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+  /* sem desfoque aqui: ele "prenderia" a barra fixa de etapas dentro do cabeçalho */
+  .topo { position: static; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  /* etapas viram barra fixa embaixo, ao alcance do polegar */
+  .passos { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; gap: 0; justify-content: space-around; overflow: visible;
+    background: rgba(15, 10, 26, .97); backdrop-filter: blur(10px); border-top: 1px solid var(--line);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+  .passos button { flex: 1; flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 11px; border: 0; border-radius: 12px; min-height: 52px; }
+  .passos button.ativo { background: transparent; border: 0; }
+  .passos button i { width: 28px; height: 28px; font-size: 13px; }
+  main { padding: 10px 12px 24px; }
+  .hero { padding: 8px 0 6px; }
+  .hero p { font-size: 15px; }
+  .cartao { padding: 14px; border-radius: 14px; }
+  .drop { padding: 22px 14px; margin: 12px 0; }
+  /* 16px evita o zoom automático do iPhone ao tocar num campo */
+  input:not([type=checkbox]):not([type=radio]), select, textarea { font-size: 16px; padding: 12px; }
+  .btn { min-height: 46px; padding: 10px 16px; }
+  .btn.peq { min-height: 40px; padding: 8px 12px; font-size: 14px; }
+  .campos { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .campos label.largo, .campos label.check { grid-column: 1 / -1; }
+  .link-linha { flex-direction: column; }
+  .link-linha > * { width: 100%; }
+  .titulo-passo { margin: 4px 0 12px; }
+  .titulo-passo h2 { font-size: 22px; }
+  .titulo-passo .acoes { width: 100%; }
+  .titulo-passo .acoes .btn { flex: 1; }
+  .radar-grade { grid-template-columns: repeat(2, 1fr); }
+  .grade-renders { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .rend .linha { flex-wrap: wrap; }
+  .rend .linha .btn { flex: 1; }
+  .grade-posts { grid-template-columns: 1fr; }
+  .post video { max-height: 300px; }
+  .post .linha .btn { flex: 1; }
+  .mom .sug button { padding: 8px 12px; font-size: 13px; }
+  .ajuste button { padding: 8px 10px; font-size: 13px; }
+  .chips span { padding: 10px 14px; }
+  .temas button { padding: 10px 12px; }
+  .cta-row { grid-template-columns: 112px 1fr 44px; }
+  /* prévias primeiro, menores */
+  .previa-col { order: -1; }
+  .previa canvas { max-width: 200px; }
+  .gerar-grid .previa { order: -1; }
+  .gerar-grid .previa canvas { max-width: 150px; }
+  .toast { bottom: calc(84px + env(safe-area-inset-bottom)); max-width: 92vw; text-align: center; border-radius: 16px; }
+  .rodape { flex-direction: column; padding-bottom: 16px; }
+  .modal { padding: 8px; }
+  /* editor em tela cheia */
+  .editor { padding: 0; }
+  .editor-in { border-radius: 0; border: 0; min-height: 100%; padding: 10px 12px calc(16px + env(safe-area-inset-bottom)); }
+  .ed-topo { position: sticky; top: 0; z-index: 2; background: var(--bg2); margin: -10px -12px 10px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px; border-bottom: 1px solid var(--line); }
+  .ed-topo .ed-titulo { display: none; }
+  .ed-topo .acoes { margin-left: auto; flex-wrap: nowrap; }
+  .ed-palco video { max-height: 30vh; }
+  .ed-controles .btn { flex: 1 1 40%; }
+  .ed-tempo { flex-basis: 100%; margin: 0; text-align: center; }
+  .ed-linha { height: 132px; }
+  .ed-recorte > * { flex: 1 1 45%; }
+  .ed-recorte select { width: 100%; }
+  .ed-lado { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: start; }
+  .ed-previa canvas { max-width: 130px; }
+  .ed-palavras { max-height: 46vh; }
+  .ed-pal { grid-template-columns: 54px 1fr 40px; }
+  .ed-x { height: 44px; }
+  .ed-t { padding: 12px 2px; }
+}
+@media (max-width: 380px) {
+  .campos { grid-template-columns: 1fr; }
+  .grade-renders, .radar-grade { grid-template-columns: repeat(2, 1fr); }
+  .marca small { display: none; }
+}

@@ -1,6 +1,7 @@
 // Editor simples de um momento: início/fim na linha do tempo (com onda do áudio), picos,
 // recorte do jogo/facecam e correção da legenda palavra por palavra, com prévia ao vivo.
 import { desenhaQuadro, W, H } from "./render.js";
+import { CELULAR, TOQUE } from "./dispositivo.js";
 
 const MARGEM = 12; // segundos de contexto antes/depois do corte
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -85,8 +86,10 @@ export function abrirEditor(opts) {
   const rectCv = el.querySelector(".ed-rect");
   const prev = el.querySelector(".ed-previa canvas");
   const off = document.createElement("canvas");
-  off.width = W;
-  off.height = H;
+  const kPrev = CELULAR ? 0.4 : 1; // prévia mais leve no celular
+  off.width = W * kPrev;
+  off.height = H * kPrev;
+  off.getContext("2d").scale(kPrev, kPrev);
   el.querySelector('[data-a="layout"]').value = st.layout ?? "";
   el.querySelector('[data-a="semleg"]').checked = st.semLegenda;
 
@@ -134,8 +137,20 @@ export function abrirEditor(opts) {
     g.fillStyle = "rgba(255,45,138,.18)";
     g.fillRect(xi, 0, xf - xi, h);
     g.fillStyle = "#ff2d8a";
-    g.fillRect(xi - 3 * dpr, 0, 6 * dpr, h);
-    g.fillRect(xf - 3 * dpr, 0, 6 * dpr, h);
+    const la = (TOQUE ? 5 : 3) * dpr;
+    g.fillRect(xi - la, 0, la * 2, h);
+    g.fillRect(xf - la, 0, la * 2, h);
+    if (TOQUE) {
+      // "pegadores" redondos para o dedo
+      for (const x of [xi, xf]) {
+        g.beginPath();
+        g.arc(x, h / 2, 13 * dpr, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#fff";
+        g.fillRect(x - 1.5 * dpr, h / 2 - 6 * dpr, 3 * dpr, 12 * dpr);
+        g.fillStyle = "#ff2d8a";
+      }
+    }
     // palavras
     g.fillStyle = "rgba(255,181,71,.7)";
     for (const w of st.words) g.fillRect(X(w.start), h - 10 * dpr, Math.max(1, X(w.end) - X(w.start)), 6 * dpr);
@@ -156,7 +171,7 @@ export function abrirEditor(opts) {
   linha.addEventListener("pointerdown", (e) => {
     const r = linha.getBoundingClientRect();
     const x = ((e.clientX - r.left) / r.width) * linha.width;
-    const tol = 10 * (window.devicePixelRatio || 1);
+    const tol = (TOQUE ? 26 : 10) * (window.devicePixelRatio || 1);
     const pico = st.picos.findIndex((p) => Math.abs(X(p) - x) < tol && e.clientY - r.top < 30);
     if (pico >= 0) {
       st.picos.splice(pico, 1);
@@ -170,7 +185,7 @@ export function abrirEditor(opts) {
   linha.addEventListener("pointermove", (e) => {
     const r = linha.getBoundingClientRect();
     const x = ((e.clientX - r.left) / r.width) * linha.width;
-    const tol = 10 * (window.devicePixelRatio || 1);
+    const tol = (TOQUE ? 26 : 10) * (window.devicePixelRatio || 1);
     linha.style.cursor = Math.abs(x - X(st.inicio)) < tol || Math.abs(x - X(st.fim)) < tol ? "ew-resize" : "pointer";
     if (!arrasto) return;
     const t = Math.max(janela[0], Math.min(janela[1], T(x)));
@@ -215,7 +230,7 @@ export function abrirEditor(opts) {
     const p = posR(e);
     const k = rectModo === "jogo" ? "jogo" : "facecam";
     const r = st[k];
-    const tolx = 14 / rectCv.width, toly = 14 / rectCv.height;
+    const tolx = (TOQUE ? 28 : 14) / rectCv.width, toly = (TOQUE ? 28 : 14) / rectCv.height;
     if (r) {
       const cantos = { tl: [r.x, r.y], tr: [r.x + r.w, r.y], bl: [r.x, r.y + r.h], br: [r.x + r.w, r.y + r.h] };
       for (const [nome, [cx, cy]] of Object.entries(cantos)) if (Math.abs(p.x - cx) < tolx && Math.abs(p.y - cy) < toly) rArr = { tipo: nome, k };

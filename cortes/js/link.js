@@ -172,7 +172,7 @@ export async function baixarArquivo(url, { nome = "video", onProgress = () => {}
 }
 
 /** escolhe a variante de análise (leve) e a de corte (qualidade escolhida) */
-export function escolherVariantes(res, qualidade, duracao) {
+export function escolherVariantes(res, qualidade, duracao, leve = false) {
   const vs = [...res.variantes].sort((a, b) => a.altura - b.altura);
   if (vs.length === 1) return { analise: vs[0], corte: vs[0] };
   if (!vs.some((v) => v.hls)) {
@@ -180,7 +180,7 @@ export function escolherVariantes(res, qualidade, duracao) {
     const v = vs.filter((x) => x.altura <= qualidade).pop() ?? vs[vs.length - 1];
     return { analise: v, corte: v };
   }
-  const longo = (duracao ?? res.duracao ?? 0) > 45 * 60;
+  const longo = leve || (duracao ?? res.duracao ?? 0) > 45 * 60;
   const leves = vs.filter((v) => v.altura >= 144);
   const analise = (longo ? leves[0] : leves.filter((v) => v.altura <= 360).pop()) ?? vs[0];
   const corte = vs.filter((v) => v.altura <= qualidade).pop() ?? vs[vs.length - 1];

@@ -797,7 +797,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
  * Grava uma variação. Retorna { blob, mime }.
  * onProgress(0..1); preview = canvas visível opcional (espelha o quadro)
  */
-export async function gravar(file, c, cfg, { onProgress = () => {}, preview = null, cancelar = { valor: false } } = {}) {
+export async function gravar(file, c, cfg, { onProgress = () => {}, preview = null, cancelar = { valor: false }, escala = 1 } = {}) {
   await Promise.all([document.fonts.load("900 80px Rubik"), document.fonts.load("800 50px Inter")]).catch(() => {});
   const v = document.createElement("video");
   v.src = URL.createObjectURL(file);
@@ -808,10 +808,17 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
     v.onerror = () => j(new Error("Não consegui abrir o vídeo original."));
   });
   const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
+  // no celular grava em 720x1280 (escala 2/3): mesmo desenho, bem mais leve
+  canvas.width = Math.round(W * escala);
+  canvas.height = Math.round(H * escala);
   const ctx = canvas.getContext("2d");
+  ctx.scale(escala, escala);
   const pctx = preview?.getContext("2d");
+  const checar = () => {
+    if (cancelar.valor) throw new Error("cancelado");
+    // fora da tela o navegador para de desenhar: o vídeo sairia travado
+    if (document.hidden) throw new Error("segundo-plano");
+  };
 
   const actx = new AudioContext();
   const src = actx.createMediaElementSource(v);
@@ -828,7 +835,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
 
   const mime = formatoSaida();
   const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 10_000_000, audioBitsPerSecond: 192_000 });
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: escala < 1 ? 6_000_000 : 10_000_000, audioBitsPerSecond: 192_000 });
   const chunks = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
 
@@ -875,7 +882,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
       const t0 = performance.now();
       await vg.play();
       while ((tFase = (performance.now() - t0) / 1000) < gDur && !vg.ended) {
-        if (cancelar.valor) throw new Error("cancelado");
+        checar();
         onProgress(tFase / total);
         await espera(30);
       }
@@ -890,7 +897,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
       const t0 = performance.now();
       await v.play();
       while ((tFase = (performance.now() - t0) / 1000) < TEASER_S) {
-        if (cancelar.valor) throw new Error("cancelado");
+        checar();
         onProgress((gDur + tFase) / total);
         await espera(30);
       }
@@ -906,7 +913,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
       sfxWhoosh(actx, sfx);
       const t0 = performance.now();
       while ((tFase = (performance.now() - t0) / 1000) < LETREIRO_S) {
-        if (cancelar.valor) throw new Error("cancelado");
+        checar();
         onProgress(tFase / total);
         await espera(30);
       }
@@ -923,7 +930,7 @@ export async function gravar(file, c, cfg, { onProgress = () => {}, preview = nu
     const tocados = new Set();
     await v.play();
     while (v.currentTime < c.fim && !v.ended) {
-      if (cancelar.valor) throw new Error("cancelado");
+      checar();
       const t = v.currentTime - c.inicio;
       for (const p of c.picos ?? []) if (!tocados.has(p) && t >= p - 0.05) {
         tocados.add(p);
