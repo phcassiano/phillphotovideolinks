@@ -59,6 +59,17 @@
         <label>Terminar em (opcional)<input id="linkAte" placeholder="ex.: 2:30:00"></label>
       </div>
     </div>
+    <div class="cartao radar">
+      <h3>Radar do TikTok</h3>
+      <p class="dica">Veja os vídeos mais fortes de um perfil (visualizações, curtidas, comentários) e use o que quiser cortar com um clique.</p>
+      <div class="link-linha">
+        <input id="radarPerfil" placeholder="@perfil ou link do perfil" autocomplete="off">
+        <select id="radarOrdem" aria-label="Ordenar"><option value="views">Mais vistos</option><option value="likes">Mais curtidos</option><option value="comentarios">Mais comentados</option><option value="engaj">Mais engajamento (%)</option><option value="data">Mais recentes</option></select>
+        <button class="btn" id="btnRadar">Buscar</button>
+      </div>
+      <p class="dica" id="radarStatus"></p>
+      <div id="radarGrade" class="radar-grade"></div>
+    </div>
     <div class="cartao ajudante" id="ajudanteBox" hidden>
       <h3>Para links do YouTube, abra o Ajudante</h3>
       <p class="dica">O YouTube bloqueia servidores, então quem baixa é o seu computador. O Ajudante é um programinha que recebe o link daqui, baixa pela sua internet e entrega o vídeo ao site. Ele só aceita pedidos deste site.</p>

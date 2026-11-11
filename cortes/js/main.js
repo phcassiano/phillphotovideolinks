@@ -207,6 +207,60 @@ async function fonteDoCorte(a, m, onProgress = () => {}) {
 /** desloca os tempos do corte para o arquivo do trecho */
 const ajustar = (c, offset) => (offset ? { ...c, inicio: c.inicio - offset, fim: c.fim - offset } : c);
 
+
+/* ------------------------- 1c. radar do TikTok ------------------------- */
+
+let radarDados = null;
+const curto = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1).replace(".0", "").replace(".", ",") + " mi" : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(".0", "").replace(".", ",") + " mil" : String(n));
+async function buscarRadar() {
+  const perfil = $("#radarPerfil").value.trim();
+  if (!perfil) return toast("Digite o @ do perfil.", true);
+  $("#btnRadar").disabled = true;
+  $("#radarStatus").textContent = "Buscando os vídeos do perfil...";
+  try {
+    const r = await fetch(`/api/radar?perfil=${encodeURIComponent(perfil)}&n=40`);
+    const j = await r.json().catch(() => ({ erro: "O servidor não respondeu direito." }));
+    if (!r.ok || j.erro) throw new Error(j.erro || `erro ${r.status}`);
+    radarDados = j;
+    renderRadar();
+  } catch (e) {
+    $("#radarStatus").textContent = e.message;
+    $("#radarGrade").innerHTML = "";
+  } finally {
+    $("#btnRadar").disabled = false;
+  }
+}
+function renderRadar() {
+  if (!radarDados) return;
+  const ord = $("#radarOrdem").value;
+  const eng = (v) => (v.views ? (v.likes + v.comentarios + v.compartilhamentos) / v.views : 0);
+  const vs = [...radarDados.videos].sort((a, b) => (ord === "data" ? (b.data || 0) - (a.data || 0) : ord === "engaj" ? eng(b) - eng(a) : (b[ord] || 0) - (a[ord] || 0)));
+  const media = radarDados.videos.reduce((a, v) => a + v.views, 0) / Math.max(1, radarDados.videos.length);
+  $("#radarStatus").textContent = `${radarDados.nome} (@${radarDados.perfil}) · ${vs.length} vídeos · média de ${curto(Math.round(media))} visualizações`;
+  $("#radarGrade").innerHTML = vs
+    .map((v, i) => {
+      const acima = media && v.views > media * 2;
+      const thumb = v.thumb ? `/api/proxy?u=${encodeURIComponent(v.thumb)}` : "";
+      return `<div class="rv"><div class="th">${thumb ? `<img loading="lazy" src="${esc(thumb)}" alt="">` : ""}<span class="rk">#${i + 1}${acima ? " 🔥" : ""}</span><span class="v">▶ ${curto(v.views)}</span></div>
+        <div class="info"><p>${esc(v.titulo || "(sem legenda)")}</p><span class="n">❤ ${curto(v.likes)} · 💬 ${curto(v.comentarios)}${v.duracao ? ` · ${fmt(v.duracao)}` : ""}</span>${v.data ? `<span>${new Date(v.data * 1000).toLocaleDateString("pt-BR")}</span>` : ""}</div>
+        <div class="acs"><button class="btn" data-usar="${esc(v.url)}">Usar</button><a class="btn ghost" href="${esc(v.url)}" target="_blank" rel="noopener">Ver</a></div></div>`;
+    })
+    .join("");
+}
+$("#btnRadar").onclick = buscarRadar;
+$("#radarPerfil").addEventListener("keydown", (e) => { if (e.key === "Enter") buscarRadar(); });
+$("#radarOrdem").onchange = renderRadar;
+$("#radarGrade").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-usar]");
+  if (!b) return;
+  $("#inputLink").value = b.dataset.usar;
+  $("#linkDe").value = "";
+  $("#linkAte").value = "";
+  b.disabled = true;
+  b.textContent = "Adicionado";
+  adicionarLink();
+});
+
 /* ------------------------- transcrição (worker) ------------------------- */
 
 let worker = null;
@@ -899,7 +953,29 @@ $("#btnLimpar").onclick = async () => {
   marcarFeito();
   if (!window.AudioDecoder || !window.MediaRecorder) toast("Use o Google Chrome atualizado no computador para tudo funcionar.", true);
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+  abrirPeloLink();
 })();
+
+/** link montado pelo Claude (conector MCP): #auto&link=...&cortes=6&duracao=30&de=1:00:00&ate=2:00:00&qualidade=720 */
+async function abrirPeloLink() {
+  if (!location.hash.startsWith("#auto")) return;
+  const q = new URLSearchParams(location.hash.slice(location.hash.indexOf("&") + 1));
+  history.replaceState(null, "", location.pathname);
+  const link = q.get("link");
+  if (!link) return;
+  if (q.get("cortes")) $("#cfgN").value = q.get("cortes");
+  if (q.get("duracao")) $("#cfgAlvo").value = q.get("duracao");
+  lerCfg1();
+  $("#inputLink").value = link;
+  $("#linkDe").value = q.get("de") || "";
+  $("#linkAte").value = q.get("ate") || "";
+  if (q.get("qualidade")) $("#linkQualidade").value = q.get("qualidade");
+  toast("Abrindo o vídeo que o Claude mandou...");
+  const antes = S.arquivos.length;
+  await adicionarLink();
+  const a = S.arquivos[antes];
+  if (a && !a.erro && a.file) analisarTudo();
+}
 
 // para testes automatizados
 window.__cortes = { S, ir, addArquivos, _teste: { audioTrecho, transcrever } };
