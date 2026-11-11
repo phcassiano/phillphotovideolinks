@@ -2,7 +2,7 @@ import { db } from "./db.js";
 import { duracao, volume, mudancasDeCena, candidatos, refinar, audioTrecho, thumbnail } from "./analise.js";
 import { gravar, previa, TEMAS, introS, formatoSaida } from "./render.js";
 import { montarAgenda, ics, csv, REDES } from "./agenda.js";
-import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg } from "./link.js";
+import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg, ehYoutube, ajudanteOnline, baixarPeloAjudante } from "./link.js";
 
 /* ------------------------- estado ------------------------- */
 
@@ -118,11 +118,33 @@ async function adicionarLink(salvo = null) {
   if (de != null && ate != null && ate <= de) return toast("O fim precisa ser depois do início.", true);
   const id = `link|${url}|${de ?? ""}|${ate ?? ""}`;
   if (S.arquivos.some((a) => a.id === id)) return toast("Esse link já está na lista.");
+  if (ehYoutube(url) && !(await ajudanteOnline())) {
+    $("#ajudanteBox").hidden = false;
+    $("#ajudanteBox").scrollIntoView({ behavior: "smooth", block: "center" });
+    $("#ajudanteStatus").textContent = "Não encontrei o Ajudante aberto neste computador.";
+    return;
+  }
   const a = { id, nome: url, status: "abrindo o link...", prog: 0.001 };
   S.arquivos.push(a);
   renderArquivos();
   $("#btnLink").disabled = true;
   try {
+    if (ehYoutube(url)) {
+      $("#ajudanteBox").hidden = true;
+      a.status = "o Ajudante está baixando no seu computador...";
+      renderArquivos();
+      const r = await baixarPeloAjudante(url, { qualidade, de, ate, onProgress: (p, txt) => { a.prog = Math.max(0.001, p); a.status = txt; renderArquivosLeve(); } });
+      a.nome = r.titulo;
+      a.file = r.file;
+      a.link = null;
+      Object.assign(a, await duracao(a.file));
+      a.prog = 1;
+      a.status = `${fmt(a.duracao)} · YouTube (baixado pelo Ajudante, ${a.h}p)`;
+      S.links = S.links.filter((l) => l.id !== id).concat({ id, url, de, ate, qualidade, titulo: a.nome });
+      salvar();
+      if (!salvo) $("#inputLink").value = "";
+      return;
+    }
     const res = await resolver(url);
     a.nome = res.titulo || url;
     const { analise, corte } = escolherVariantes(res, qualidade, ate != null ? ate - (de ?? 0) : null);
@@ -151,6 +173,13 @@ async function adicionarLink(salvo = null) {
     renderArquivos();
   }
 }
+$("#btnTestarAjudante").addEventListener("click", async () => {
+  const st = $("#ajudanteStatus");
+  st.textContent = "Procurando o Ajudante...";
+  const ok = await ajudanteOnline();
+  st.textContent = ok ? `Ajudante ${ok.versao} encontrado! Clique em Adicionar.` : "Ainda não encontrei. Confira se a janela do Ajudante está aberta e escrito \"Pronto!\".";
+  if (ok && $("#inputLink").value.trim()) adicionarLink();
+});
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-rebaixar]");
   if (!b) return;

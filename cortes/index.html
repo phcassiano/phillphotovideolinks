@@ -46,7 +46,7 @@
     </label>
     <div class="cartao link-box">
       <h3>Ou cole o link do vídeo</h3>
-      <p class="dica">Lives salvas, clipes e destaques da <b>Twitch</b>, vídeos da <b>Kick</b> ou um link direto para um arquivo <b>.mp4</b> / <b>.m3u8</b>. Para lives longas, o site baixa uma versão leve para achar os momentos e depois só os trechos escolhidos em alta qualidade.</p>
+      <p class="dica">Lives salvas, clipes e destaques da <b>Twitch</b>, vídeos da <b>Kick</b>, <b>YouTube</b> (com o Ajudante aberto no seu computador) ou um link direto para um arquivo <b>.mp4</b> / <b>.m3u8</b>. Para lives longas, o site baixa uma versão leve para achar os momentos e depois só os trechos escolhidos em alta qualidade.</p>
       <div class="link-linha">
         <input id="inputLink" type="url" inputmode="url" placeholder="https://www.twitch.tv/videos/123456789" autocomplete="off">
         <button class="btn" id="btnLink">Adicionar</button>
@@ -58,6 +58,20 @@
         <label>Começar em (opcional)<input id="linkDe" placeholder="ex.: 1:00:00"></label>
         <label>Terminar em (opcional)<input id="linkAte" placeholder="ex.: 2:30:00"></label>
       </div>
+    </div>
+    <div class="cartao ajudante" id="ajudanteBox" hidden>
+      <h3>Para links do YouTube, abra o Ajudante</h3>
+      <p class="dica">O YouTube bloqueia servidores, então quem baixa é o seu computador. O Ajudante é um programinha que recebe o link daqui, baixa pela sua internet e entrega o vídeo ao site. Ele só aceita pedidos deste site.</p>
+      <ol class="passos-ajudante">
+        <li>Instale o <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">Python</a> (uma vez só). No Windows, marque <b>"Add python.exe to PATH"</b>.</li>
+        <li>Baixe o Ajudante, descompacte e abra: <b>Windows</b>: dois cliques em "Abrir ajudante (Windows)". <b>Mac</b>: botão direito em "Abrir ajudante (Mac)" → Abrir.</li>
+        <li>Deixe a janela aberta e clique em <b>Adicionar</b> de novo. Se o Chrome perguntar sobre "dispositivos na rede local", clique em <b>Permitir</b>.</li>
+      </ol>
+      <div class="link-linha">
+        <a class="btn" href="ajudante/cortes-ajudante.zip" download>Baixar o Ajudante</a>
+        <button class="btn ghost" id="btnTestarAjudante">Já abri, testar</button>
+      </div>
+      <p class="dica" id="ajudanteStatus"></p>
     </div>
     <div id="listaArquivos" class="lista-arq"></div>
 

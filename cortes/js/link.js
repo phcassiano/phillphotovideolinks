@@ -178,3 +178,56 @@ export function escolherVariantes(res, qualidade, duracao) {
   const corte = vs.filter((v) => v.altura <= qualidade).pop() ?? vs[vs.length - 1];
   return { analise, corte };
 }
+
+/* ------------------------- YouTube via Ajudante (no computador do usuário) ------------------------- */
+
+export const AJUDANTE = "http://127.0.0.1:17890";
+export const ehYoutube = (url) => {
+  try {
+    return /(^|\.)(youtube\.com|youtu\.be)$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+};
+
+export async function ajudanteOnline() {
+  try {
+    const r = await fetch(`${AJUDANTE}/status`, { signal: AbortSignal.timeout(2000) });
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Pede ao Ajudante para baixar e recebe o arquivo. onProgress(0..1, texto) */
+export async function baixarPeloAjudante(url, { qualidade = 720, de = null, ate = null, onProgress = () => {} } = {}) {
+  const q = new URLSearchParams({ url, qualidade: String(qualidade) });
+  if (de != null) q.set("de", String(de));
+  if (ate != null) q.set("ate", String(ate));
+  const r = await fetch(`${AJUDANTE}/baixar?${q}`);
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.erro || "O Ajudante recusou o pedido.");
+  let job;
+  for (;;) {
+    await new Promise((res) => setTimeout(res, 1000));
+    job = await (await fetch(`${AJUDANTE}/job?id=${j.id}`)).json();
+    if (job.status === "erro") throw new Error(job.erro || "O Ajudante não conseguiu baixar.");
+    if (job.status === "pronto") break;
+    onProgress(0.85 * (job.prog || 0), `${job.etapa || "baixando"} no seu computador${job.titulo ? `: ${job.titulo}` : ""}`);
+  }
+  const a = await fetch(`${AJUDANTE}/arquivo?id=${j.id}`);
+  if (!a.ok) throw new Error("Não consegui pegar o arquivo do Ajudante.");
+  const total = +a.headers.get("content-length") || job.tamanho || 0;
+  const reader = a.body.getReader();
+  const partes = [];
+  let lido = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    partes.push(value);
+    lido += value.length;
+    if (total) onProgress(0.85 + 0.15 * (lido / total), "passando o vídeo para o site");
+  }
+  const nome = (job.titulo || "youtube").replace(/[\\/:*?"<>|]+/g, " ").slice(0, 60);
+  return { file: new File(partes, `${nome}.mp4`, { type: "video/mp4" }), titulo: job.titulo || "vídeo do YouTube", inicio: job.inicio || 0 };
+}
