@@ -3,6 +3,7 @@ import { duracao, volume, mudancasDeCena, candidatos, refinar, audioTrecho, thum
 import { gravar, previa, TEMAS, introS, formatoSaida } from "./render.js";
 import { montarAgenda, ics, csv, REDES } from "./agenda.js";
 import { abrirEditor } from "./editor.js";
+import { canais as pzCanais, redeDoCanal, agendar as pzAgendar } from "./publicar.js";
 import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg, ehYoutube, ajudanteOnline, baixarPeloAjudante } from "./link.js";
 
 /* ------------------------- estado ------------------------- */
@@ -15,7 +16,7 @@ const CFG_PADRAO = {
   ctas: [{ verb: "Comenta", word: "CORTES" }, { verb: "Segue pra", word: "PARTE 2" }], porCorte: 3,
   inicio: "", horarios: "12:00, 18:30, 21:00", rodadas: 1, lembrete: 10, redes: ["instagram", "tiktok", "youtube"],
 };
-const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {}, links: [] };
+const S = { arquivos: [], cfg: { ...CFG_PADRAO }, momentos: [], renders: [], postados: {}, links: [], enviados: {} };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -25,7 +26,7 @@ const fmt = (s) => {
   return (h ? `${h}:${String(m).padStart(2, "0")}` : m) + ":" + String(ss).padStart(2, "0");
 };
 const chaveArq = (f) => `${f.name}|${f.size}`;
-const salvar = () => db.put("kv", { cfg: S.cfg, momentos: S.momentos, postados: S.postados, links: S.links }, "estado");
+const salvar = () => db.put("kv", { cfg: S.cfg, momentos: S.momentos, postados: S.postados, links: S.links, enviados: S.enviados }, "estado");
 
 function toast(msg, erro = false) {
   const t = $("#toast");
@@ -734,6 +735,7 @@ const fmtDia = (d) => { const s = new Date(d + "T12:00:00").toLocaleDateString("
 let postsAtuais = [];
 
 function renderAgenda() {
+  renderPostiz();
   if (!S.cfg.inicio) S.cfg.inicio = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
   $("#cfgInicio").value = S.cfg.inicio;
   $("#cfgHorarios").value = S.cfg.horarios;
@@ -753,7 +755,7 @@ function renderAgenda() {
     if (p.hora !== hora) { if (hora) html += "</div>"; hora = p.hora; html += `<div class="slot">${p.hora} · ${esc(p.titulo)}</div><div class="grade-posts">`; }
     const r = S.renders.find((x) => x.id === p.renderId);
     html += `<article class="post ${S.postados[p.id] ? "feito" : ""}" data-p="${esc(p.id)}">
-      <div class="cab"><span class="badge ${p.rede}">${REDES[p.rede]}</span><span>${p.hora}</span><small>versão ${p.variacao} · ${p.template}</small></div>
+      <div class="cab"><span class="badge ${p.rede}">${REDES[p.rede]}</span><span>${p.hora}</span>${S.enviados[p.id] ? `<span class="enviado">✓ agendado no Postiz</span>` : ""}<small>versão ${p.variacao} · ${p.template}</small></div>
       <video src="${urlDe(r)}" controls preload="metadata" playsinline></video>
       <div class="corpo">${p.tituloYt ? `<div class="yt">${esc(p.tituloYt)}</div>` : ""}
         <textarea rows="4">${esc(p.texto)}</textarea>
@@ -795,6 +797,79 @@ const nomeDoPost = (p) => nomeArq(S.renders.find((r) => r.id === p.renderId));
 $("#btnIcs").onclick = () => { if (!postsAtuais.length) return toast("Gere os vídeos primeiro.", true); baixar(new Blob([ics(postsAtuais, S.cfg, nomeDoPost)], { type: "text/calendar" }), "agenda-cortes.ics"); };
 $("#btnCsv").onclick = () => { if (!postsAtuais.length) return toast("Gere os vídeos primeiro.", true); baixar(new Blob(["﻿" + csv(postsAtuais, nomeDoPost)], { type: "text/csv" }), "agenda-cortes.csv"); };
 
+
+/* ------------------------- 5b. Postiz ------------------------- */
+
+let pzLista = [];
+const pzCfg = () => (S.cfg.postiz ??= { chave: "", base: "", mapa: {}, tiktokPrivacidade: "PUBLIC_TO_EVERYONE", youtubeVisibilidade: "public" });
+function renderPostiz() {
+  const c = pzCfg();
+  $("#pzChave").value = c.chave;
+  $("#pzBase").value = c.base;
+  $("#pzTiktok").value = c.tiktokPrivacidade;
+  $("#pzYoutube").value = c.youtubeVisibilidade;
+  $("#pzCanais").hidden = !pzLista.length;
+  $("#pzMapa").innerHTML = ["instagram", "tiktok", "youtube"]
+    .map((rede) => {
+      const ops = pzLista.filter((x) => redeDoCanal(x) === rede);
+      return `<label>${REDES[rede]}<select data-rede="${rede}"><option value="">Não publicar</option>${ops.map((o) => `<option value="${esc(o.id)}" ${c.mapa[rede] === o.id ? "selected" : ""}>${esc(o.name)}</option>`).join("")}</select></label>`;
+    })
+    .join("");
+}
+$("#pzConectar").onclick = async () => {
+  const c = pzCfg();
+  c.chave = $("#pzChave").value.trim();
+  c.base = $("#pzBase").value.trim();
+  if (!c.chave) return toast("Cole a chave da API do Postiz.", true);
+  $("#pzConectar").disabled = true;
+  try {
+    pzLista = await pzCanais(c);
+    // escolhe sozinho quando há um canal só por rede
+    for (const rede of ["instagram", "tiktok", "youtube"]) {
+      const ops = pzLista.filter((x) => redeDoCanal(x) === rede);
+      if (!c.mapa[rede] && ops.length === 1) c.mapa[rede] = ops[0].id;
+    }
+    salvar();
+    renderPostiz();
+    toast(pzLista.length ? `${pzLista.length} canal(is) encontrados no Postiz` : "Conectado, mas não há redes conectadas no Postiz ainda.");
+  } catch (e) {
+    toast(e.message, true);
+  } finally {
+    $("#pzConectar").disabled = false;
+  }
+};
+$("#pzMapa").addEventListener("change", (e) => {
+  pzCfg().mapa[e.target.dataset.rede] = e.target.value || undefined;
+  salvar();
+});
+$("#pzTiktok").onchange = () => { pzCfg().tiktokPrivacidade = $("#pzTiktok").value; salvar(); };
+$("#pzYoutube").onchange = () => { pzCfg().youtubeVisibilidade = $("#pzYoutube").value; salvar(); };
+let pzCancel = { valor: false };
+$("#pzCancelar").onclick = () => (pzCancel.valor = true);
+$("#pzAgendar").onclick = async () => {
+  if (!postsAtuais.length) return toast("Gere os vídeos primeiro.", true);
+  const c = pzCfg();
+  if (!Object.values(c.mapa).some(Boolean)) return toast("Escolha pelo menos uma rede para publicar.", true);
+  pzCancel = { valor: false };
+  $("#pzAgendar").disabled = true;
+  $("#pzCancelar").hidden = false;
+  const log = (txt, pr) => { $("#pzLog").textContent = txt; if (pr != null) $("#pzBarra").style.width = `${pr * 100}%`; };
+  try {
+    const r = await pzAgendar({ posts: postsAtuais, renders: S.renders, cfg: { ...c, fuso: S.cfg.fuso || "America/Sao_Paulo" }, canaisLista: pzLista, enviados: S.enviados, log, cancelar: pzCancel });
+    salvar();
+    log(`${r.agendados} post(s) agendados no Postiz.${r.pulados ? ` ${r.pulados} ficaram de fora (horário já passou ou rede sem canal).` : ""}`, 1);
+    renderAgenda();
+  } catch (e) {
+    salvar();
+    log("Parou: " + e.message);
+    toast(e.message, true);
+    renderAgenda();
+  } finally {
+    $("#pzAgendar").disabled = false;
+    $("#pzCancelar").hidden = true;
+  }
+};
+
 /* ------------------------- limpar / iniciar ------------------------- */
 
 $("#btnLimpar").onclick = async () => {
@@ -811,6 +886,7 @@ $("#btnLimpar").onclick = async () => {
     S.momentos = est.momentos ?? [];
     S.postados = est.postados ?? {};
     S.links = est.links ?? [];
+    S.enviados = est.enviados ?? {};
   }
   S.renders = (await db.all("renders")) ?? [];
   $("#cfgN").value = S.cfg.n;

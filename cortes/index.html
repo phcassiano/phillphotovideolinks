@@ -216,6 +216,30 @@
       </div>
       <div class="barra"><i id="barraAgenda"></i></div>
     </div>
+    <div class="cartao postiz">
+      <h3>Publicar automático com o Postiz</h3>
+      <p class="dica">O <a href="https://postiz.com" target="_blank" rel="noopener">Postiz</a> publica nos horários da agenda (Instagram, TikTok, YouTube e mais). Crie a conta, conecte suas redes lá, e cole aqui a chave da API (Postiz → Configurações → API). A chave fica guardada só neste navegador.</p>
+      <div class="campos">
+        <label class="largo">Chave da API do Postiz<input id="pzChave" type="password" autocomplete="off" placeholder="cole a chave aqui"></label>
+        <label>Servidor (só se for Postiz próprio)<input id="pzBase" placeholder="https://api.postiz.com/public/v1"></label>
+      </div>
+      <button class="btn ghost" id="pzConectar">Conectar</button>
+      <div id="pzCanais" hidden>
+        <div class="campos" id="pzMapa"></div>
+        <div class="campos">
+          <label>TikTok: quem pode ver
+            <select id="pzTiktok"><option value="PUBLIC_TO_EVERYONE">Todo mundo</option><option value="FOLLOWER_OF_CREATOR">Seguidores</option><option value="SELF_ONLY">Só eu (teste)</option></select>
+          </label>
+          <label>YouTube: visibilidade
+            <select id="pzYoutube"><option value="public">Público</option><option value="unlisted">Não listado</option><option value="private">Privado (teste)</option></select>
+          </label>
+        </div>
+        <button class="btn" id="pzAgendar">Agendar tudo no Postiz</button>
+        <button class="btn ghost" id="pzCancelar" hidden>Parar</button>
+        <div class="barra"><i id="pzBarra"></i></div>
+        <p class="dica" id="pzLog"></p>
+      </div>
+    </div>
     <div id="listaAgenda"><p class="vazio">Gere os vídeos na etapa 4 para montar a agenda.</p></div>
   </section>
 </main>

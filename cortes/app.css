@@ -209,3 +209,6 @@ h3.sec { margin: 26px 0 12px; }
 .ed-t { background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12px; padding: 6px 4px; cursor: pointer; font-variant-numeric: tabular-nums; }
 .ed-x { background: none; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; height: 32px; }
 @media (max-width: 900px) { .ed-grid { grid-template-columns: 1fr; } }
+
+.postiz { border-color: #3b2a5c; }
+.post .enviado { font-size: 12px; color: var(--ok); font-weight: 700; }
