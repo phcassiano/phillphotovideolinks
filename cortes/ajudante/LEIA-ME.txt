@@ -1,0 +1,22 @@
+AJUDANTE DO CORTES — para colar links do YouTube no site
+
+O YouTube bloqueia servidores, então quem baixa o vídeo é o seu computador.
+O ajudante recebe o link que você cola no site, baixa pela sua internet e
+entrega o vídeo direto para o site. Você não precisa mexer em nenhum arquivo.
+
+1) Instale o Python (uma vez só): https://www.python.org/downloads/
+   - No Windows, marque "Add python.exe to PATH" na primeira tela da instalação.
+
+2) Abra o ajudante:
+   - Windows: dois cliques em "Abrir ajudante (Windows).bat"
+   - Mac: clique com o botão direito em "Abrir ajudante (Mac).command" > Abrir
+     (na primeira vez o Mac pede confirmação)
+   Na primeira vez ele instala sozinho o que precisa (cerca de 150 MB).
+
+3) Deixe a janela preta aberta e cole o link do YouTube no site Cortes.
+   Se o Chrome perguntar se o site pode acessar "dispositivos na rede local",
+   clique em Permitir (é o ajudante, no seu próprio computador).
+
+Ele só aceita pedidos do site Cortes e apaga os vídeos baixados quando você fecha.
+Baixar vídeos do YouTube fora do botão oficial vai contra as regras do YouTube:
+use com vídeos seus ou com autorização de quem publicou.
