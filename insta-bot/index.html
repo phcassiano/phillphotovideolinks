@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Robô do Instagram — Phill Cassiano</title>
+<style>
+  :root{
+    --bg:#0b0f0d; --panel:#141a17; --edge:#1f2a24; --edge2:#2a382f;
+    --text:#eef4f0; --muted:#93a49b; --accent:#00C853; --accent-dark:#00a445;
+    --accent-ink:#04140a; --gold:#e6b84f; --danger:#e5533c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    line-height:1.5;background-image:radial-gradient(60% 40% at 50% -5%,rgba(0,200,83,.12),transparent 70%);
+    min-height:100vh;padding:20px 16px 80px}
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:1.35rem;font-weight:800;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:.88rem;margin-top:2px}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+  .top img{width:44px;height:44px;border-radius:50%;border:2px solid var(--accent);object-fit:cover}
+  .top .grow{flex:1;min-width:0}
+  .panel{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:16px;margin-bottom:14px}
+  .panel h2{font-size:.76rem;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+  label{display:block;font-size:.78rem;color:var(--muted);margin:10px 0 5px;font-weight:600}
+  input[type=text],input[type=url],input[type=password],textarea,select{
+    width:100%;background:#0e1411;border:1px solid var(--edge2);border-radius:10px;
+    color:var(--text);padding:10px 12px;font-size:.92rem;font-family:inherit}
+  input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+  textarea{resize:vertical;min-height:60px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:560px){.row{grid-template-columns:1fr}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:.88rem;
+    border:none;border-radius:10px;padding:10px 16px;cursor:pointer;transition:background .15s,transform .1s}
+  .btn:hover{background:var(--accent-dark)}.btn:active{transform:scale(.98)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.ghost{background:transparent;border:1.5px solid var(--edge2);color:var(--text)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.sm{padding:6px 11px;font-size:.76rem;border-radius:8px}
+  .btn.danger{background:transparent;border:1.5px solid rgba(229,83,60,.5);color:var(--danger)}
+  .tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;padding-bottom:2px}
+  .tab{flex:none;background:transparent;border:1.5px solid var(--edge2);color:var(--muted);font-weight:700;
+    font-size:.84rem;padding:8px 14px;border-radius:999px;cursor:pointer}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .muted{color:var(--muted);font-size:.84rem}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .stat{background:#0e1411;border:1px solid var(--edge);border-radius:12px;padding:12px}
+  .stat b{display:block;font-size:1.5rem;font-weight:800;letter-spacing:-.02em}
+  .stat span{color:var(--muted);font-size:.76rem}
+  .check{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--edge);font-size:.88rem}
+  .check:last-child{border:none}
+  .dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:var(--danger)}
+  .dot.ok{background:var(--accent)}
+  code{background:#0e1411;border:1px solid var(--edge2);border-radius:6px;padding:1px 6px;font-size:.82rem;word-break:break-all}
+  .rule{background:#0e1411;border:1px solid var(--edge);border-radius:12px;padding:12px;margin-bottom:10px}
+  .rule-head{display:flex;align-items:center;gap:10px}
+  .rule-head .grow{flex:1;min-width:0}
+  .rule-head b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{display:inline-block;font-size:.68rem;font-weight:800;letter-spacing:.04em;padding:2px 8px;border-radius:999px;
+    background:rgba(0,200,83,.12);border:1px solid rgba(0,200,83,.3);color:var(--accent);margin:4px 4px 0 0}
+  .pill.off{background:transparent;border-color:var(--edge2);color:var(--muted)}
+  .switch{position:relative;width:40px;height:22px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .switch span{position:absolute;inset:0;background:var(--edge2);border-radius:99px;cursor:pointer;transition:.2s}
+  .switch span:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+  .switch input:checked+span{background:var(--accent)}
+  .switch input:checked+span:before{transform:translateX(18px)}
+  .chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:.86rem;color:var(--text);font-weight:500}
+  .posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+  .post{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;background:#0e1411}
+  .post img{width:100%;height:100%;object-fit:cover;display:block}
+  .post.on{border-color:var(--accent)}
+  .post .n{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.7);color:#fff;font-size:.72rem;font-weight:700;padding:2px 7px;border-radius:99px}
+  .post .pick{position:absolute;left:6px;top:6px;background:var(--accent);color:var(--accent-ink);font-size:.7rem;font-weight:800;padding:2px 7px;border-radius:99px}
+  .cmt{padding:10px 0;border-bottom:1px solid var(--edge)}
+  .cmt:last-child{border:none}
+  .cmt .who{font-weight:700;font-size:.86rem}
+  .cmt .when{color:var(--muted);font-size:.74rem;margin-left:6px}
+  .cmt .txt{font-size:.9rem;margin:2px 0 6px;white-space:pre-wrap;word-break:break-word}
+  .cmt .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .cmt .sub-r{margin:6px 0 0 16px;padding-left:10px;border-left:2px solid var(--edge2);font-size:.84rem}
+  .hidden-tag{color:var(--gold);font-size:.72rem;font-weight:700;margin-left:6px}
+  .inline{display:flex;gap:8px;margin-top:8px}
+  .inline input{flex:1}
+  .chat{display:grid;grid-template-columns:240px 1fr;gap:12px;min-height:420px}
+  @media(max-width:640px){.chat{grid-template-columns:1fr}.chat.open .list{display:none}.chat:not(.open) .conv{display:none}}
+  .list{border-right:1px solid var(--edge);padding-right:10px;max-height:560px;overflow:auto}
+  @media(max-width:640px){.list{border:none;padding:0}}
+  .th{padding:9px 8px;border-radius:10px;cursor:pointer;margin-bottom:4px}
+  .th:hover,.th.on{background:#0e1411}
+  .th b{font-size:.88rem}.th .muted{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.78rem}
+  .badge{background:var(--accent);color:var(--accent-ink);font-size:.68rem;font-weight:800;padding:1px 7px;border-radius:99px;margin-left:6px}
+  .conv{display:flex;flex-direction:column;min-width:0}
+  .msgs{flex:1;overflow:auto;max-height:470px;display:flex;flex-direction:column;gap:6px;padding:4px}
+  .msg{max-width:78%;padding:8px 12px;border-radius:14px;font-size:.9rem;white-space:pre-wrap;word-break:break-word}
+  .msg.user{align-self:flex-start;background:#0e1411;border:1px solid var(--edge2)}
+  .msg.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+  .msg small{display:block;font-size:.68rem;opacity:.7;margin-top:2px}
+  .warn{background:rgba(230,184,79,.08);border:1px solid rgba(230,184,79,.35);color:var(--gold);border-radius:10px;padding:8px 12px;font-size:.8rem;margin:8px 0}
+  .ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--edge);font-size:.86rem}
+  .ev:last-child{border:none}
+  .ev .ic{flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#0e1411;border:1px solid var(--edge2);font-size:.85rem}
+  .ev .body{flex:1;min-width:0;word-break:break-word}
+  .ev .err{color:var(--danger);font-size:.8rem}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--accent);
+    color:var(--text);padding:10px 18px;border-radius:12px;font-size:.88rem;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:9;display:none;max-width:90vw}
+  .toast.err{border-color:var(--danger)}
+  .login{max-width:380px;margin:12vh auto 0;text-align:center}
+  .login .panel{text-align:left}
+  .empty{color:var(--muted);text-align:center;padding:24px 8px;font-size:.88rem}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="login">
+    <h1>Robô do Instagram</h1>
+    <p class="sub" style="margin-bottom:18px">Respostas automáticas para comentários e direct.</p>
+    <form class="panel" onsubmit="event.preventDefault();entrar()">
+      <label for="senha">Senha do painel</label>
+      <input type="password" id="senha" autocomplete="current-password" required>
+      <button class="btn" style="width:100%;margin-top:14px">Entrar</button>
+      <p id="loginErr" class="muted" style="color:var(--danger);margin-top:10px"></p>
+    </form>
+  </div>
+
+  <div id="app" class="hide">
+    <div class="top">
+      <img id="pic" alt="" class="hide">
+      <div class="grow"><h1 id="conta">Robô do Instagram</h1><div class="sub" id="contaSub">Carregando…</div></div>
+      <button class="btn ghost sm" onclick="sair()">Sair</button>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab on" data-tab="inicio">Início</button>
+      <button class="tab" data-tab="auto">Automações</button>
+      <button class="tab" data-tab="ia">IA</button>
+      <button class="tab" data-tab="comentarios">Comentários</button>
+      <button class="tab" data-tab="direct">Direct</button>
+      <button class="tab" data-tab="atividade">Atividade</button>
+    </div>
+
+    <!-- INÍCIO -->
+    <section id="t-inicio">
+      <div class="panel"><h2>Hoje</h2><div class="stats" id="statsToday"></div></div>
+      <div class="panel"><h2>Desde o começo</h2><div class="stats" id="statsAll"></div></div>
+      <div class="panel">
+        <h2>Configuração</h2>
+        <div id="checks"></div>
+        <p class="muted" style="margin-top:12px">URL do webhook para colar no painel da Meta: <code id="hookUrl"></code></p>
+        <div style="margin-top:12px"><button class="btn ghost sm" onclick="renovarToken()">Renovar token agora</button></div>
+      </div>
+    </section>
+
+    <!-- AUTOMAÇÕES -->
+    <section id="t-auto" class="hide">
+      <div class="panel">
+        <h2>Automações</h2>
+        <p class="muted" style="margin-bottom:12px">Quando alguém comenta ou manda direct com a palavra-chave, o robô responde no comentário e/ou manda um direct. Use <code>{nome}</code> para o @ da pessoa.</p>
+        <div id="rules"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="editarRegra()">+ Nova automação</button>
+          <button class="btn ghost" onclick="modelo()">Usar modelo "Comenta QUERO"</button>
+        </div>
+      </div>
+      <div class="panel hide" id="editor">
+        <h2 id="edTitle">Nova automação</h2>
+        <label for="rName">Nome</label>
+        <input type="text" id="rName" placeholder="Ex.: Link da câmera no direct">
+        <div class="row">
+          <div><label for="rOn">Quando</label>
+            <select id="rOn"><option value="comment">Alguém comentar</option><option value="dm">Alguém mandar direct</option><option value="both">Comentário ou direct</option></select></div>
+          <div><label for="rMatch">Com</label>
+            <select id="rMatch"><option value="contains">Uma destas palavras</option><option value="exact">Exatamente estas palavras</option><option value="any">Qualquer texto</option></select></div>
+        </div>
+        <div id="kwBox"><label for="rKw">Palavras-chave (separe por vírgula)</label>
+          <input type="text" id="rKw" placeholder="quero, link, eu quero"></div>
+        <div id="postBox">
+          <label>Em quais posts</label>
+          <p class="muted" id="postInfo">Todos os posts. Toque nos posts abaixo para limitar.</p>
+          <div class="posts" id="rPosts" style="margin-top:8px"></div>
+          <button class="btn ghost sm" id="morePosts" style="margin-top:8px" onclick="carregarPosts(true)">Mostrar mais posts</button>
+        </div>
+        <div id="pubBox"><label for="rReplies">Resposta pública no comentário (uma por linha, o robô sorteia uma)</label>
+          <textarea id="rReplies" placeholder="Te mandei no direct, {nome}! 📩&#10;Enviado! Confere seu direct 😉"></textarea></div>
+        <label for="rDm">Mensagem no direct</label>
+        <textarea id="rDm" placeholder="Oi! Aqui está o link que você pediu 👇"></textarea>
+        <div class="row">
+          <div><label for="rBtnT">Botão (opcional): texto</label><input type="text" id="rBtnT" maxlength="20" placeholder="Ver oferta"></div>
+          <div><label for="rBtnU">Botão: link (https://…)</label><input type="url" id="rBtnU" placeholder="https://…"></div>
+        </div>
+        <label class="chk"><input type="checkbox" id="rFollow"> Só mandar o direct para quem me segue</label>
+        <div id="followBox" class="hide">
+          <p class="muted" style="margin-top:6px">Primeiro o robô pede para a pessoa seguir, com um botão <b>"Já sigo!"</b>. Quando ela toca, ele confere no Instagram e só então manda a mensagem com o link. Se ainda não segue, pede de novo.</p>
+          <label for="rFollowMsg">Mensagem pedindo para seguir (opcional)</label>
+          <textarea id="rFollowMsg" placeholder="Oi {nome}! Pra receber o link é só me seguir 😉 Depois toque em &quot;Já sigo!&quot; aqui embaixo 👇"></textarea>
+        </div>
+        <label class="chk" id="hideBox"><input type="checkbox" id="rHide"> Ocultar o comentário depois de responder</label>
+        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+          <button class="btn" onclick="salvarRegra()">Salvar</button>
+          <button class="btn ghost" onclick="fecharEditor()">Cancelar</button>
+          <button class="btn danger" id="rDel" onclick="apagarRegra()">Apagar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- IA -->
+    <section id="t-ia" class="hide">
+      <div class="panel">
+        <h2>Respostas com IA</h2>
+        <p class="muted">A IA (Google Gemini) responde o que não bate com nenhuma automação de palavra-chave, usando só o que você escrever abaixo. Quando não souber, ou o assunto for sério (reclamação, parceria, negociação), ela não inventa: marca a conversa como <b>precisa de você</b> e fica quieta.</p>
+        <div id="aiWarn" class="warn hide">Falta configurar <code>GEMINI_API_KEY</code> no Vercel (pegue a chave em aistudio.google.com → Get API key). Sem ela a IA não liga.</div>
+        <label class="chk"><span class="switch"><input type="checkbox" id="aiOn"><span></span></span> <b>IA ligada</b></label>
+        <label class="chk"><input type="checkbox" id="aiDm"> Responder directs</label>
+        <label class="chk"><input type="checkbox" id="aiCm"> Responder comentários (resposta pública curta; elogios e emojis ela pula)</label>
+        <label for="aiAbout">O que a IA precisa saber sobre você</label>
+        <textarea id="aiAbout" rows="12" placeholder="Sou o Phill, fotógrafo e videomaker em Brasília (DF).&#10;&#10;Equipamento que uso e indico (links de afiliado):&#10;- Câmera: Sony ZV-E10 — https://…&#10;- Microfone: Rode Wireless GO II — https://…&#10;&#10;Serviços: ensaios, casamentos e vídeos para empresas. Orçamento só pelo WhatsApp: https://wa.me/55…&#10;Não dou desconto pelo direct.&#10;Tom: animado, informal, trato por você."></textarea>
+        <div class="row">
+          <div><label for="aiMax">Máximo de respostas da IA por dia</label><input type="text" id="aiMax" inputmode="numeric"></div>
+          <div><label>Modelo</label><input type="text" id="aiModel" disabled></div>
+        </div>
+        <p class="muted" style="margin-top:8px">Cada pessoa recebe no máximo 8 respostas da IA por hora. Quando você responde alguém (aqui ou pelo app do Instagram), a IA fica 24 h sem falar com essa pessoa.</p>
+        <button class="btn" style="margin-top:14px" onclick="salvarIa()">Salvar</button>
+      </div>
+      <div class="panel">
+        <h2>Testar</h2>
+        <p class="muted">Veja o que a IA responderia, usando o texto acima (mesmo sem salvar). Nada é enviado no Instagram.</p>
+        <div class="row">
+          <div><label for="tKind">Como</label><select id="tKind"><option value="dm">Direct</option><option value="comment">Comentário</option></select></div>
+          <div><label for="tText">Mensagem do seguidor</label><input type="text" id="tText" placeholder="Qual câmera você usa?"></div>
+        </div>
+        <button class="btn ghost" style="margin-top:12px" id="tBtn" onclick="testarIa()">Testar</button>
+        <div id="tOut" class="hide" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- COMENTÁRIOS -->
+    <section id="t-comentarios" class="hide">
+      <div class="panel"><h2>Seus posts</h2><div class="posts" id="cPosts"></div>
+        <button class="btn ghost sm" id="cMore" style="margin-top:10px" onclick="carregarPosts(true)">Mostrar mais</button></div>
+      <div class="panel hide" id="cBox"><h2>Comentários</h2><div id="cList"></div></div>
+    </section>
+
+    <!-- DIRECT -->
+    <section id="t-direct" class="hide">
+      <div class="panel">
+        <div class="chat" id="chat">
+          <div class="list" id="threads"></div>
+          <div class="conv">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <button class="btn ghost sm" onclick="document.getElementById('chat').classList.remove('open')">←</button>
+              <b id="convName" style="flex:1"></b>
+              <button class="btn ghost sm hide" id="aiBack" onclick="devolverIa()">Devolver para a IA</button>
+              <button class="btn danger sm" onclick="apagarConversa()">Apagar conversa</button>
+            </div>
+            <div class="msgs" id="msgs"></div>
+            <div id="winWarn" class="warn hide">Passou de 24 h desde a última mensagem dessa pessoa. A Meta só deixa responder depois que ela escrever de novo.</div>
+            <form class="inline" onsubmit="event.preventDefault();enviar()">
+              <input type="text" id="msgText" placeholder="Escreva uma mensagem…" maxlength="1000">
+              <button class="btn">Enviar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATIVIDADE -->
+    <section id="t-atividade" class="hide">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h2 style="margin:0">Últimos eventos</h2>
+          <div style="display:flex;gap:6px"><button class="btn ghost sm" onclick="carregarLog()">Atualizar</button>
+          <button class="btn danger sm" onclick="limparLog()">Limpar</button></div>
+        </div>
+        <div id="log"></div>
+      </div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let SENHA = "";
+try { SENHA = sessionStorage.getItem("ib_senha") || ""; } catch {}
+let RULES = [], EDIT = null, POSTS = [], AFTER = null, SEL = new Set(), CUR = null, CURP = null, THREADS = [];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const when = (t) => { const d = new Date(t); return isNaN(d) ? "" : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); };
+function toast(msg, err) { const t = $("toast"); t.textContent = msg; t.className = "toast" + (err ? " err" : ""); t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => (t.style.display = "none"), 3500); }
+
+async function api(op, data = {}) {
+  const r = await fetch("/api/admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op, senha: SENHA, ...data }) });
+  const j = await r.json().catch(() => ({ error: "Resposta inválida do servidor." }));
+  if (r.status === 401) { sair(); throw new Error(j.error); }
+  if (!r.ok) throw new Error(j.error || "Erro " + r.status);
+  return j;
+}
+const tryApi = async (op, data) => { try { return await api(op, data); } catch (e) { toast(e.message, true); throw e; } };
+
+async function entrar() {
+  SENHA = $("senha").value;
+  try { await api("status"); } catch (e) { $("loginErr").textContent = e.message; return; }
+  try { sessionStorage.setItem("ib_senha", SENHA); } catch {}
+  mostrarApp();
+}
+function sair() { SENHA = ""; try { sessionStorage.removeItem("ib_senha"); } catch {} $("app").classList.add("hide"); $("login").classList.remove("hide"); }
+function mostrarApp() { $("login").classList.add("hide"); $("app").classList.remove("hide"); carregarStatus(); carregarRegras(); }
+
+document.querySelectorAll(".tab").forEach((b) => b.onclick = () => abrirAba(b.dataset.tab));
+function abrirAba(tab) {
+  document.querySelectorAll(".tab").forEach((x) => x.classList.toggle("on", x.dataset.tab === tab));
+  document.querySelectorAll("section").forEach((s) => s.classList.toggle("hide", s.id !== "t-" + tab));
+  if (tab === "inicio") carregarStatus();
+  if (tab === "comentarios" && !POSTS.length) carregarPosts();
+  if (tab === "comentarios") desenharPosts();
+  if (tab === "direct") carregarThreads();
+  if (tab === "atividade") carregarLog();
+  if (tab === "ia") carregarIa();
+}
+
+// ---------- Início ----------
+const LABELS = { auto_comment: "Comentários respondidos", auto_dm: "Directs automáticos", ai_dm: "Directs pela IA", ai_comment: "Comentários pela IA", handoff: "Precisam de você", comment: "Comentários sem regra", dm: "Directs recebidos", manual_reply: "Respostas manuais", manual_dm: "Directs manuais", error: "Erros" };
+function statBoxes(o) { return ["auto_comment", "auto_dm", "ai_dm", "ai_comment", "handoff", "dm", "error"].map((k) => `<div class="stat"><b>${o[k] || 0}</b><span>${LABELS[k]}</span></div>`).join(""); }
+async function carregarStatus() {
+  let s; try { s = await tryApi("status"); } catch { return; }
+  if (s.account) {
+    $("conta").textContent = "@" + s.account.username;
+    $("contaSub").textContent = `${s.account.followers ?? "?"} seguidores · ${s.account.media ?? "?"} posts`;
+    if (s.account.picture) { $("pic").src = s.account.picture; $("pic").classList.remove("hide"); }
+  } else $("contaSub").textContent = "Conta não conectada";
+  $("statsToday").innerHTML = statBoxes(s.today); $("statsAll").innerHTML = statBoxes(s.stats);
+  const exp = s.token && s.token.expiresAt ? ` — renovado, vale até ${new Date(s.token.expiresAt).toLocaleDateString("pt-BR")}` : " — ainda não renovado pelo robô";
+  const items = [
+    [s.env.IG_APP_SECRET, "IG_APP_SECRET (chave secreta do app da Meta)"],
+    [s.env.IG_VERIFY_TOKEN, "IG_VERIFY_TOKEN (senha que você inventa para o webhook)"],
+    [s.env.IG_ACCESS_TOKEN || !!s.token, "Token do Instagram" + exp],
+    [!!s.account, s.account ? `Conectado como @${s.account.username}` : "Conta do Instagram: " + (s.accountError || "não conectada")],
+    [s.env.CRON_SECRET, "CRON_SECRET (renova o token sozinho toda semana)"],
+    [s.env.GEMINI_API_KEY, "GEMINI_API_KEY (opcional: respostas com IA)"],
+  ];
+  $("checks").innerHTML = items.map(([ok, t]) => `<div class="check"><span class="dot ${ok ? "ok" : ""}"></span><span>${esc(t)}</span></div>`).join("");
+  $("hookUrl").textContent = location.origin + "/api/webhook";
+}
+async function renovarToken() { try { const j = await tryApi("refreshToken"); toast("Token renovado até " + new Date(j.token.expiresAt).toLocaleDateString("pt-BR")); carregarStatus(); } catch {} }
+
+// ---------- Automações ----------
+const ON = { comment: "Comentário", dm: "Direct", both: "Comentário ou direct" };
+async function carregarRegras() { try { RULES = (await tryApi("rules")).rules; desenharRegras(); } catch {} }
+function desenharRegras() {
+  $("rules").innerHTML = RULES.length ? RULES.map((r, i) => `
+    <div class="rule">
+      <div class="rule-head">
+        <div class="grow"><b>${esc(r.name)}</b>
+          <span class="pill">${ON[r.on]}</span>${r.match === "any" ? '<span class="pill">Qualquer texto</span>' : r.keywords.map((k) => `<span class="pill">${esc(k)}</span>`).join("")}
+          ${r.mediaIds.length ? `<span class="pill off">${r.mediaIds.length} post(s)</span>` : ""}${r.dm ? '<span class="pill off">direct</span>' : ""}${r.followOnly ? '<span class="pill off">só seguidores</span>' : ""}${r.replies.length ? '<span class="pill off">resposta pública</span>' : ""}
+        </div>
+        <label class="switch" title="Ligar/desligar"><input type="checkbox" ${r.active ? "checked" : ""} onchange="alternar(${i},this.checked)"><span></span></label>
+        <button class="btn ghost sm" onclick="editarRegra(${i})">Editar</button>
+      </div>
+    </div>`).join("") : '<div class="empty">Nenhuma automação ainda. Crie a primeira!</div>';
+}
+async function alternar(i, on) { RULES[i].active = on; await salvarTudo(on ? "Automação ligada" : "Automação desligada"); }
+async function salvarTudo(msg) { try { RULES = (await tryApi("saveRules", { rules: RULES })).rules; desenharRegras(); toast(msg); return true; } catch { carregarRegras(); return false; } }
+function modelo() {
+  editarRegra();
+  $("rName").value = "Comenta QUERO → link no direct";
+  $("rKw").value = "quero, eu quero, link";
+  $("rReplies").value = "Te mandei no direct, {nome}! 📩\nEnviado! Confere seu direct 😉\nPronto {nome}, olha o direct! 🙌";
+  $("rDm").value = "Oi! Que bom que você curtiu 😄 Aqui está o link que te prometi:";
+  $("rBtnT").value = "Ver o link";
+}
+function editarRegra(i) {
+  EDIT = i ?? null;
+  const r = i != null ? RULES[i] : { on: "comment", match: "contains", keywords: [], mediaIds: [], replies: [], dm: "", button: null, hide: false, name: "" };
+  $("edTitle").textContent = i != null ? "Editar automação" : "Nova automação";
+  $("rName").value = r.name; $("rOn").value = r.on; $("rMatch").value = r.match;
+  $("rKw").value = r.keywords.join(", "); $("rReplies").value = r.replies.join("\n"); $("rDm").value = r.dm;
+  $("rBtnT").value = r.button ? r.button.title : ""; $("rBtnU").value = r.button ? r.button.url : "";
+  $("rFollow").checked = !!r.followOnly; $("rFollowMsg").value = r.followMsg || "";
+  $("rHide").checked = r.hide; $("rDel").classList.toggle("hide", i == null);
+  SEL = new Set(r.mediaIds);
+  $("editor").classList.remove("hide"); ajustarEditor();
+  if (!POSTS.length) carregarPosts(); else desenharPosts();
+  $("editor").scrollIntoView({ behavior: "smooth" });
+}
+function ajustarEditor() {
+  const c = $("rOn").value !== "dm";
+  $("kwBox").classList.toggle("hide", $("rMatch").value === "any");
+  ["postBox", "pubBox", "hideBox"].forEach((id) => $(id).classList.toggle("hide", !c));
+  $("followBox").classList.toggle("hide", !$("rFollow").checked);
+  $("postInfo").textContent = SEL.size ? `Só em ${SEL.size} post(s) marcado(s). Toque de novo para desmarcar.` : "Todos os posts. Toque nos posts abaixo para limitar.";
+}
+$("rOn").onchange = ajustarEditor; $("rMatch").onchange = ajustarEditor; $("rFollow").onchange = ajustarEditor;
+function fecharEditor() { $("editor").classList.add("hide"); EDIT = null; }
+async function salvarRegra() {
+  const r = {
+    ...(EDIT != null ? RULES[EDIT] : { active: true }),
+    name: $("rName").value, on: $("rOn").value, match: $("rMatch").value,
+    keywords: $("rKw").value.split(","), mediaIds: [...SEL], replies: $("rReplies").value.split("\n"),
+    dm: $("rDm").value, button: { title: $("rBtnT").value, url: $("rBtnU").value }, hide: $("rHide").checked,
+    followOnly: $("rFollow").checked, followMsg: $("rFollowMsg").value,
+  };
+  if (r.on === "dm") { r.mediaIds = []; r.replies = []; r.hide = false; }
+  if (r.match !== "any" && !r.keywords.some((k) => k.trim())) return toast("Coloque pelo menos uma palavra-chave.", true);
+  if (!r.dm.trim() && !r.replies.some((x) => x.trim())) return toast("Escreva a resposta pública ou a mensagem do direct.", true);
+  if (r.followOnly && !r.dm.trim()) return toast("\"Só para quem me segue\" precisa da mensagem no direct (é ela que leva o link).", true);
+  if ($("rBtnU").value && !/^https:\/\//i.test($("rBtnU").value)) return toast("O link do botão precisa começar com https://", true);
+  const prev = RULES.slice();
+  if (EDIT != null) RULES[EDIT] = r; else RULES.push(r);
+  if (await salvarTudo("Automação salva")) fecharEditor(); else RULES = prev;
+}
+async function apagarRegra() {
+  if (EDIT == null || !confirm("Apagar esta automação?")) return;
+  RULES.splice(EDIT, 1);
+  if (await salvarTudo("Automação apagada")) fecharEditor();
+}
+
+// ---------- IA ----------
+async function carregarIa() {
+  let j; try { j = await tryApi("ai"); } catch { return; }
+  const s = j.settings;
+  $("aiWarn").classList.toggle("hide", j.ready);
+  $("aiOn").checked = s.enabled; $("aiDm").checked = s.dm; $("aiCm").checked = s.comments;
+  $("aiAbout").value = s.about; $("aiMax").value = s.maxPerDay; $("aiModel").value = j.model;
+}
+async function salvarIa() {
+  const settings = { enabled: $("aiOn").checked, dm: $("aiDm").checked, comments: $("aiCm").checked, about: $("aiAbout").value, maxPerDay: Number($("aiMax").value) || 200 };
+  if (settings.enabled && !settings.about.trim()) return toast("Escreva o que a IA precisa saber sobre você antes de ligar.", true);
+  try { await tryApi("saveAi", { settings }); toast(settings.enabled ? "IA ligada e salva" : "Salvo (IA desligada)"); } catch {}
+}
+async function testarIa() {
+  const text = $("tText").value.trim();
+  if (!text) return;
+  $("tBtn").disabled = true; $("tOut").classList.remove("hide"); $("tOut").innerHTML = '<div class="muted">Pensando…</div>';
+  try {
+    const r = await api("aiTest", { text, kind: $("tKind").value, settings: { about: $("aiAbout").value } });
+    $("tOut").innerHTML = r.action === "reply" ? `<div class="msg me" style="max-width:100%">${esc(r.reply)}</div>`
+      : `<div class="warn">${r.action === "human" ? "A IA não responderia: passaria para você (precisa de você)." : "A IA não responderia (nada a dizer)."}${r.note ? " Motivo: " + esc(r.note) : ""}</div>`;
+  } catch (e) { $("tOut").innerHTML = `<div class="warn">${esc(e.message)}</div>`; }
+  $("tBtn").disabled = false;
+}
+
+// ---------- Posts e comentários ----------
+async function carregarPosts(more) {
+  try {
+    const j = await tryApi("media", more && AFTER ? { after: AFTER } : {});
+    POSTS = more ? POSTS.concat(j.items) : j.items; AFTER = j.after; desenharPosts();
+  } catch {}
+}
+function thumb(p) { return p.media_type === "VIDEO" ? p.thumbnail_url || "" : p.media_url || p.thumbnail_url || ""; }
+function desenharPosts() {
+  const tile = (p, mode) => `<div class="post ${mode === "pick" && SEL.has(p.id) ? "on" : ""} ${mode === "view" && p.id === CURP ? "on" : ""}" title="${esc((p.caption || "").slice(0, 120))}" onclick="${mode === "pick" ? `marcar('${p.id}')` : `abrirPost('${p.id}')`}">
+      <img src="${esc(thumb(p))}" alt="" loading="lazy"><span class="n">💬 ${p.comments_count ?? 0}</span>${mode === "pick" && SEL.has(p.id) ? '<span class="pick">✓</span>' : ""}</div>`;
+  $("rPosts").innerHTML = POSTS.map((p) => tile(p, "pick")).join("") || '<div class="empty">Nenhum post.</div>';
+  $("cPosts").innerHTML = POSTS.map((p) => tile(p, "view")).join("") || '<div class="empty">Nenhum post.</div>';
+  $("morePosts").classList.toggle("hide", !AFTER); $("cMore").classList.toggle("hide", !AFTER);
+}
+function marcar(id) { SEL.has(id) ? SEL.delete(id) : SEL.add(id); desenharPosts(); ajustarEditor(); }
+async function abrirPost(id) {
+  CURP = id; desenharPosts();
+  $("cBox").classList.remove("hide"); $("cList").innerHTML = '<div class="empty">Carregando…</div>';
+  let j; try { j = await tryApi("comments", { mediaId: id }); } catch { return; }
+  const p = POSTS.find((x) => x.id === id);
+  $("cList").innerHTML = (p && p.permalink ? `<p class="muted" style="margin-bottom:6px"><a href="${esc(p.permalink)}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir post no Instagram ↗</a></p>` : "") +
+    (j.items.length ? j.items.map((c) => `
+    <div class="cmt" id="c-${c.id}">
+      <span class="who">@${esc(c.username)}</span><span class="when">${when(c.timestamp)}</span>${c.hidden ? '<span class="hidden-tag">oculto</span>' : ""}
+      <div class="txt">${esc(c.text)}</div>
+      <div class="acts">
+        <button class="btn ghost sm" onclick="abrirResp('${c.id}','reply')">Responder</button>
+        <button class="btn ghost sm" onclick="abrirResp('${c.id}','privateReply')">Mandar direct</button>
+        <button class="btn ghost sm" onclick="ocultar('${c.id}',${!c.hidden})">${c.hidden ? "Mostrar" : "Ocultar"}</button>
+        <button class="btn danger sm" onclick="apagarCmt('${c.id}')">Apagar</button>
+      </div>
+      <form class="inline hide" id="f-${c.id}" onsubmit="event.preventDefault();responder('${c.id}')">
+        <input type="text" id="i-${c.id}" maxlength="1000"><button class="btn sm">Enviar</button>
+      </form>
+      ${((c.replies && c.replies.data) || []).map((r) => `<div class="sub-r"><b>@${esc(r.username)}</b> ${esc(r.text)} <span class="when">${when(r.timestamp)}</span></div>`).join("")}
+    </div>`).join("") : '<div class="empty">Sem comentários neste post.</div>');
+  $("cBox").scrollIntoView({ behavior: "smooth" });
+}
+function abrirResp(id, mode) {
+  const f = $("f-" + id), i = $("i-" + id);
+  f.dataset.mode = mode; f.classList.remove("hide");
+  i.placeholder = mode === "reply" ? "Resposta pública…" : "Mensagem no direct (1 por comentário, até 7 dias)…"; i.focus();
+}
+async function responder(id) {
+  const f = $("f-" + id), text = $("i-" + id).value.trim();
+  if (!text) return;
+  try { await tryApi(f.dataset.mode, { commentId: id, text }); toast(f.dataset.mode === "reply" ? "Resposta publicada" : "Direct enviado"); abrirPost(CURP); } catch {}
+}
+async function ocultar(id, hide) { try { await tryApi("hide", { commentId: id, hide }); toast(hide ? "Comentário ocultado" : "Comentário visível"); abrirPost(CURP); } catch {} }
+async function apagarCmt(id) { if (!confirm("Apagar este comentário do Instagram?")) return; try { await tryApi("remove", { commentId: id }); toast("Comentário apagado"); abrirPost(CURP); } catch {} }
+
+// ---------- Direct ----------
+async function carregarThreads() {
+  try { THREADS = (await tryApi("threads")).items; } catch { return; }
+  $("threads").innerHTML = THREADS.length ? THREADS.map((t) => `
+    <div class="th ${t.igsid === CUR ? "on" : ""}" onclick="abrirConversa('${t.igsid}')">
+      <b>${esc(t.username ? "@" + t.username : "Pessoa " + t.igsid.slice(-4))}</b>${t.unread ? `<span class="badge">${t.unread}</span>` : ""}${t.human ? '<span class="badge" style="background:var(--gold)">precisa de você</span>' : ""}
+      <span class="muted">${t.lastFrom === "me" ? "Você: " : ""}${esc(t.last)}</span>
+    </div>`).join("") : '<div class="empty">Nenhuma conversa ainda. As mensagens aparecem aqui quando alguém escrever para a conta.</div>';
+}
+async function abrirConversa(id) {
+  CUR = id; $("chat").classList.add("open");
+  const t = THREADS.find((x) => x.igsid === id) || {};
+  $("convName").textContent = t.username ? "@" + t.username : "Conversa";
+  $("aiBack").classList.toggle("hide", !t.human);
+  $("winWarn").classList.toggle("hide", !t.lastUserAt || Date.now() - t.lastUserAt < 24 * 3600e3);
+  let j; try { j = await tryApi("thread", { igsid: id }); } catch { return; }
+  $("msgs").innerHTML = j.items.map((m) => `<div class="msg ${m.from === "me" ? "me" : "user"}">${esc(m.text || (m.kind ? "[" + m.kind + "]" : ""))}<small>${when(m.t)}</small></div>`).join("");
+  $("msgs").scrollTop = 1e9; carregarThreads();
+}
+async function apagarConversa() {
+  if (!CUR || !confirm("Apagar o histórico desta conversa aqui no painel? (Pedido de exclusão de dados.) No Instagram ela continua.")) return;
+  try { await tryApi("forget", { igsid: CUR }); toast("Conversa apagada"); CUR = null; $("msgs").innerHTML = ""; $("convName").textContent = ""; $("chat").classList.remove("open"); carregarThreads(); } catch {}
+}
+async function devolverIa() {
+  if (!CUR) return;
+  try { await tryApi("aiResume", { igsid: CUR }); toast("A IA volta a responder essa pessoa"); $("aiBack").classList.add("hide"); carregarThreads(); } catch {}
+}
+async function enviar() {
+  const text = $("msgText").value.trim();
+  if (!text || !CUR) return;
+  try { await tryApi("send", { igsid: CUR, text }); $("msgText").value = ""; abrirConversa(CUR); } catch {}
+}
+
+// ---------- Atividade ----------
+const ICON = { follow_ok: "✅", follow_wait: "👀", ai_dm: "✨", ai_comment: "✨", handoff: "🙋", auto_comment: "🤖", auto_dm: "📩", comment: "💬", dm: "✉️", manual_reply: "✍️", manual_dm: "✍️", error: "⚠️", mention: "📣", token: "🔑" };
+const TXT = { follow_ok: "Seguidor confirmado, link enviado", follow_wait: "Pediu para seguir", ai_dm: "IA respondeu direct", ai_comment: "IA respondeu comentário", handoff: "IA passou para você", auto_comment: "Robô respondeu comentário", auto_dm: "Robô respondeu direct", comment: "Comentário (nenhuma regra)", dm: "Direct recebido", manual_reply: "Você respondeu um comentário", manual_dm: "Você mandou direct por comentário", error: "Erro", mention: "Marcaram a conta", token: "Token" };
+async function carregarLog() {
+  let j; try { j = await tryApi("log"); } catch { return; }
+  $("log").innerHTML = j.items.length ? j.items.map((e) => `
+    <div class="ev"><div class="ic">${ICON[e.type] || "•"}</div><div class="body">
+      <b>${TXT[e.type] || e.type}</b>${e.rule ? ` · ${esc(e.rule)}` : ""}${e.user ? ` · @${esc(e.user)}` : ""} <span class="muted">${when(e.t)}</span>
+      ${e.text ? `<div class="muted">“${esc(e.text)}”</div>` : ""}
+      ${e.done && e.done.length ? `<div class="muted">✓ ${esc(e.done.join(", "))}</div>` : ""}
+      ${(e.errors || []).map((x) => `<div class="err">${esc(x)}</div>`).join("")}
+    </div></div>`).join("") : '<div class="empty">Nada por aqui ainda.</div>';
+}
+async function limparLog() { if (!confirm("Limpar o histórico de atividade?")) return; try { await tryApi("clearLog"); carregarLog(); } catch {} }
+
+if (SENHA) api("status").then(mostrarApp).catch(() => sair());
+</script>
+</body>
+</html>
