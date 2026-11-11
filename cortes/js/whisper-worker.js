@@ -42,8 +42,23 @@ function limparAlucinacao(ws, dur) {
     }
     if (!pulou) out.push(ws[i++]);
   }
-  // fora do áudio ou mais de 7 palavras/s numa janela de 2 s = lixo
+  // fora do áudio = lixo
   out = out.filter((w) => w.start <= dur + 0.5);
+  // palavras "empilhadas" no mesmo instante: espalha até a próxima palavra (~0,32 s cada)
+  for (let i = 0; i < out.length; ) {
+    let j = i;
+    while (j + 1 < out.length && Math.abs(out[j + 1].start - out[i].start) < 0.02) j++;
+    if (j > i) {
+      const n = j - i + 1;
+      const ini = out[i].start;
+      const lim = out[j + 1]?.start ?? Math.min(dur, ini + n * 0.32);
+      const passo = Math.max(0.12, Math.min(0.45, (lim - ini) / n));
+      for (let k = 0; k < n; k++) {
+        out[i + k] = { ...out[i + k], start: +(ini + k * passo).toFixed(2), end: +(ini + (k + 1) * passo).toFixed(2) };
+      }
+    }
+    i = j + 1;
+  }
   const ok = out.filter((w) => out.filter((x) => Math.abs(x.start - w.start) < 1).length <= 14);
   return ok.length >= out.length * 0.5 ? ok : out;
 }

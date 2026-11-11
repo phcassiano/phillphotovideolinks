@@ -2,6 +2,7 @@ import { db } from "./db.js";
 import { duracao, volume, mudancasDeCena, candidatos, refinar, audioTrecho, thumbnail } from "./analise.js";
 import { gravar, previa, TEMAS, introS, formatoSaida } from "./render.js";
 import { montarAgenda, ics, csv, REDES } from "./agenda.js";
+import { abrirEditor } from "./editor.js";
 import { resolver, baixarHls, baixarArquivo, escolherVariantes, paraSeg, ehYoutube, ajudanteOnline, baixarPeloAjudante } from "./link.js";
 
 /* ------------------------- estado ------------------------- */
@@ -352,7 +353,7 @@ function renderMomentos() {
         <span class="tag">${esc(m.emoji)} ${esc(m.tipo)}</span><span class="nota">nota ${m.nota.toFixed(1)}</span>
         <span class="tempo">${fmt(m.inicio)} · ${Math.round(dur)}s</span></div>
       <div class="corpo">
-        <div class="linha"><small>${esc(m.arquivoNome)}</small>
+        <div class="linha"><button class="btn peq" data-editar="${m.id}">✂ Editar</button><small>${esc(m.arquivoNome)}${m.layout || m.jogo || m.facecam ? " · ajustado" : ""}</small>
           <label class="aprovar"><input type="checkbox" data-f="aprovado" ${m.aprovado ? "checked" : ""}> Aprovado</label></div>
         <label class="mini">Título (use *asteriscos* para destacar)<input data-f="titulo" value="${esc(m.titulo)}"></label>
         <div class="sug">${sugestoes(m).map((s) => `<button data-sug="${esc(s)}">${esc(s.replace(/\*/g, ""))}</button>`).join("")}</div>
@@ -383,6 +384,21 @@ $("#gradeMomentos").addEventListener("click", (e) => {
   const card = e.target.closest(".mom");
   if (!card) return;
   const m = S.momentos.find((x) => x.id === card.dataset.id);
+  if (e.target.closest("[data-editar]")) {
+    const a = S.arquivos.find((x) => x.id === m.arquivoId);
+    if (!a?.file) return toast("Adicione de novo o vídeo original na etapa 1.", true);
+    abrirEditor({
+      m, file: a.file, duracaoArquivo: a.duracao, cfg: S.cfg, montarCorte: corteDe, audioTrecho,
+      transcrever: (audio) => transcrever(audio, S.cfg.modelo, S.cfg.idioma),
+      onSalvar: (novo) => {
+        Object.assign(m, novo);
+        salvar();
+        renderMomentos();
+        toast("Corte atualizado!");
+      },
+    });
+    return;
+  }
   const sug = e.target.closest("[data-sug]");
   if (sug) {
     m.titulo = sug.dataset.sug;
@@ -519,8 +535,9 @@ async function desenharFacecam() {
 
 function corteDe(m, extra = {}) {
   return {
-    inicio: m.inicio, fim: m.fim, picos: m.picos, words: m.words, titulo: m.titulo, tag: m.tipo, emoji: m.emoji,
-    tema: S.cfg.tema, layout: S.cfg.layout, facecam: S.cfg.facecam, template: S.cfg.templates[0], intro: S.cfg.intros[0],
+    inicio: m.inicio, fim: m.fim, picos: m.picos, words: m.semLegenda ? [] : m.words, titulo: m.titulo, tag: m.tipo, emoji: m.emoji,
+    tema: S.cfg.tema, layout: m.layout ?? S.cfg.layout, facecam: m.facecam ?? S.cfg.facecam, jogo: m.jogo ?? null,
+    template: S.cfg.templates[0], intro: S.cfg.intros[0],
     cta: S.cfg.ctas.find((c) => c.word) ?? null, ...extra,
   };
 }
