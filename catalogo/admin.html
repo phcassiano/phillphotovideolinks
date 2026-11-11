@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Administração</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--line:#e4e5ea;--text:#16171c;--muted:#6b6d78;--pri:#111827;--on:#fff;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1014;--card:#191a20;--line:#2b2c35;--text:#f1f1f4;--muted:#9fa0ad;--pri:#f1f1f4;--on:#111}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text)}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:22px;margin-bottom:4px}
+h2{font-size:16px;margin-bottom:10px}
+.sub{color:var(--muted);font-size:14px;margin-bottom:16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.in{width:100%;height:40px;border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:0 10px;font-size:14px}
+.btn{height:38px;padding:0 14px;border-radius:9px;border:0;background:var(--pri);color:var(--on);font-weight:700;font-size:13px;white-space:nowrap;display:inline-flex;align-items:center;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn.bad{background:var(--bad);color:#fff}
+.g{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g label{font-size:12px;font-weight:700;display:grid;gap:4px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.kpi span{font-size:12px;color:var(--muted)}
+.kpi b{display:block;font-size:22px}
+.st{display:grid;gap:10px}
+.s{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.s .h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.s .h b{font-size:15px}
+.s small{color:var(--muted);font-size:12px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.ok{background:#dcfce7;color:#166534}.warn{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#991b1b}
+.msg{padding:12px;border-radius:10px;background:#dcfce7;color:#14532d;margin-bottom:14px;font-size:14px;word-break:break-all}
+.err{color:var(--bad);font-size:13px;font-weight:600;min-height:1em;margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let KEY = sessionStorage.getItem("cat:admin") || "";
+let FILTER = "";
+async function api(op, data = {}) {
+  const r = await fetch("/api/admin", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op, key: KEY, ...data }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "Erro " + r.status);
+  return j;
+}
+function login(msg) {
+  $("#app").innerHTML = `<form class="box" id="lf" style="max-width:380px;margin:60px auto"><h1>Administração</h1><p class="sub">Use a chave definida em CATALOGO_ADMIN_KEY.</p>
+    <input class="in" type="password" id="k" placeholder="Chave" autocomplete="current-password"><div class="err">${esc(msg || "")}</div><button class="btn" style="margin-top:8px">Entrar</button></form>`;
+  $("#lf").onsubmit = (e) => { e.preventDefault(); KEY = $("#k").value; load(); };
+}
+const fmt = (t) => (t ? new Date(t).toLocaleDateString("pt-BR") : "—");
+async function load(note) {
+  let d;
+  try { d = await api("list"); sessionStorage.setItem("cat:admin", KEY); } catch (e) { sessionStorage.removeItem("cat:admin"); return login(e.message); }
+  const S = d.stores;
+  const live = S.filter((s) => s.state.live).length;
+  const soon = S.filter((s) => s.state.live && s.paidUntil && s.paidUntil - Date.now() < 5 * 864e5).length;
+  const list = S.filter((s) => !FILTER || (FILTER === "off" ? !s.state.live : FILTER === "soon" ? s.state.live && s.paidUntil && s.paidUntil - Date.now() < 5 * 864e5 : true));
+  $("#app").innerHTML = `<div class="row" style="margin-bottom:12px"><div style="flex:1"><h1>${esc(d.brand.name)} · Administração</h1><p class="sub" style="margin:0">Lojas, mensalidades e acessos.</p></div><button class="btn ghost" id="out">Sair</button></div>
+  ${note ? `<div class="msg">${note}</div>` : ""}
+  <div class="kpis"><div class="kpi"><span>Lojas</span><b>${S.length}</b></div><div class="kpi"><span>No ar</span><b>${live}</b></div><div class="kpi"><span>Vencem em 5 dias</span><b>${soon}</b></div><div class="kpi"><span>Fora do ar</span><b>${S.length - live}</b></div></div>
+  <form class="box" id="cf"><h2>Nova loja</h2><div class="g">
+    <label>Endereço (slug)<input class="in" name="slug" required placeholder="minha-loja" pattern="[a-z0-9][a-z0-9-]*[a-z0-9]?" autocapitalize="none"></label>
+    <label>Nome da loja<input class="in" name="name" required></label>
+    <label>WhatsApp da loja<input class="in" name="whatsapp" placeholder="5511999990000"></label>
+    <label>Responsável<input class="in" name="owner"></label>
+    <label>Cor principal<input class="in" name="color" type="color" value="#111827" style="padding:2px"></label>
+    <label>Plano<select class="in" name="plan"><option value="start">Start (1 catálogo)</option><option value="growth">Growth (varejo + atacado)</option></select></label>
+    <label>Dias pagos<input class="in" name="days" type="number" value="30" min="0"></label>
+    <label>Senha (vazio = gerar)<input class="in" name="password" minlength="8"></label>
+  </div><div class="err" id="cerr"></div><button class="btn" style="margin-top:6px">Criar loja</button></form>
+  ${S.some((s) => s.slug === "vertice-importados") ? "" : `<div class="box"><h2>Loja exemplo</h2><p class="sub" style="margin-bottom:10px">Cria a Vértice Importados, uma loja fictícia de eletrônicos importados com 20 produtos, banners, cupons e perguntas frequentes, para você mostrar aos clientes. Os pedidos dela chegam no WhatsApp que você informar.</p>
+    <div class="row"><input class="in" id="demowa" placeholder="WhatsApp que recebe os pedidos (5511999990000)" value="${esc(d.brand.whatsapp || "")}" style="max-width:320px"><button class="btn" id="demo">Criar loja exemplo</button></div><div class="err" id="demoerr"></div></div>`}
+  <div class="row" style="margin-bottom:10px"><select class="in" id="flt" style="width:auto"><option value="">Todas</option><option value="soon">Vencendo</option><option value="off">Fora do ar</option></select></div>
+  <div class="st">${list.map((s) => {
+    const left = s.paidUntil ? Math.ceil((s.paidUntil - Date.now()) / 864e5) : null;
+    const pill = !s.state.live ? `<span class="pill bad">${s.state.reason === "paused" ? "Pausada" : "Vencida"}</span>` : left != null && left <= 5 ? `<span class="pill warn">Vence em ${left}d</span>` : `<span class="pill ok">No ar</span>`;
+    return `<div class="s"><div class="h"><b>${esc(s.name)}</b><small>/${esc(s.slug)}</small>${pill}<small>${s.plan === "growth" ? "Growth" : "Start"}</small></div>
+      <small>Pago até ${fmt(s.paidUntil)} · criada em ${fmt(s.createdAt)} · ${s.products} produtos · ${s.orders} pedidos · ${s.images} imagens${s.owner ? " · " + esc(s.owner) : ""}${s.whatsapp ? " · WA " + esc(s.whatsapp) : ""}</small>
+      ${s.notes ? `<div><small>Obs.: ${esc(s.notes)}</small></div>` : ""}
+      <div class="row" style="margin-top:8px">
+        <a class="btn ghost" href="/${esc(s.slug)}" target="_blank" rel="noopener">Ver loja</a>
+        <button class="btn" data-a="loginAs" data-s="${esc(s.slug)}">Abrir painel</button>
+        <button class="btn ghost" data-a="add30" data-s="${esc(s.slug)}">+30 dias</button>
+        <button class="btn ghost" data-a="add365" data-s="${esc(s.slug)}">+1 ano</button>
+        <button class="btn ghost" data-a="${s.status === "paused" ? "resume" : "pause"}" data-s="${esc(s.slug)}">${s.status === "paused" ? "Reativar" : "Pausar"}</button>
+        <button class="btn ghost" data-a="plan" data-s="${esc(s.slug)}" data-p="${s.plan}">Mudar plano</button>
+        <button class="btn ghost" data-a="notes" data-s="${esc(s.slug)}" data-n="${esc(s.notes)}">Observação</button>
+        <button class="btn ghost" data-a="reset" data-s="${esc(s.slug)}">Nova senha</button>
+        <button class="btn bad" data-a="delete" data-s="${esc(s.slug)}">Excluir</button>
+      </div></div>`;
+  }).join("") || '<p class="sub">Nenhuma loja.</p>'}</div>`;
+  const db = $("#demo");
+  if (db) db.onclick = () => seedDemo($("#demowa").value.replace(/\D/g, ""), (m) => { db.disabled = true; db.textContent = m; }).then(load).catch((e) => { db.disabled = false; db.textContent = "Criar loja exemplo"; $("#demoerr").textContent = e.message; });
+  $("#flt").value = FILTER;
+  $("#flt").onchange = (e) => { FILTER = e.target.value; load(); };
+  $("#out").onclick = () => { sessionStorage.removeItem("cat:admin"); KEY = ""; login(); };
+  $("#cf").onsubmit = async (e) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    f.slug = f.slug.trim().toLowerCase(); f.whatsapp = f.whatsapp.replace(/\D/g, ""); f.days = Number(f.days);
+    try {
+      const r = await api("create", f);
+      load(`Loja criada. Link: <b>${esc(location.origin + "/" + r.slug)}</b><br>Painel: <b>${esc(location.origin + "/painel")}</b> · endereço <b>${esc(r.slug)}</b> · senha <b>${esc(r.password)}</b><br>Guarde a senha agora: ela não aparece de novo.`);
+    } catch (err) { $("#cerr").textContent = err.message; }
+  };
+  $("#app").onclick = async (e) => {
+    const b = e.target.closest("[data-a]"); if (!b) return;
+    const slug = b.dataset.s, a = b.dataset.a;
+    try {
+      if (a === "loginAs") { const w = window.open("", "_blank"); const r = await api("loginAs", { slug }); const u = `/painel#token=${r.token}`; w ? (w.location = u) : (location.href = u); return; }
+      if (a === "add30") await api("update", { slug, addDays: 30 });
+      if (a === "add365") await api("update", { slug, addDays: 365 });
+      if (a === "pause") { if (!confirm(`Pausar ${slug}? O catálogo sai do ar.`)) return; await api("update", { slug, status: "paused" }); }
+      if (a === "resume") await api("update", { slug, status: "active" });
+      if (a === "plan") await api("update", { slug, plan: b.dataset.p === "growth" ? "start" : "growth" });
+      if (a === "notes") { const n = prompt("Observação interna sobre a loja:", b.dataset.n || ""); if (n === null) return; await api("update", { slug, notes: n }); }
+      if (a === "reset") { if (!confirm(`Gerar nova senha para ${slug}? A senha atual deixa de funcionar.`)) return; const r = await api("resetPassword", { slug }); return load(`Nova senha de <b>${esc(slug)}</b>: <b>${esc(r.password)}</b>`); }
+      if (a === "delete") { const c = prompt(`Isso apaga a loja, os produtos, as fotos e os pedidos para sempre. Digite "${slug}" para confirmar:`); if (c !== slug) return; await api("delete", { slug, confirm: c }); }
+      load();
+    } catch (err) { alert(err.message); }
+  };
+}
+// Monta a loja exemplo usando as mesmas rotas do painel (demo/demo.json + imagens em demo/).
+async function seedDemo(whatsapp, step) {
+  if (whatsapp && whatsapp.length < 12) throw new Error("Coloque o WhatsApp com 55 e DDD, ex.: 5511999990000.");
+  const spec = await (await fetch("/demo/demo.json", { cache: "no-store" })).json();
+  const slug = spec.slug;
+  step("Criando a loja…");
+  try { await api("create", { slug, name: spec.settings.name, whatsapp, color: spec.settings.color, days: 3650, notes: "Loja exemplo da plataforma" }); }
+  catch (e) { if (!/Já existe/.test(e.message)) throw e; }
+  const { token } = await api("loginAs", { slug });
+  const painel = async (op, data = {}) => {
+    const r = await fetch("/api/painel", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op, token, ...data }) });
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "Erro " + r.status); return j;
+  };
+  const files = new Set([spec.settings.logo, ...spec.settings.banners.flatMap((b) => [b.image, b.imageMobile]), ...spec.products.flatMap((p) => p.images)].filter(Boolean));
+  const ids = {}; let n = 0;
+  for (const f of files) {
+    step(`Enviando imagens… ${++n}/${files.size}`);
+    const blob = await (await fetch(`/demo/${f}.webp`)).blob();
+    const data = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+    ids[f] = (await painel("uploadImage", { data: data.replace(/^data:[^;]+;/, "data:image/webp;") })).id;
+  }
+  step("Categorias…");
+  await painel("saveCategories", { categories: spec.categories.map((name) => ({ name })) });
+  n = 0;
+  for (const p of [...spec.products].reverse()) { // o primeiro da lista fica como o mais novo
+    step(`Produtos… ${++n}/${spec.products.length}`);
+    await painel("saveProduct", { product: { name: p.name, category: p.category, extraCategories: p.extra || [], priceCents: p.price, promoCents: p.promo || 0, colors: p.colors || [], sizes: p.sizes || [], images: p.images.map((i) => ids[i]), featured: !!p.featured, stock: p.stock || null, description: p.desc || "", sizeLabel: p.sizeLabel || "" } });
+  }
+  step("Aparência e textos…");
+  const s = spec.settings;
+  await painel("saveSettings", { settings: { ...s, whatsapp, logo: ids[s.logo], banners: s.banners.map((b) => ({ ...b, image: ids[b.image], imageMobile: ids[b.imageMobile] || null })) } });
+  step("Cupons…");
+  for (const c of spec.coupons) { try { await painel("saveCoupon", { coupon: c }); } catch (e) { if (!/Já existe/.test(e.message)) throw e; } }
+  return `Loja exemplo pronta: <b><a href="/${slug}" target="_blank" rel="noopener">${esc(location.origin + "/" + slug)}</a></b>. Cupons para testar: PRIMEIRACOMPRA e ACESSORIOS15.`;
+}
+KEY ? load() : login();
+</script>
+</body>
+</html>
