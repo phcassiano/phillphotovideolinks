@@ -1,0 +1,13 @@
+# /etc/caddy/Caddyfile — HTTPS automático (Let's Encrypt)
+links.seudominio.com.br {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+
+	# O log de acesso do Caddy guarda IPs; deixe desligado se quiser
+	# que o clicks.log seja o único registro.
+}
+
+# Opcional: www → sem www
+# www.links.seudominio.com.br {
+# 	redir https://links.seudominio.com.br{uri} permanent
+# }

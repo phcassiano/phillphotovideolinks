@@ -1,0 +1,28 @@
+{
+  "profile": {
+    "name": "Phill Cassiano",
+    "tagline": "Photo e Video",
+    "bio": "Equipamentos que eu uso e recomendo 📸",
+    "avatar": "/avatar.jpg",
+    "siteUrl": "",
+    "lang": "pt-BR",
+    "accent": "#e8613c"
+  },
+  "links": [
+    { "title": "Instagram", "url": "https://instagram.com/phill.photovideodf", "emoji": "📷", "slug": "instagram" },
+    { "title": "Orçamento pelo WhatsApp", "url": "https://wa.me/5511968122868", "emoji": "💬", "slug": "whatsapp" },
+    { "title": "Impressora Canon Selphy CP1500", "url": "https://meli.la/2akMMWy", "emoji": "🖨️" },
+    { "title": "Microfone Hollyland Lark M2 Duo", "url": "https://meli.la/2qxZwJo", "emoji": "🎙️" },
+    { "title": "Microfone Hollyland Lark A1 Duo", "url": "https://meli.la/1XQ71U6", "emoji": "🎙️" },
+    { "title": "Microfone de lapela sem fio USB-C", "url": "https://meli.la/2ucAxSz", "emoji": "🎤" },
+    { "title": "Tripé profissional 2,1 m", "url": "https://meli.la/1BLc1vx", "emoji": "📐" },
+    { "title": "Tripé Canon 1,80 m + suporte de celular", "url": "https://meli.la/1zv76Rz", "emoji": "📐" },
+    { "title": "Gimbal 3 eixos para celular", "url": "https://meli.la/1FS67c1", "emoji": "🎬" },
+    { "title": "Estabilizador magnético para iPhone", "url": "https://meli.la/16CCkB5", "emoji": "📱" },
+    { "title": "Kit youtuber com ring light", "url": "https://meli.la/1agFpXW", "emoji": "💡" },
+    { "title": "Filme Instax Mini (60 poses)", "url": "https://meli.la/2jRbpgX", "emoji": "🎞️" },
+    { "title": "Cartão micro SD 128 GB", "url": "https://meli.la/1NrG6GK", "emoji": "💾" },
+    { "title": "Lenços limpa-lentes (200 un.)", "url": "https://meli.la/33yJwsA", "emoji": "🧻" },
+    { "title": "Kit limpeza de lentes 5 em 1", "url": "https://meli.la/1N3nYTo", "emoji": "🧽" }
+  ]
+}
