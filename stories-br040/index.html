@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rota BR-040</title>
+<meta name="description" content="Animação em formato stories: mapa 3D de Brasília ao Rio de Janeiro pela BR-040, passando por Belo Horizonte.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #05080f;
+    --ink: #ffffff;
+    --ink-soft: rgba(255,255,255,.72);
+    --accent: #ffb627;
+    --accent-2: #ff6b3d;
+    --glass: rgba(8,14,26,.55);
+    --line: rgba(255,255,255,.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; }
+  body {
+    font-family: "Archivo", system-ui, sans-serif;
+    display: grid; place-items: center;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Palco 9:16 */
+  #stage {
+    position: relative;
+    width: min(100vw, calc(100vh * 9 / 16));
+    height: min(100vh, calc(100vw * 16 / 9));
+    overflow: hidden;
+    background: radial-gradient(120% 80% at 50% 0%, #13233a 0%, #070c16 60%, #04060c 100%);
+    --u: 1px;
+    cursor: pointer;
+    user-select: none;
+  }
+  body.capture #stage { width: 1080px; height: 1920px; cursor: default; }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  /* Vinheta e gradientes de leitura */
+  .shade-top, .shade-bottom { position: absolute; left: 0; right: 0; pointer-events: none; }
+  .shade-top { top: 0; height: calc(var(--u) * 360); background: linear-gradient(#04060ccc, #04060c00); }
+  .shade-bottom { bottom: 0; height: calc(var(--u) * 760); background: linear-gradient(#04060c00, #04060cf0 75%); }
+  .vignette { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 calc(var(--u)*260) rgba(0,0,0,.65); }
+
+  /* Barras de progresso dos stories */
+  .bars { position: absolute; top: calc(var(--u)*28); left: calc(var(--u)*28); right: calc(var(--u)*28); display: flex; gap: calc(var(--u)*10); }
+  .bar { flex: 1; height: calc(var(--u)*7); border-radius: 99px; background: rgba(255,255,255,.28); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0%; background: #fff; border-radius: inherit; }
+
+  .header { position: absolute; top: calc(var(--u)*62); left: calc(var(--u)*32); right: calc(var(--u)*32); display: flex; align-items: center; gap: calc(var(--u)*20); }
+  .avatar {
+    width: calc(var(--u)*88); height: calc(var(--u)*88); border-radius: 50%;
+    padding: calc(var(--u)*5);
+    background: conic-gradient(from 200deg, var(--accent), var(--accent-2), #c13584, var(--accent));
+    flex: none;
+  }
+  .avatar div {
+    width: 100%; height: 100%; border-radius: 50%; background: #0b1424;
+    border: calc(var(--u)*4) solid #0b1424;
+    display: grid; place-items: center;
+  }
+  .avatar svg { width: 62%; height: 62%; }
+  .who b { display: block; font-size: calc(var(--u)*34); font-weight: 800; letter-spacing: -.01em; }
+  .who span { font-size: calc(var(--u)*26); color: var(--ink-soft); font-weight: 400; }
+
+  /* Placa BR-040 */
+  .shield {
+    position: absolute; top: calc(var(--u)*190); right: calc(var(--u)*36);
+    width: calc(var(--u)*150); height: calc(var(--u)*170);
+    filter: drop-shadow(0 calc(var(--u)*10) calc(var(--u)*24) rgba(0,0,0,.5));
+  }
+
+  /* Rótulos 3D das cidades */
+  #labels { position: absolute; inset: 0; pointer-events: none; }
+  .lbl {
+    position: absolute; left: 0; top: 0; transform: translate(-50%, -100%);
+    display: flex; flex-direction: column; align-items: center; white-space: nowrap;
+    will-change: transform, opacity;
+  }
+  .lbl .tag {
+    font-size: calc(var(--u)*24); font-weight: 600; padding: calc(var(--u)*6) calc(var(--u)*14);
+    border-radius: calc(var(--u)*10); background: var(--glass); border: 1px solid var(--line);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .lbl.major .tag {
+    font-size: calc(var(--u)*34); font-weight: 900; padding: calc(var(--u)*10) calc(var(--u)*22);
+    background: var(--accent); color: #1a1000; border: none; letter-spacing: -.01em;
+  }
+  .lbl .stem { width: 2px; height: calc(var(--u)*34); background: linear-gradient(var(--line), rgba(255,255,255,0)); }
+  .lbl.major .stem { height: calc(var(--u)*60); background: linear-gradient(var(--accent), rgba(255,182,39,0)); width: 3px; }
+
+  /* Título de abertura */
+  .intro { position: absolute; left: calc(var(--u)*64); right: calc(var(--u)*64); bottom: calc(var(--u)*330); }
+  .intro .kicker { font-size: calc(var(--u)*30); font-weight: 600; letter-spacing: .28em; text-transform: uppercase; color: var(--accent); }
+  .intro h1 { font-size: calc(var(--u)*124); line-height: .92; font-weight: 900; letter-spacing: -.03em; margin-top: calc(var(--u)*18); }
+  .intro h1 em { font-style: normal; color: var(--accent); }
+  .intro p { font-size: calc(var(--u)*34); color: var(--ink-soft); margin-top: calc(var(--u)*26); }
+  .intro .word { display: inline-block; overflow: hidden; vertical-align: top; }
+  .intro .word > span { display: inline-block; }
+
+  /* Cartão de etapa */
+  .card { position: absolute; left: calc(var(--u)*56); right: calc(var(--u)*56); bottom: calc(var(--u)*310); }
+  .card .step { font-size: calc(var(--u)*28); font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); }
+  .card h2 { font-size: calc(var(--u)*96); line-height: .95; font-weight: 900; letter-spacing: -.03em; margin-top: calc(var(--u)*12); }
+  .card p { font-size: calc(var(--u)*32); color: var(--ink-soft); margin-top: calc(var(--u)*16); line-height: 1.3; }
+  .card { opacity: 0; }
+
+  /* Painel de telemetria */
+  .hud {
+    position: absolute; left: calc(var(--u)*56); right: calc(var(--u)*56); bottom: calc(var(--u)*96);
+    display: flex; gap: calc(var(--u)*18);
+  }
+  .chip {
+    flex: 1; padding: calc(var(--u)*20) calc(var(--u)*26); border-radius: calc(var(--u)*26);
+    background: var(--glass); border: 1px solid var(--line);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .chip small { display: block; font-size: calc(var(--u)*22); color: var(--ink-soft); letter-spacing: .12em; text-transform: uppercase; }
+  .chip b { display: block; font-size: calc(var(--u)*52); font-weight: 900; letter-spacing: -.02em; margin-top: calc(var(--u)*4); font-variant-numeric: tabular-nums; }
+  .chip b span { font-size: .5em; font-weight: 600; color: var(--ink-soft); margin-left: .2em; }
+  .route-mini { position: relative; height: calc(var(--u)*10); border-radius: 99px; background: rgba(255,255,255,.16); margin-top: calc(var(--u)*20); }
+  .route-mini i { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .route-mini .dot { position: absolute; top: 50%; width: calc(var(--u)*18); height: calc(var(--u)*18); margin: calc(var(--u)*-9) 0 0 calc(var(--u)*-9); border-radius: 50%; background: #fff; border: calc(var(--u)*3) solid var(--accent); }
+  .route-mini .dot.done { background: var(--accent); }
+
+  /* Final */
+  .outro { position: absolute; left: 0; right: 0; bottom: calc(var(--u)*330); text-align: center; opacity: 0; }
+  .outro .big { font-size: calc(var(--u)*170); font-weight: 900; letter-spacing: -.04em; line-height: .9; }
+  .outro .big span { color: var(--accent); }
+  .outro p { font-size: calc(var(--u)*34); color: var(--ink-soft); margin-top: calc(var(--u)*18); letter-spacing: .02em; }
+
+  .hint {
+    position: absolute; left: 50%; bottom: calc(var(--u)*34); transform: translateX(-50%);
+    font-size: calc(var(--u)*22); color: rgba(255,255,255,.5); letter-spacing: .1em; text-transform: uppercase;
+  }
+  body.capture .hint { display: none; }
+  .paused-badge {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: calc(var(--u)*150); height: calc(var(--u)*150); border-radius: 50%;
+    background: rgba(0,0,0,.45); display: none; place-items: center;
+  }
+  .paused-badge.on { display: grid; }
+  .paused-badge::before, .paused-badge::after { content: ""; display: block; }
+  .paused-badge span { display: flex; gap: calc(var(--u)*18); }
+  .paused-badge span i { width: calc(var(--u)*18); height: calc(var(--u)*60); background: #fff; border-radius: 4px; display: block; }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="Animação: viagem de Brasília ao Rio de Janeiro pela BR-040">
+  <canvas id="gl"></canvas>
+  <div class="vignette"></div>
+  <div class="shade-top"></div>
+  <div class="shade-bottom"></div>
+  <div id="labels"></div>
+
+  <div class="bars"><div class="bar"><i></i></div><div class="bar"><i></i></div><div class="bar"><i></i></div></div>
+  <div class="header">
+    <div class="avatar"><div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#ffb627" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+    </div></div>
+    <div class="who"><b>Rota BR-040</b><span>Brasília → BH → Rio</span></div>
+  </div>
+
+  <svg class="shield" viewBox="0 0 150 170" aria-hidden="true">
+    <path d="M10 8 H140 V96 C140 132 108 154 75 164 C42 154 10 132 10 96 Z" fill="#fff"/>
+    <path d="M18 16 H132 V95 C132 126 104 145 75 154 C46 145 18 126 18 95 Z" fill="none" stroke="#111" stroke-width="5"/>
+    <rect x="18" y="16" width="114" height="34" fill="#111"/>
+    <text x="75" y="42" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="900" font-size="25" fill="#fff">BR</text>
+    <text x="75" y="108" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="900" font-size="50" fill="#111">040</text>
+  </svg>
+
+  <div class="intro">
+    <div class="kicker"><span class="word"><span>Road trip · 3 capitais</span></span></div>
+    <h1><span class="word"><span>Brasília</span></span><br><span class="word"><span><em>ao Rio</em></span></span></h1>
+    <p><span class="word"><span>pela BR-040, via Belo Horizonte</span></span></p>
+  </div>
+
+  <div class="card" id="card">
+    <div class="step" id="cardStep"></div>
+    <h2 id="cardTitle"></h2>
+    <p id="cardText"></p>
+  </div>
+
+  <div class="outro" id="outro">
+    <div class="big">1.148<span> km</span></div>
+    <p>Brasília · Belo Horizonte · Rio de Janeiro</p>
+  </div>
+
+  <div class="hud">
+    <div class="chip" style="flex:1.25">
+      <small>Distância</small>
+      <b id="km">0<span>km</span></b>
+      <div class="route-mini"><i id="miniFill"></i>
+        <span class="dot done" style="left:0%"></span>
+        <span class="dot" id="dotBH" style="left:62.4%"></span>
+        <span class="dot" id="dotRJ" style="left:100%"></span>
+      </div>
+    </div>
+    <div class="chip">
+      <small>Próxima</small>
+      <b id="next" style="font-size:calc(var(--u)*36); line-height:1.5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Belo Horizonte</b>
+    </div>
+  </div>
+
+  <div class="hint">Toque para pausar</div>
+  <div class="paused-badge" id="paused"><span><i></i><i></i></span></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+(() => {
+  const CAPTURE = new URLSearchParams(location.search).has('capture');
+  if (CAPTURE) document.body.classList.add('capture');
+
+  const stage = document.getElementById('stage');
+  const canvas = document.getElementById('gl');
+
+  /* ---------- Geografia ---------- */
+  const LON0 = -45.6, LAT0 = -19.4, K = 10, COSL = Math.cos(LAT0 * Math.PI / 180);
+  const toXZ = (lat, lon) => ({ x: (lon - LON0) * K * COSL, z: -(lat - LAT0) * K });
+
+  // Traçado aproximado da BR-040 (lat, lon)
+  const ROUTE = [
+    [-15.794, -47.883], [-16.050, -47.960], [-16.255, -47.950], [-16.768, -47.613],
+    [-17.000, -47.250], [-17.222, -46.875], [-17.500, -46.520], [-17.742, -46.172],
+    [-18.000, -45.700], [-18.205, -45.240], [-18.600, -44.900], [-19.000, -44.600],
+    [-19.270, -44.400], [-19.466, -44.247], [-19.700, -44.080], [-19.917, -43.935],
+    [-20.150, -43.900], [-20.500, -43.857], [-20.660, -43.786], [-20.950, -43.780],
+    [-21.226, -43.774], [-21.457, -43.552], [-21.764, -43.350], [-22.117, -43.209],
+    [-22.300, -43.150], [-22.505, -43.178], [-22.700, -43.280], [-22.785, -43.311],
+    [-22.907, -43.210]
+  ];
+  const CITIES = [
+    { name: 'Brasília', lat: -15.794, lon: -47.883, major: true },
+    { name: 'Cristalina', lat: -16.768, lon: -47.613 },
+    { name: 'Paracatu', lat: -17.222, lon: -46.875 },
+    { name: 'João Pinheiro', lat: -17.742, lon: -46.172 },
+    { name: 'Três Marias', lat: -18.205, lon: -45.240 },
+    { name: 'Sete Lagoas', lat: -19.466, lon: -44.247 },
+    { name: 'Belo Horizonte', lat: -19.917, lon: -43.935, major: true },
+    { name: 'Conselheiro Lafaiete', lat: -20.660, lon: -43.786 },
+    { name: 'Barbacena', lat: -21.226, lon: -43.774 },
+    { name: 'Juiz de Fora', lat: -21.764, lon: -43.350 },
+    { name: 'Petrópolis', lat: -22.505, lon: -43.178 },
+    { name: 'Rio de Janeiro', lat: -22.907, lon: -43.210, major: true }
+  ];
+  const REGIONS = [
+    { name: 'GOIÁS', lat: -16.6, lon: -49.2 }, { name: 'MINAS GERAIS', lat: -18.6, lon: -43.4 },
+    { name: 'RIO DE JANEIRO', lat: -22.0, lon: -42.3 }, { name: 'DF', lat: -15.55, lon: -47.35 },
+    { name: 'OCEANO ATLÂNTICO', lat: -23.6, lon: -42.6 }
+  ];
+
+  /* ---------- Relevo procedural ---------- */
+  function hash(x, y) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+  function vnoise(x, y) {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+    return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+  }
+  function fbm(x, y) { let s = 0, a = .5, f = 1; for (let i = 0; i < 5; i++) { s += a * vnoise(x * f, y * f); f *= 2.03; a *= .5; } return s; }
+  const gauss = (d, w) => Math.exp(-(d * d) / (w * w));
+  const COAST = lon => -22.95 - 0.12 * Math.sin((lon + 44) * 2.2) - (lon < -44.2 ? (-44.2 - lon) * 0.08 : 0) + (lon > -42.2 ? (lon + 42.2) * 0.85 : 0);
+
+  function heightAt(x, z) {
+    const lon = x / (K * COSL) + LON0, lat = -z / K + LAT0;
+    let h = 0.35 + fbm(x * 0.12, z * 0.12) * 0.9;
+    // Serra do Espinhaço (N-S, leste de BH)
+    h += 1.2 * gauss(lon + 43.7, 0.45) * gauss(lat + 19.3, 1.6) * (0.6 + fbm(x * .4, z * .4));
+    // Serra da Mantiqueira
+    h += 1.1 * gauss(lat + 22.1 + (lon + 44.5) * 0.25, 0.45) * gauss(lon + 44.6, 1.6) * (0.6 + fbm(x * .5, z * .5));
+    // Serra dos Órgãos / Serra do Mar
+    h += 1.3 * gauss(lat + 22.45, 0.25) * gauss(lon + 43.0, 0.9) * (0.5 + fbm(x * .6, z * .6));
+    // Planalto Central mais plano
+    h *= 0.75 + 0.25 * Math.min(1, Math.max(0, (-lat - 16) / 3));
+    // Oceano
+    const c = COAST(lon);
+    if (lat < c) h = Math.min(h, -0.25 - (c - lat) * 1.5);
+    else h *= Math.min(1, (lat - c) * 3 + 0.15);
+    return h;
+  }
+
+  /* ---------- Three.js ---------- */
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: CAPTURE });
+  renderer.setPixelRatio(CAPTURE ? 1 : Math.min(devicePixelRatio, 2));
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0a1424, 0.0075);
+  const camera = new THREE.PerspectiveCamera(40, 9 / 16, 0.1, 400);
+
+  scene.add(new THREE.HemisphereLight(0x5a7cb0, 0x0b1020, 0.5));
+  const sun = new THREE.DirectionalLight(0xffd7a3, 1.25);
+  sun.position.set(-40, 22, -25); scene.add(sun);
+
+  // Terreno
+  const W = 170, D = 180, SEG = 300;
+  const tGeo = new THREE.PlaneGeometry(W, D, SEG, SEG);
+  tGeo.rotateX(-Math.PI / 2);
+  const center = toXZ(-19.6, -45.3);
+  tGeo.translate(center.x, 0, center.z);
+  const pos = tGeo.attributes.position, colors = [];
+  const cLow = new THREE.Color('#0b1d24'), cMid = new THREE.Color('#183a30'), cHigh = new THREE.Color('#5e5a40'), cPeak = new THREE.Color('#b9ab88');
+  const cSea = new THREE.Color('#0a2a4a'), cDeep = new THREE.Color('#061427');
+  const tmp = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i), h = heightAt(x, z);
+    pos.setY(i, h);
+    if (h < 0) tmp.copy(cSea).lerp(cDeep, Math.min(1, -h / 2));
+    else if (h < .7) tmp.copy(cLow).lerp(cMid, h / .7);
+    else if (h < 1.5) tmp.copy(cMid).lerp(cHigh, (h - .7) / .8);
+    else tmp.copy(cHigh).lerp(cPeak, Math.min(1, (h - 1.5) / .8));
+    colors.push(tmp.r, tmp.g, tmp.b);
+  }
+  tGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  tGeo.computeVertexNormals();
+  const terrain = new THREE.Mesh(tGeo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: .95, metalness: 0 }));
+  scene.add(terrain);
+
+  // Malha "digital" sobre o terreno
+  const wire = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({ color: 0x6fd3ff, wireframe: true, transparent: true, opacity: 0.03 }));
+  wire.position.y = 0.01; scene.add(wire);
+
+  // Água
+  const water = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ color: 0x0c3b66, transparent: true, opacity: .78, roughness: .3, metalness: .4 }));
+  water.rotation.x = -Math.PI / 2; water.position.set(center.x, -0.05, center.z); scene.add(water);
+
+  // Rota
+  const ctrl = ROUTE.map(([lat, lon]) => { const p = toXZ(lat, lon); return new THREE.Vector3(p.x, 0, p.z); });
+  const flat = new THREE.CatmullRomCurve3(ctrl, false, 'centripetal');
+  const NS = 900;
+  const pts = flat.getSpacedPoints(NS).map(p => new THREE.Vector3(p.x, heightAt(p.x, p.z) + 0.05, p.z));
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const TUB = 1400, RAD = 8;
+  const routeGeo = new THREE.TubeGeometry(curve, TUB, 0.04, RAD, false);
+  const routeMat = new THREE.MeshBasicMaterial({ color: 0xffb627 });
+  const route = new THREE.Mesh(routeGeo, routeMat); scene.add(route);
+  const glowGeo = new THREE.TubeGeometry(curve, TUB, 0.12, RAD, false);
+  const glow = new THREE.Mesh(glowGeo, new THREE.MeshBasicMaterial({ color: 0xff7a2f, transparent: true, opacity: .28, depthWrite: false, blending: THREE.AdditiveBlending }));
+  scene.add(glow);
+  // Traço largo, visível só na visão geral
+  const wideGeo = new THREE.TubeGeometry(curve, TUB, 0.38, RAD, false);
+  const wideMat = new THREE.MeshBasicMaterial({ color: 0xffb627, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+  scene.add(new THREE.Mesh(wideGeo, wideMat));
+  // Traçado completo, discreto
+  const ghostGeo = new THREE.BufferGeometry().setFromPoints(curve.getSpacedPoints(800));
+  const ghost = new THREE.Line(ghostGeo, new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: .25, gapSize: .2, transparent: true, opacity: .35 }));
+  ghost.computeLineDistances(); scene.add(ghost);
+
+  function setRouteProgress(p) {
+    const n = Math.floor(Math.max(0, Math.min(1, p)) * TUB) * RAD * 6;
+    routeGeo.setDrawRange(0, n); glowGeo.setDrawRange(0, n); wideGeo.setDrawRange(0, n);
+  }
+
+  // Fração do trajeto em cada cidade
+  const samples = curve.getSpacedPoints(2000);
+  function fracOf(lat, lon) {
+    const q = toXZ(lat, lon); let best = 0, bd = Infinity;
+    samples.forEach((s, i) => { const d = (s.x - q.x) ** 2 + (s.z - q.z) ** 2; if (d < bd) { bd = d; best = i; } });
+    return best / 2000;
+  }
+  CITIES.forEach(c => c.f = fracOf(c.lat, c.lon));
+  const F_BH = CITIES.find(c => c.name === 'Belo Horizonte').f;
+  const KM_BH = 716, KM_TOTAL = 1148;
+  const kmAt = p => p <= F_BH ? KM_BH * p / F_BH : KM_BH + (KM_TOTAL - KM_BH) * (p - F_BH) / (1 - F_BH);
+  document.getElementById('dotBH').style.left = (KM_BH / KM_TOTAL * 100) + '%';
+
+  // Marcadores de cidades
+  const cityObjs = CITIES.map(c => {
+    const p = toXZ(c.lat, c.lon), y = Math.max(0, heightAt(p.x, p.z));
+    const g = new THREE.Group(); g.position.set(p.x, y, p.z);
+    const r = c.major ? .11 : .055;
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 12), new THREE.MeshBasicMaterial({ color: c.major ? 0xffffff : 0xffe2a8 }));
+    dot.position.y = r * .6; g.add(dot);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r * 1.6, r * 2.1, 48), new THREE.MeshBasicMaterial({ color: 0xffb627, transparent: true, opacity: .9, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = .03; g.add(ring);
+    if (c.major) {
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(.01, .035, 4, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0xffb627, transparent: true, opacity: .3, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+      beam.position.y = 2; g.add(beam); g.userData.beam = beam;
+    }
+    g.userData.ring = ring; scene.add(g);
+    const el = document.createElement('div');
+    el.className = 'lbl' + (c.major ? ' major' : '');
+    el.innerHTML = `<div class="tag">${c.name}</div><div class="stem"></div>`;
+    document.getElementById('labels').appendChild(el);
+    return { c, g, el, anchor: new THREE.Vector3(p.x, y + (c.major ? .5 : .25), p.z) };
+  });
+  const regionEls = REGIONS.map(r => {
+    const p = toXZ(r.lat, r.lon), el = document.createElement('div');
+    el.className = 'lbl'; el.style.cssText += 'font-weight:800;letter-spacing:.35em;color:rgba(255,255,255,.38);font-size:calc(var(--u)*24)';
+    el.textContent = r.name; document.getElementById('labels').appendChild(el);
+    return { el, anchor: new THREE.Vector3(p.x, Math.max(0, heightAt(p.x, p.z)) + .3, p.z) };
+  });
+
+  // Veículo (marcador luminoso)
+  const car = new THREE.Group();
+  car.add(new THREE.Mesh(new THREE.SphereGeometry(.07, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffffff })));
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(.17, 24, 16), new THREE.MeshBasicMaterial({ color: 0xffb627, transparent: true, opacity: .35, depthWrite: false, blending: THREE.AdditiveBlending }));
+  car.add(halo);
+  const carLight = new THREE.PointLight(0xffb627, 0.8, 2.5); car.add(carLight);
+  scene.add(car);
+
+  // Estrelas
+  const sGeo = new THREE.BufferGeometry(), sPos = [];
+  for (let i = 0; i < 900; i++) { const a = Math.random() * Math.PI * 2, e = Math.random() * .6 + .05, R = 180; sPos.push(Math.cos(a) * Math.cos(e) * R, Math.sin(e) * R, Math.sin(a) * Math.cos(e) * R); }
+  sGeo.setAttribute('position', new THREE.Float32BufferAttribute(sPos, 3));
+  scene.add(new THREE.Points(sGeo, new THREE.PointsMaterial({ color: 0xffffff, size: .6, transparent: true, opacity: .6, fog: false })));
+
+  /* ---------- Estado animado (guiado pela timeline GSAP) ---------- */
+  const S = { p: 0, follow: 0, dist: 7, height: 4.2, yaw: 0, side: 0.35, fov: 40, pulse: 0 };
+  const OV_POS = new THREE.Vector3(), OV_LOOK = new THREE.Vector3();
+  {
+    const a = ctrl[0], b = ctrl[ctrl.length - 1];
+    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(.5);
+    const dir = new THREE.Vector3().subVectors(b, a).setY(0).normalize();
+    // Enquadra o trajeto inteiro na metade superior da tela (vertical 9:16)
+    const routePts = curve.getSpacedPoints(120);
+    const pv = new THREE.Vector3();
+    const setOv = (d, shift) => {
+      OV_LOOK.copy(mid).addScaledVector(dir, shift);
+      OV_POS.copy(OV_LOOK).addScaledVector(dir, -0.5 * d).setY(d);
+    };
+    const bounds = () => {
+      camera.position.copy(OV_POS); camera.lookAt(OV_LOOK); camera.updateMatrixWorld();
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      routePts.forEach(q => { pv.copy(q).project(camera); x0 = Math.min(x0, pv.x); x1 = Math.max(x1, pv.x); y0 = Math.min(y0, pv.y); y1 = Math.max(y1, pv.y); });
+      return { x0, x1, y0, y1 };
+    };
+    window.__fitOverview = () => {
+      let best = null;
+      for (let shift = -40; shift <= 40; shift += 1) {
+        for (let d = 30; d <= 220; d += 1) {
+          setOv(d, shift); const b = bounds();
+          if (b.y1 - b.y0 <= .9 && b.x1 - b.x0 <= 1.5 && b.x0 > -.8 && b.x1 < .8 && b.y0 > -.3 && b.y1 < .62) {
+            const score = d + Math.abs((b.y0 + b.y1) / 2 - .16) * 40;
+            if (!best || score < best.score) best = { score, d, shift };
+            break;
+          }
+        }
+      }
+      if (best) setOv(best.d, best.shift); else setOv(110, 0);
+    };
+  }
+
+  const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), camPos = new THREE.Vector3(), look = new THREE.Vector3(), fwd = new THREE.Vector3();
+  const proj = new THREE.Vector3();
+  let W_PX = 1, H_PX = 1;
+
+  function place(el, anchor, alpha) {
+    proj.copy(anchor).project(camera);
+    const behind = proj.z > 1;
+    const x = (proj.x * .5 + .5) * W_PX, y = (-proj.y * .5 + .5) * H_PX;
+    const inside = x > -200 && x < W_PX + 200 && y > H_PX * .13 && y < H_PX + 200;
+    el.style.opacity = (!behind && inside) ? alpha : 0;
+    el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+  }
+
+  function render(time) {
+    const p = Math.min(.9999, Math.max(0, S.p));
+    curve.getPointAt(p, v1);
+    curve.getPointAt(Math.min(1, p + 0.03), v2);
+    fwd.subVectors(v2, v1).setY(0).normalize();
+    car.position.copy(v1).add(new THREE.Vector3(0, .06, 0));
+    setRouteProgress(p);
+
+    // Câmera de perseguição
+    const c = Math.cos(S.yaw), s = Math.sin(S.yaw);
+    const bx = -fwd.x, bz = -fwd.z;
+    const rx = bx * c - bz * s, rz = bx * s + bz * c;
+    const sideX = -fwd.z * S.side, sideZ = fwd.x * S.side;
+    const fPos = new THREE.Vector3(v1.x + (rx + sideX) * S.dist, v1.y + S.height, v1.z + (rz + sideZ) * S.dist);
+    const fLook = new THREE.Vector3(v1.x + fwd.x * 1.4, v1.y, v1.z + fwd.z * 1.4);
+    camPos.copy(OV_POS).lerp(fPos, S.follow);
+    look.copy(OV_LOOK).lerp(fLook, S.follow);
+    wideMat.opacity = .85 * (1 - S.follow);
+    scene.fog.density = 0.0018 + (0.0075 - 0.0018) * S.follow;
+    camera.position.copy(camPos); camera.lookAt(look); camera.updateMatrixWorld();
+    if (camera.fov !== S.fov) { camera.fov = S.fov; camera.updateProjectionMatrix(); }
+
+    const t = time * .001;
+    halo.scale.setScalar(1 + .25 * Math.sin(t * 6));
+    cityObjs.forEach(o => {
+      const reached = p >= o.c.f - .002;
+      const k = (t * .8 + o.c.f * 5) % 1;
+      o.g.userData.ring.scale.setScalar(reached ? 1 + k * 2.2 : 1);
+      o.g.userData.ring.material.opacity = reached ? .9 * (1 - k) : .25;
+      if (o.g.userData.beam) { const fade = Math.min(1, Math.max(0, (camera.position.distanceTo(o.g.position) - 5) / 12)); o.g.userData.beam.material.opacity = (reached ? .3 : .08) * fade; }
+      const near = Math.abs(p - o.c.f) < .07;
+      const alpha = o.c.major ? (reached || S.follow < .5 ? 1 : .55) : (reached ? (near ? 1 : .7) : (near ? .6 : 0));
+      place(o.el, o.anchor, alpha);
+    });
+    regionEls.forEach(r => place(r.el, r.anchor, .9));
+
+    renderer.render(scene, camera);
+  }
+
+  function resize() {
+    const r = stage.getBoundingClientRect();
+    W_PX = r.width; H_PX = r.height;
+    stage.style.setProperty('--u', (r.width / 1080) + 'px');
+    renderer.setSize(r.width, r.height, false);
+    camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+  }
+  addEventListener('resize', () => { resize(); __fitOverview(); }); resize(); __fitOverview();
+
+  /* ---------- HUD ---------- */
+  const kmEl = document.getElementById('km'), miniFill = document.getElementById('miniFill'), nextEl = document.getElementById('next');
+  const bars = [...document.querySelectorAll('.bar i')];
+  function updateHud() {
+    const km = Math.round(kmAt(Math.min(1, S.p >= .9999 ? 1 : S.p)));
+    kmEl.innerHTML = km.toLocaleString('pt-BR') + '<span>km</span>';
+    miniFill.style.width = (km / KM_TOTAL * 100) + '%';
+    document.getElementById('dotBH').classList.toggle('done', km >= KM_BH);
+    document.getElementById('dotRJ').classList.toggle('done', km >= KM_TOTAL);
+    const nx = CITIES.find(c => c.f > S.p + .002);
+    nextEl.textContent = nx ? nx.name : 'Chegamos!';
+  }
+
+  const card = document.getElementById('card');
+  function setCard(step, title, text) {
+    document.getElementById('cardStep').textContent = step;
+    document.getElementById('cardTitle').textContent = title;
+    document.getElementById('cardText').textContent = text;
+  }
+
+  /* ---------- Timeline (motion) ---------- */
+  const STORY = [0, 8.5, 14.5, 21]; // fim de cada story
+  const tl = gsap.timeline({ paused: true, onUpdate: () => {
+    const t = tl.time();
+    bars.forEach((b, i) => { b.style.width = Math.max(0, Math.min(1, (t - STORY[i]) / (STORY[i + 1] - STORY[i]))) * 100 + '%'; });
+    updateHud();
+  } });
+
+  // Story 1 — abertura e saída de Brasília
+  tl.set(card, { opacity: 0 }).set('#outro', { opacity: 0 })
+    .fromTo('.intro .word > span', { yPercent: 110 }, { yPercent: 0, duration: .9, stagger: .12, ease: 'power4.out' }, .2)
+    .fromTo('.shield', { scale: .4, rotate: -12, opacity: 0 }, { scale: 1, rotate: 0, opacity: 1, duration: .8, ease: 'back.out(2)' }, .5)
+    .fromTo('.hud', { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: .8, ease: 'power3.out' }, .6)
+    .to('.intro .word > span', { yPercent: -110, duration: .6, stagger: .06, ease: 'power3.in' }, 2.6)
+    .to(S, { follow: 1, duration: 2.2, ease: 'power3.inOut' }, 2.4)
+    .call(() => setCard('Partida · 0 km', 'Brasília', 'Saindo do Planalto Central rumo a Minas Gerais.'), null, 3.0)
+    .fromTo(card, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .6, ease: 'power3.out' }, 3.0)
+    .to(card, { opacity: 0, y: -20, duration: .4, ease: 'power2.in' }, 5.6)
+    .to(S, { p: F_BH, duration: 6.0, ease: 'power1.inOut' }, 4.0)
+    .to(S, { yaw: .5, side: .1, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 4.2)
+    .to(S, { dist: 4.2, height: 2.4, duration: 1.4, ease: 'power2.inOut' }, 8.6)
+
+  // Story 2 — Belo Horizonte
+    .call(() => setCard('Parada · 716 km', 'Belo Horizonte', 'Pão de queijo e café entre as serras de Minas.'), null, 9.7)
+    .fromTo(card, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .6, ease: 'power3.out' }, 9.7)
+    .to(S, { yaw: '+=2.0', duration: 3.4, ease: 'power1.inOut' }, 10.0)
+    .to(card, { opacity: 0, y: -20, duration: .4, ease: 'power2.in' }, 13.4)
+    .to(S, { yaw: 0, dist: 6.5, height: 3.6, side: .35, duration: 1.4, ease: 'power2.inOut' }, 13.4)
+    .to(S, { p: 1, duration: 5.4, ease: 'power1.inOut' }, 14.0)
+    .to(S, { yaw: -.55, side: -.2, duration: 2.7, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 14.2)
+
+  // Story 3 — chegada ao Rio
+    .call(() => setCard('Destino · 1.148 km', 'Rio de Janeiro', 'Serra de Petrópolis, e o mar logo ali.'), null, 17.6)
+    .fromTo(card, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: .6, ease: 'power3.out' }, 17.6)
+    .to(card, { opacity: 0, y: -20, duration: .4, ease: 'power2.in' }, 19.6)
+    .to(S, { follow: 0, duration: 2.0, ease: 'power3.inOut' }, 19.4)
+    .fromTo('#outro', { opacity: 0, scale: .9 }, { opacity: 1, scale: 1, duration: .8, ease: 'power3.out' }, 20.0)
+    .to({}, { duration: 1.0 }, 20.8);
+  // A última posição fica pausada brevemente antes de reiniciar
+  tl.eventCallback('onComplete', () => { if (!CAPTURE) gsap.delayedCall(.6, () => tl.restart()); });
+
+  // Ajusta duração total ao fim da story 3
+  STORY[3] = tl.duration();
+
+  /* ---------- Loop / controles ---------- */
+  let last = performance.now();
+  function frame(now) { render(now); requestAnimationFrame(frame); }
+
+  if (CAPTURE) {
+    window.__duration = tl.duration();
+    window.__seek = (t) => { tl.seek(t, false); render(t * 1000); return true; };
+    window.__ready = true;
+  } else {
+    tl.play(0);
+    requestAnimationFrame(frame);
+    let paused = false;
+    stage.addEventListener('click', (e) => {
+      const r = stage.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width;
+      if (x < .25) { // toque à esquerda: story anterior
+        const t = tl.time(); const i = Math.max(0, STORY.findIndex((s, k) => t >= s && t < STORY[k + 1]));
+        tl.seek(STORY[Math.max(0, i - (t - STORY[i] < 1 ? 1 : 0))]); paused = false; tl.play();
+      } else if (x > .75) { // toque à direita: próxima story
+        const t = tl.time(); const n = STORY.find(s => s > t + .01);
+        if (n === undefined || n >= tl.duration()) tl.restart(); else tl.seek(n);
+        paused = false; tl.play();
+      } else { paused = !paused; paused ? tl.pause() : tl.play(); }
+      document.getElementById('paused').classList.toggle('on', paused);
+    });
+  }
+})();
+</script>
+</body>
+</html>
