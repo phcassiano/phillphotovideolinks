@@ -1,0 +1,24 @@
+{
+ "zoom": 9,
+ "tx0": 184,
+ "ty0": 275,
+ "nx": 15,
+ "ny": 18,
+ "chunks": [
+  2,
+  3
+ ],
+ "chunk_px": [
+  1920,
+  1536
+ ],
+ "sat_px": [
+  3840,
+  4608
+ ],
+ "grid": [
+  384,
+  461
+ ],
+ "credits": "Sat\u00e9lite: Sentinel-2 cloudless 2016 by EOX (CC BY 4.0) \u00b7 Relevo: AWS Terrain Tiles \u00b7 Rota: \u00a9 OpenStreetMap / OSRM \u00b7 Divisas: IBGE"
+}
