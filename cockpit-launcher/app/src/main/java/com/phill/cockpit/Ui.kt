@@ -69,6 +69,7 @@ val Accents = listOf(
 data class BgStyle(val id: String, val name: String, val top: Color, val bottom: Color, val glow: Color?)
 
 val BgStyles = listOf(
+    BgStyle("ceu", "Céu azul", Color(0xFF1B3B68), Color(0xFF060B18), Color(0xFF4DA3FF)),
     BgStyle("neon", "Neon noturno", Color(0xFF04060C), Color(0xFF0B1730), null),
     BgStyle("ambar", "Oficina âmbar", Color(0xFF0E0803), Color(0xFF2B1806), Color(0xFFFFA726)),
     BgStyle("grafite", "Grafite", Color(0xFF070707), Color(0xFF1B1C1F), null),
@@ -80,6 +81,51 @@ val BgStyles = listOf(
 
 @Composable
 fun accent() = Color(Prefs.accent.state.value)
+
+/** Céu azul com nuvens suaves, estilo painel premium. */
+fun androidx.compose.ui.graphics.drawscope.DrawScope.drawClouds(drift: Float, ac: Color, glow: Color) {
+    val w = size.width; val h = size.height
+    drawRect(Brush.verticalGradient(listOf(glow.copy(alpha = 0.16f), Color.Transparent), 0f, h * 0.55f))
+    val clouds = listOf(
+        Triple(0.18f, 0.12f, 0.40f), Triple(0.60f, 0.09f, 0.46f), Triple(0.88f, 0.20f, 0.34f),
+        Triple(0.38f, 0.24f, 0.50f), Triple(0.05f, 0.30f, 0.30f), Triple(0.74f, 0.34f, 0.34f)
+    )
+    for ((cx, cy, cr) in clouds) {
+        val x = (((cx + drift * 0.05f) % 1.15f)) * w
+        val r = cr * w * 0.5f
+        drawCircle(
+            Brush.radialGradient(
+                listOf(Color.White.copy(alpha = 0.11f), Color.White.copy(alpha = 0.03f), Color.Transparent),
+                Offset(x, cy * h), r
+            ), r, Offset(x, cy * h)
+        )
+    }
+    drawCircle(
+        Brush.radialGradient(listOf(ac.copy(alpha = 0.12f), Color.Transparent), Offset(w * 0.5f, h * 1.04f), w * 0.65f),
+        w * 0.65f, Offset(w * 0.5f, h * 1.04f)
+    )
+}
+
+/** Temas prontos: trocam cor, fundo, estilo dos botões e transparência de uma vez. */
+data class ThemePreset(val name: String, val accent: Long, val bg: String, val tile: String, val panelAlpha: Float, val anim: Boolean)
+
+val ThemePresets = listOf(
+    ThemePreset("Céu azul", 0xFF3FA9FF, "ceu", "glass", 0.08f, true),
+    ThemePreset("Neon noturno", 0xFF00E5FF, "neon", "glass", 0.10f, true),
+    ThemePreset("Oceano", 0xFF26C6DA, "oceano", "glass", 0.09f, true),
+    ThemePreset("Oficina âmbar", 0xFFFFA726, "ambar", "glass", 0.10f, false),
+    ThemePreset("Esportivo", 0xFFFF1744, "vermelho", "solid", 0.10f, false),
+    ThemePreset("Grafite", 0xFFECEFF1, "grafite", "outline", 0.06f, false),
+)
+
+fun applyPreset(p: ThemePreset) {
+    Prefs.accent.v = p.accent.toInt()
+    Prefs.bgStyle.v = p.bg
+    Prefs.tileStyle.v = p.tile
+    Prefs.panelAlpha.v = p.panelAlpha
+    Prefs.animatedBg.v = p.anim
+    Prefs.wallpaper.v = ""
+}
 
 @Composable
 fun Background(content: @Composable BoxScope.() -> Unit) {
@@ -108,6 +154,10 @@ fun Background(content: @Composable BoxScope.() -> Unit) {
         if (wall != null) {
             Image(wall!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = Prefs.wallDim.state.value)))
+        } else if (style.id == "ceu") {
+            val t = rememberInfiniteTransition(label = "ceu")
+            val drift by t.animateFloat(0f, 1f, infiniteRepeatable(tween(60000, easing = LinearEasing), RepeatMode.Reverse), label = "d")
+            Canvas(Modifier.fillMaxSize()) { drawClouds(if (Prefs.animatedBg.v) drift else 0.5f, ac, glow) }
         } else if (Prefs.animatedBg.state.value) {
             val t = rememberInfiniteTransition(label = "bg")
             val a by t.animateFloat(0f, 1f, infiniteRepeatable(tween(18000, easing = LinearEasing), RepeatMode.Reverse), label = "a")

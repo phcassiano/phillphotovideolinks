@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -92,6 +93,15 @@ fun SettingsScreen(act: MainActivity) {
                 OutlinedTextField(Prefs.welcomeText.state.value, { Prefs.welcomeText.v = it }, Modifier.fillMaxWidth(), label = { Text("Frase") }, singleLine = true)
                 SwitchRow("Mostrar entrada ao ligar a central", Prefs.greeting)
                 Btn("Ver entrada agora") { Live.welcomed = false; act.screen.value = Screen.Settings; act.recreate() }
+            }
+        }
+
+        item {
+            Section("Temas prontos") {
+                T("Troque o visual inteiro num toque. Depois dá para ajustar tudo abaixo.", 13f, alpha = 0.6f, maxLines = 2)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    ThemePresets.forEach { p -> ThemeCard(p) }
+                }
             }
         }
 
@@ -248,4 +258,32 @@ fun SettingsScreen(act: MainActivity) {
 private fun openWriteSettings(ctx: Context) {
     if (Build.VERSION.SDK_INT >= 23)
         Apps.open(ctx, Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${ctx.packageName}")))
+}
+
+@Composable
+fun ThemeCard(p: ThemePreset) {
+    val style = BgStyles.firstOrNull { it.id == p.bg } ?: BgStyles[0]
+    val sel = Prefs.bgStyle.state.value == p.bg && Prefs.accent.state.value == p.accent.toInt()
+    val ac = Color(p.accent)
+    Column(
+        Modifier.width((132 * LocalK.current).dp).clip(RoundedCornerShape(16.dp))
+            .border(if (sel) 3.dp else 1.dp, if (sel) ac else Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+            .clickable { applyPreset(p) }
+    ) {
+        Box(
+            Modifier.fillMaxWidth().height((70 * LocalK.current).dp)
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(style.top, style.bottom)))
+        ) {
+            if (style.glow != null) Box(
+                Modifier.fillMaxWidth().height((28 * LocalK.current).dp)
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(style.glow.copy(alpha = 0.35f), Color.Transparent)))
+            )
+            Box(Modifier.align(Alignment.Center).size((30 * LocalK.current).dp).clip(CircleShape).background(Color.White.copy(alpha = 0.10f)).border(1.dp, ac.copy(alpha = 0.4f), CircleShape))
+            Box(Modifier.align(Alignment.BottomStart).padding(8.dp).size((14 * LocalK.current).dp).clip(CircleShape).background(ac))
+            if (sel) Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) { T("✓", 14f, ac) }
+        }
+        Box(Modifier.fillMaxWidth().background(Color.Black.copy(alpha = 0.25f)).padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+            T(p.name, 13f)
+        }
+    }
 }
