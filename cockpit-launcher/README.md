@@ -72,3 +72,15 @@ No Cockpit você pode usar a foto do seu próprio carro como fundo.
 ![Início](dist/telas/inicio.png)
 ![Drive Lab](dist/telas/drive-lab.png)
 ![Códigos de falha](dist/telas/codigos.png)
+
+## Garagem e novos recursos (v1.1)
+
+- **Garagem**: 8 carrocerias desenhadas no próprio app (hatch, sedã, SUV, cupê, picape, esportivo, clássico, van), em vetor — silhuetas genéricas e originais, não copiadas de nenhum modelo real. Troca de cor só na lataria (vidros, rodas e faróis continuam originais), 3 posturas (original, rebaixado, esportivo com aerofólio). Salva vários carros e usa o escolhido na tela inicial e na entrada de boas-vindas.
+- **Desempenho**: cronômetro 0–60, 0–100, 100–200 km/h, 0–200 m e 0–400 m com velocidade final, reação e força-g (GPS ou OBD2).
+- **Abastecimentos**: registro de litros/preço/odômetro com consumo real (km/l), custo por km e total gasto.
+- **Manutenção**: lembretes de óleo, filtros, pneus e velas por km/data, com alerta de vencido.
+- **Bússola e altitude** pelo GPS.
+- **Controle pelo celular (Wi-Fi)**: a central sobe um servidor web local; o celular abre o endereço no navegador e controla a música, manda um destino que abre o Waze (ou Maps) navegando na central, e abre apps à distância. PIN opcional. Nada sai para a internet.
+
+![Garagem](dist/telas/garagem-suv.png)
+![Controle pelo celular](dist/telas/controle-celular.png)
