@@ -244,3 +244,15 @@ fun CarView(modifier: Modifier, type: String, color: Color, variant: String, acc
         drawCarOf(type, w, color, variant, accent, pad)
     }
 }
+
+/** Desenha o carro (foto ou desenho) cabendo inteiro numa caixa, com deslocamento para a entrada. */
+fun DrawScope.drawCarContain(type: String, color: Color, variant: String, accent: Color, boxW: Float, boxH: Float, slide: Float = 0f) {
+    val aspect = if (type == "photo") (CarPhoto.bmp?.let { it.height.toFloat() / it.width } ?: 0.5f) else 0.5f
+    val carW = minOf(boxW, boxH / aspect)
+    val carH = carW * aspect
+    val x = (boxW - carW) / 2f + slide
+    val y = (boxH - carH) / 2f
+    translate(x, y) {
+        drawCarOf(type, carW, color, variant, accent, 0f)
+    }
+}

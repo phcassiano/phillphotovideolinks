@@ -155,12 +155,13 @@ fun Welcome() {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 if (Prefs.showCar.v) {
                     val ac = accent()
-                    val off = (1f - (sweep.value / 200f)) * 0.5f
-                    Box(Modifier.fillMaxWidth(0.5f).height((120 * LocalK.current).dp)) {
+                    val slideFrac = 1f - (sweep.value / 200f)   // 1 → 0 → 1: entra e volta
+                    Box(Modifier.fillMaxWidth(0.66f).height((190 * LocalK.current).dp)) {
                         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                            translate(size.width * -off, 0f) {
-                                drawCarOf(Prefs.carType.v, size.width, Color(Prefs.carColor.v), Prefs.carVariant.v, ac, size.height * 0.1f)
-                            }
+                            drawCarContain(
+                                Prefs.carType.v, Color(Prefs.carColor.v), Prefs.carVariant.v, ac,
+                                size.width, size.height, slide = -size.width * 0.5f * slideFrac
+                            )
                         }
                     }
                 } else {
