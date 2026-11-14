@@ -73,7 +73,7 @@ object Prefs {
     val fullscreen = P("fullscreen", false)
 
     // Garagem (carro escolhido, desenhado pelo app)
-    val carType = P("carType", "sedan", true)
+    val carType = P("carType", "photo", true)
     val carColor = P("carColor", 0xFFD32F2F.toInt(), true)
     val carVariant = P("carVariant", "original", true)
     val carName = P("carNameHome", "", true)

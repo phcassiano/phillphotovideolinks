@@ -11,6 +11,7 @@ class App : Application() {
         super.onCreate()
         Prefs.init(this)
         Apps.load(this)
+        CarPhoto.load(this)
         Garage.load()
         FuelLog.load()
         Maintenance.load()

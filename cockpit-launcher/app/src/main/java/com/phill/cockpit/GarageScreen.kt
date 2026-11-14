@@ -98,6 +98,7 @@ fun GarageTab() {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 CarTypes.forEach { ct -> Pill(ct.name, type == ct.id) { type = ct.id } }
             }
+            if (type == "photo") T("É a foto do seu carro (fundo removido). A cor e a postura abaixo valem para os carros desenhados.", 12f, alpha = 0.6f, maxLines = 3)
             T("Cor da lataria", 14f, alpha = 0.7f)
             T("Vidros, rodas e faróis continuam originais.", 12f, alpha = 0.45f)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

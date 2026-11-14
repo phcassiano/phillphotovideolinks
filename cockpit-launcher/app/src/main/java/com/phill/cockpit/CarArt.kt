@@ -7,7 +7,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -25,6 +27,7 @@ import kotlin.math.sin
 data class CarType(val id: String, val name: String)
 
 val CarTypes = listOf(
+    CarType("photo", "Meu carro"),
     CarType("hatch", "Hatch"),
     CarType("sedan", "Sedã"),
     CarType("suv", "SUV"),
@@ -68,6 +71,19 @@ fun DrawScope.drawCar(w: Float, color: Color, variant: String, accent: Color, to
 }
 
 fun DrawScope.drawCarOf(type: String, w: Float, color: Color, variant: String, accent: Color, topPad: Float = 0f) {
+    if (type == "photo") {
+        val b = CarPhoto.bmp
+        if (b != null) {
+            val scale = w / b.width
+            val h = b.height * scale
+            drawImage(
+                b,
+                dstOffset = androidx.compose.ui.unit.IntOffset(0, topPad.toInt()),
+                dstSize = androidx.compose.ui.unit.IntSize(w.toInt(), h.toInt())
+            )
+            return
+        }
+    }
     val s = spec(type)
     val vh = w * 0.50f                 // altura da caixa do carro
     fun x(f: Float) = f * w
@@ -196,9 +212,32 @@ fun Color.lighten(f: Float) = Color(
 fun Color.darken(f: Float) = Color(red * (1 - f), green * (1 - f), blue * (1 - f), alpha)
 
 /** Composable reutilizável: mostra um carro. */
+object CarPhoto {
+    var bmp: androidx.compose.ui.graphics.ImageBitmap? = null
+    fun load(ctx: android.content.Context) {
+        bmp = try {
+            android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.meu_carro)
+                ?.asImageBitmap()
+        } catch (e: Throwable) { null }
+    }
+}
+
 @androidx.compose.runtime.Composable
 fun CarView(modifier: Modifier, type: String, color: Color, variant: String, accent: Color) {
     Canvas(modifier) {
+        if (type == "photo") {
+            val b = CarPhoto.bmp
+            if (b != null) {
+                val s = minOf(size.width / b.width, size.height / b.height)
+                val w = b.width * s; val h = b.height * s
+                drawImage(
+                    b,
+                    dstOffset = androidx.compose.ui.unit.IntOffset(((size.width - w) / 2).toInt(), ((size.height - h) / 2).toInt()),
+                    dstSize = androidx.compose.ui.unit.IntSize(w.toInt(), h.toInt())
+                )
+                return@Canvas
+            }
+        }
         val w = size.width
         val carH = w * 0.50f
         val pad = (size.height - carH).coerceAtLeast(0f) / 2f
