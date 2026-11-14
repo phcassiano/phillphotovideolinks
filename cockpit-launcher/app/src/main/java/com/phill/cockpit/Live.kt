@@ -105,6 +105,9 @@ object Live {
 
         // Reconexão automática do OBD2
         if (n == 3 && Prefs.obdAuto.v && Obd.configured() && Obd.state.value == Obd.ST_OFF) Obd.connect(ctx)
+
+        // Controle pelo celular
+        if (n % 5 == 0) RemoteServer.ensure(ctx)
     }
 
     fun canWriteSettings(ctx: Context) = Build.VERSION.SDK_INT < 23 || Settings.System.canWrite(ctx)

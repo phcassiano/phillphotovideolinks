@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -128,6 +129,34 @@ fun SettingsScreen(act: MainActivity) {
                 SliderRow("Transparência dos painéis", Prefs.panelAlpha.state.value, 0f..0.3f, fmt = { "%.0f%%".format(it * 100 / 0.3f) }) { Prefs.panelAlpha.v = it }
                 SwitchRow("Relógio 24 horas", Prefs.clock24)
                 SwitchRow("Tela cheia (esconde barras do Android)", Prefs.fullscreen) { act.applyFullscreen() }
+            }
+        }
+
+        item {
+            Section("Controle pelo celular (Wi-Fi)") {
+                T("Ligue, conecte o celular na mesma rede e abra o endereço no navegador dele. Dá para controlar a música e mandar um destino que abre o Waze aqui na central.", 13f, alpha = 0.65f, maxLines = 4)
+                SwitchRow("Ativar controle pelo celular", Prefs.remoteEnabled) { RemoteServer.ensure(ctx) }
+                if (RemoteServer.running.value) {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(accent().copy(alpha = 0.12f)).padding(14.dp)) {
+                        Column {
+                            T("No navegador do celular, digite:", 12f, alpha = 0.6f)
+                            T(RemoteServer.url.value, 24f, accent(), display = true)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Btn("Copiar endereço") {
+                            (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("url", RemoteServer.url.value))
+                            Toast.makeText(ctx, "Copiado", Toast.LENGTH_SHORT).show()
+                        }
+                        Btn("Rede Wi-Fi") { Apps.open(ctx, Intent(Settings.ACTION_WIFI_SETTINGS)) }
+                    }
+                } else if (Prefs.remoteEnabled.state.value) {
+                    T("Procurando a rede… conecte a central ao Wi-Fi.", 13f, alpha = 0.6f)
+                }
+                var pin by remember { mutableStateOf(Prefs.remotePin.v) }
+                OutlinedTextField(pin, { pin = it.filter { c -> c.isDigit() }.take(6); Prefs.remotePin.v = pin },
+                    label = { Text("PIN (opcional, protege o controle)") }, singleLine = true)
+                T("Qualquer um na mesma rede consegue controlar. Prefira o ponto de acesso do celular, ou defina um PIN.", 12f, alpha = 0.5f, maxLines = 3)
             }
         }
 

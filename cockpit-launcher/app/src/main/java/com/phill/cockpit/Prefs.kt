@@ -80,6 +80,11 @@ object Prefs {
     val showCar = P("showCar", true, true)
     val odometer = P("odo", 0f)
 
+    // Controle pelo celular
+    val remoteEnabled = P("remoteEnabled", false)
+    val remotePort = P("remotePort", 8765)
+    val remotePin = P("remotePin", "")
+
     // Listas persistidas (JSON)
     val garageJson = P("garageJson", "[]")
     val fuelJson = P("fuelJson", "[]")
