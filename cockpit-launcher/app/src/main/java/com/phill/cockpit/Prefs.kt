@@ -72,6 +72,19 @@ object Prefs {
     val tileStyle = P("tileStyle", "glass", true)
     val fullscreen = P("fullscreen", false)
 
+    // Garagem (carro escolhido, desenhado pelo app)
+    val carType = P("carType", "sedan", true)
+    val carColor = P("carColor", 0xFFD32F2F.toInt(), true)
+    val carVariant = P("carVariant", "original", true)
+    val carName = P("carNameHome", "", true)
+    val showCar = P("showCar", true, true)
+    val odometer = P("odo", 0f)
+
+    // Listas persistidas (JSON)
+    val garageJson = P("garageJson", "[]")
+    val fuelJson = P("fuelJson", "[]")
+    val maintJson = P("maintJson", "[]")
+
     // Atalhos (8 posições)
     val defaultSlots = listOf(
         "com.google.android.apps.maps", "com.waze", "com.spotify.music",

@@ -18,6 +18,8 @@ object Gps : LocationListener {
     val speedKmh = mutableFloatStateOf(0f)
     val hasFix = mutableStateOf(false)
     val location = mutableStateOf<Location?>(null)
+    val heading = androidx.compose.runtime.mutableFloatStateOf(-1f)
+    val altitude = mutableStateOf<Double?>(null)
     private var lastFixAt = 0L
     private var started = false
 
@@ -52,6 +54,8 @@ object Gps : LocationListener {
 
     override fun onLocationChanged(l: Location) {
         location.value = l
+        if (l.hasAltitude()) altitude.value = l.altitude
+        if (l.hasBearing() && (l.hasSpeed() && l.speed > 1.5f)) heading.floatValue = l.bearing
         if (l.provider == LocationManager.GPS_PROVIDER) {
             lastFixAt = SystemClock.elapsedRealtime()
             hasFix.value = true

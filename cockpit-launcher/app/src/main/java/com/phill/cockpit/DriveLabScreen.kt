@@ -8,6 +8,8 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -54,7 +56,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val tabs = listOf("Cockpit", "Viagem", "Saúde", "Conexão")
+private val tabs = listOf("Cockpit", "Desempenho", "Viagem", "Saúde", "Conexão")
 private var lastTab = 0
 
 @Composable
@@ -71,8 +73,9 @@ fun DriveLabScreen(act: MainActivity, wide: Boolean) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (tab) {
                 0 -> CockpitTab(wide)
-                1 -> TripTab()
-                2 -> HealthTab()
+                1 -> PerfTab()
+                2 -> TripTab()
+                3 -> HealthTab()
                 else -> ConnectTab(act)
             }
         }
@@ -149,12 +152,28 @@ fun TripTab() {
             items(items) { (l, v) -> Panel { Column { T(l, 13f, alpha = 0.6f); T(v, 26f, display = true) } } }
         }
         Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Panel {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CompassRose(Modifier.size((56 * LocalK.current).dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        val h = Gps.heading.floatValue
+                        T("Bússola", 12f, alpha = 0.6f)
+                        T(if (h < 0) "—" else "${compassName(h)}  %.0f°".format(h), 20f, display = true)
+                    }
+                }
+            }
+            Panel { Column { T("Altitude", 12f, alpha = 0.6f); T(Gps.altitude.value?.let { "%.0f m".format(it) } ?: "—", 22f, display = true) } }
             Btn("Zerar viagem") { Trip.reset() }
-            Spacer(Modifier.width(12.dp))
-            T("Preço: R$ %.2f/L (${Prefs.fuel.v}) · estimativa com margem de 10–15%%".format(Prefs.fuelPrice.v), 12f, alpha = 0.5f)
         }
+        T("Consumo é estimativa (margem de 10–15%%). Altitude e bússola vêm do GPS.", 12f, alpha = 0.45f, modifier = Modifier.padding(top = 6.dp))
     }
+}
+
+fun compassName(deg: Float): String {
+    val dirs = listOf("N", "NE", "L", "SE", "S", "SO", "O", "NO")
+    return dirs[(((deg + 22.5f) % 360f) / 45f).toInt().coerceIn(0, 7)]
 }
 
 @Composable
@@ -354,6 +373,74 @@ fun Moving() {
             T("⚠", 48f, Color(0xFFFFAB00))
             T("Pare o carro para mexer nos ajustes.", 22f)
             T("Atenção no trânsito.", 16f, alpha = 0.6f)
+        }
+    }
+}
+
+@Composable
+fun PerfTab() {
+    val src = Live.speedFrom.value
+    val running = Performance.running.value
+    val armed = Performance.armed.value
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Panel(Modifier.fillMaxWidth().weight(1f)) {
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                    T(when { running -> "%.2f".format(Performance.elapsed.value); armed -> "Pronto…"; else -> "0.00" }, 64f, if (armed) Color(0xFFFFB300) else accent(), display = true)
+                    T("segundos", 14f, alpha = 0.6f)
+                    Spacer(Modifier.height(6.dp))
+                    T("%.0f km/h   %.0f m".format(Live.speed.floatValue, Performance.distance.value), 18f)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (!running && !armed) Btn("Preparar largada", primary = true) { Performance.arm() }
+                else Btn("Cancelar") { Performance.reset() }
+                T("Fonte: $src · comece parado e acelere.", 12f, alpha = 0.5f, maxLines = 2)
+            }
+        }
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val items = listOf(
+                "0–60 km/h" to Performance.t0to60.value,
+                "0–100 km/h" to Performance.t0to100.value,
+                "100–200 km/h" to Performance.t100to200.value,
+                "0–200 m" to Performance.t200m.value,
+                "0–400 m" to Performance.t400m.value,
+            )
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                androidx.compose.foundation.lazy.grid.GridCells.Fixed(2), Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(items.size) { idx ->
+                    val (l, v) = items[idx]
+                    Panel { Column { T(l, 12f, alpha = 0.6f); T(v?.let { "%.2fs".format(it) } ?: "—", 24f, display = true) } }
+                }
+                item { Panel { Column { T("Vel. nos 400 m", 12f, alpha = 0.6f); T(if (Performance.v400.value > 0) "%.0f km/h".format(Performance.v400.value) else "—", 24f, display = true) } } }
+                item { Panel { Column { T("Reação", 12f, alpha = 0.6f); T(Performance.reaction.value?.let { "%.2fs".format(it) } ?: "—", 24f, display = true) } } }
+            }
+            if (Performance.bestList.isNotEmpty()) {
+                T("Últimas tentativas", 13f, alpha = 0.6f)
+                Performance.bestList.take(3).forEach { T("• $it", 13f, alpha = 0.8f, maxLines = 1) }
+            }
+        }
+    }
+}
+
+@Composable
+fun CompassRose(modifier: Modifier) {
+    val ac = accent()
+    val h = Gps.heading.floatValue
+    androidx.compose.foundation.Canvas(modifier) {
+        val c = androidx.compose.ui.geometry.Offset(size.width / 2, size.height / 2)
+        val r = size.minDimension / 2 * 0.9f
+        drawCircle(Color.White.copy(alpha = 0.08f), r, c, style = Stroke(size.minDimension * 0.03f))
+        val dirs = listOf("N" to 0f, "L" to 90f, "S" to 180f, "O" to 270f)
+        rotate(if (h >= 0) -h else 0f, c) {
+            for ((lbl, ang) in dirs) {
+                val a = Math.toRadians((ang - 90).toDouble())
+                val p = androidx.compose.ui.geometry.Offset(c.x + (r * 0.78f * kotlin.math.cos(a)).toFloat(), c.y + (r * 0.78f * kotlin.math.sin(a)).toFloat())
+                drawCircle(if (lbl == "N") Color(0xFFFF5252) else Color.White.copy(alpha = 0.6f), size.minDimension * 0.035f, p)
+            }
+            drawLine(ac, androidx.compose.ui.geometry.Offset(c.x, c.y + r * 0.5f), androidx.compose.ui.geometry.Offset(c.x, c.y - r * 0.5f), size.minDimension * 0.04f)
         }
     }
 }

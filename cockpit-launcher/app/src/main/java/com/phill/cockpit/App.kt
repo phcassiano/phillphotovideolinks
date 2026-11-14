@@ -11,6 +11,9 @@ class App : Application() {
         super.onCreate()
         Prefs.init(this)
         Apps.load(this)
+        Garage.load()
+        FuelLog.load()
+        Maintenance.load()
         Live.start(this)
         val f = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)

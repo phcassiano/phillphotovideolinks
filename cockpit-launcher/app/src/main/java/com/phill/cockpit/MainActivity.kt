@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -46,6 +47,7 @@ sealed class Screen {
     data object Home : Screen()
     data class Apps(val pickSlot: Int? = null) : Screen()
     data object DriveLab : Screen()
+    data object Garage : Screen()
     data object Settings : Screen()
 }
 
@@ -120,6 +122,7 @@ fun Root(act: MainActivity) {
                         Screen.Home -> HomeScreen(act, wide)
                         is Screen.Apps -> AppsScreen(act, s.pickSlot)
                         Screen.DriveLab -> DriveLabScreen(act, wide)
+                        Screen.Garage -> GarageScreen(act)
                         Screen.Settings -> SettingsScreen(act)
                     }
                     Welcome()
@@ -150,7 +153,19 @@ fun Welcome() {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                ArcGauge(sweep.value, 200f, "km/h", "", Modifier.fillMaxWidth(0.28f), numberSize = 34f)
+                if (Prefs.showCar.v) {
+                    val ac = accent()
+                    val off = (1f - (sweep.value / 200f)) * 0.5f
+                    Box(Modifier.fillMaxWidth(0.5f).height((120 * LocalK.current).dp)) {
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                            translate(size.width * -off, 0f) {
+                                drawCarOf(Prefs.carType.v, size.width, Color(Prefs.carColor.v), Prefs.carVariant.v, ac, size.height * 0.1f)
+                            }
+                        }
+                    }
+                } else {
+                    ArcGauge(sweep.value, 200f, "km/h", "", Modifier.fillMaxWidth(0.28f), numberSize = 34f)
+                }
                 Spacer(Modifier.height(16.dp))
                 val n = Prefs.name.v.trim()
                 T(if (n.isEmpty()) "Bem-vindo!" else "Bem-vindo, $n!", 40f, display = true)

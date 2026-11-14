@@ -54,6 +54,7 @@ object Live {
     private var lastBeep = 0L
     private var lastBright = -1
     private var lastWeather = 0L
+    private var odoAccum = 0f
 
     fun start(ctx: Context) {
         val app = ctx.applicationContext
@@ -78,6 +79,8 @@ object Live {
         speed.floatValue = s
         speedFrom.value = if (useObd) "OBD2" else "GPS"
         Trip.tick(s, if (Obd.connected) obd.lph else null, 1f)
+        Performance.tick(s, 1f)
+        if (s > 2f) { odoAccum += s / 3600f; if (odoAccum >= 0.2f) { Prefs.odometer.v = Prefs.odometer.v + odoAccum; odoAccum = 0f } }
 
         // Aviso de velocidade
         val lim = Prefs.speedLimit.v

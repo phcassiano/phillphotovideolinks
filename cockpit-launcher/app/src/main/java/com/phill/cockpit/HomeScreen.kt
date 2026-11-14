@@ -47,7 +47,7 @@ fun HomeScreen(act: MainActivity, wide: Boolean) {
     if (wide) {
         Row(Modifier.fillMaxSize().padding(12.dp), horizontalArrangement = gap) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = gap) {
-                ClockPanel(Modifier.weight(0.85f).fillMaxWidth())
+                ClockPanel(act, Modifier.weight(0.85f).fillMaxWidth())
                 SpeedPanel(act, Modifier.weight(1.35f).fillMaxWidth())
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = gap) {
@@ -61,7 +61,7 @@ fun HomeScreen(act: MainActivity, wide: Boolean) {
         }
     } else {
         Column(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = gap) {
-            ClockPanel(Modifier.weight(0.7f).fillMaxWidth())
+            ClockPanel(act, Modifier.weight(0.7f).fillMaxWidth())
             Row(Modifier.weight(1.1f).fillMaxWidth(), horizontalArrangement = gap) {
                 SpeedPanel(act, Modifier.weight(1f).fillMaxHeight())
                 TripPanel(act, Modifier.weight(0.8f).fillMaxHeight())
@@ -74,14 +74,20 @@ fun HomeScreen(act: MainActivity, wide: Boolean) {
 }
 
 @Composable
-fun ClockPanel(modifier: Modifier) {
+fun ClockPanel(act: MainActivity, modifier: Modifier) {
     val now by produceState(System.currentTimeMillis()) {
         while (true) { value = System.currentTimeMillis(); delay(1000L - value % 1000L) }
     }
     val time = SimpleDateFormat(if (Prefs.clock24.state.value) "HH:mm" else "h:mm", ptBR).format(Date(now))
     val date = SimpleDateFormat("EEEE, d 'de' MMMM", ptBR).format(Date(now)).replaceFirstChar { it.uppercase() }
     val w = Weather.now.value
-    Panel(modifier) {
+    val ac = accent()
+    Panel(modifier, onClick = { act.screen.value = Screen.Garage }) {
+        if (Prefs.showCar.state.value) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+                CarView(Modifier.fillMaxWidth(0.52f).fillMaxHeight(0.5f), Prefs.carType.state.value, Color(Prefs.carColor.state.value), Prefs.carVariant.state.value, ac)
+            }
+        }
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Column {
                 T(time, 58f, display = true)
@@ -295,9 +301,9 @@ fun Dock(act: MainActivity) {
     val ctx = LocalContext.current
     Row(Modifier.fillMaxWidth().height((58 * LocalK.current).dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         DockBtn("▦", "Apps") { act.screen.value = Screen.Apps() }
+        DockBtn("⛝", "Garagem") { act.screen.value = Screen.Garage }
         DockBtn("◎", "Drive Lab") { act.screen.value = Screen.DriveLab }
         DockBtn("⚙", "Ajustes") { act.screen.value = Screen.Settings }
-        DockBtn("⌁", "", narrow = true) { Apps.open(ctx, Intent(Settings.ACTION_SETTINGS)) }
     }
 }
 
