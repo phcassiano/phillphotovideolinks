@@ -149,7 +149,7 @@ fun MediaPanel(modifier: Modifier) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.weight(1f).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.fillMaxHeight().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
+                    Modifier.weight(0.42f).fillMaxHeight().clip(RoundedCornerShape(16.dp))
                         .background(ac.copy(alpha = 0.15f)).clickable { Media.openSource(ctx) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -157,7 +157,7 @@ fun MediaPanel(modifier: Modifier) {
                     else T("♫", 40f, ac)
                 }
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
+                Column(Modifier.weight(0.58f)) {
                     T(title.ifEmpty { "Nada tocando" }, 18f, maxLines = 2)
                     T(artist.ifEmpty { Apps.find(Media.source.value)?.label ?: "" }, 14f, alpha = 0.65f)
                     if (!Media.hasAccess.value) {
@@ -297,19 +297,18 @@ fun Dock(act: MainActivity) {
         DockBtn("▦", "Apps") { act.screen.value = Screen.Apps() }
         DockBtn("◎", "Drive Lab") { act.screen.value = Screen.DriveLab }
         DockBtn("⚙", "Ajustes") { act.screen.value = Screen.Settings }
-        DockBtn("⌁", "Sistema", narrow = true) { Apps.open(ctx, Intent(Settings.ACTION_SETTINGS)) }
+        DockBtn("⌁", "", narrow = true) { Apps.open(ctx, Intent(Settings.ACTION_SETTINGS)) }
     }
 }
 
 @Composable
 fun RowScope.DockBtn(icon: String, label: String, narrow: Boolean = false, onClick: () -> Unit) {
     Row(
-        Modifier.weight(if (narrow) 0.8f else 1f).fillMaxHeight().clip(RoundedCornerShape(16.dp))
+        Modifier.weight(if (narrow) 0.45f else 1f).fillMaxHeight().clip(RoundedCornerShape(16.dp))
             .background(Color.White.copy(alpha = 0.08f)).clickable { onClick() }.padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
     ) {
         T(icon, 20f, accent())
-        Spacer(Modifier.width(6.dp))
-        T(label, 13f)
+        if (label.isNotEmpty()) { Spacer(Modifier.width(6.dp)); T(label, 12f) }
     }
 }

@@ -106,7 +106,7 @@ fun CockpitTab(wide: Boolean) {
         Triple("Avanço", d.timing?.let { "%.0f°".format(it) }, false),
     )
     val content: @Composable (Modifier) -> Unit = { m ->
-        LazyVerticalGrid(GridCells.Adaptive((150 * LocalK.current).dp), m,
+        LazyVerticalGrid(GridCells.Adaptive((130 * LocalK.current).dp), m,
             verticalArrangement = Arrangement.spacedBy(10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(tiles) { (l, v, warn) ->
                 Panel {
@@ -118,9 +118,9 @@ fun CockpitTab(wide: Boolean) {
             }
         }
     }
-    if (wide) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ArcGauge(d.rpm?.div(1000f), 8f, "x1000 rpm", "GIRO", Modifier.fillMaxHeight(), warnFrom = 6f, decimals = 1, numberSize = 44f)
-        ArcGauge(Live.speed.floatValue, 200f, "km/h", Live.speedFrom.value, Modifier.fillMaxHeight(), alert = Live.overLimit.value, numberSize = 44f)
+    if (wide) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        ArcGauge(d.rpm?.div(1000f), 8f, "x1000 rpm", "GIRO", Modifier.weight(0.6f), warnFrom = 6f, decimals = 1, numberSize = 40f)
+        ArcGauge(Live.speed.floatValue, 200f, "km/h", Live.speedFrom.value, Modifier.weight(0.6f), alert = Live.overLimit.value, numberSize = 40f)
         content(Modifier.weight(1f).fillMaxHeight())
     } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth().weight(0.8f), horizontalArrangement = Arrangement.SpaceEvenly) {

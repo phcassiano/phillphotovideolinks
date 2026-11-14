@@ -66,3 +66,9 @@ instalar atualizações por cima sem perder as configurações.
 O Cockpit **não usa nenhum código, imagem ou recurso** do Rota Launcher; é uma implementação independente.
 A "Minha Garagem" (200+ carros desenhados) não foi copiada: as imagens são do autor do Rota Launcher.
 No Cockpit você pode usar a foto do seu próprio carro como fundo.
+
+## Telas (emulador 1280×720)
+
+![Início](dist/telas/inicio.png)
+![Drive Lab](dist/telas/drive-lab.png)
+![Códigos de falha](dist/telas/codigos.png)
