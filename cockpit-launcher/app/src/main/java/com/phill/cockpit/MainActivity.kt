@@ -80,6 +80,17 @@ class MainActivity : ComponentActivity() {
         if (!Gps.hasPermission(this)) requestLocation()
     }
 
+    override fun onStart() {
+        super.onStart()
+        FloatService.update(this, cockpitHidden = false)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Cockpit saiu da frente (ex.: abriu o Android Auto): mostra a janela flutuante, se ligada
+        FloatService.update(this, cockpitHidden = true)
+    }
+
     override fun onResume() {
         super.onResume()
         Gps.start(this)

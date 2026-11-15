@@ -3,7 +3,7 @@
 Launcher (tela inicial) para central multimídia Android, feito do zero, **grátis e sem licença**.
 Inspirado no tipo de recurso que o Rota Launcher oferece, mas com código próprio.
 
-APK pronto: [`dist/cockpit-launcher-1.0.0.apk`](dist/cockpit-launcher-1.0.0.apk)
+APK pronto: [`dist/cockpit-launcher-1.1.0.apk`](dist/cockpit-launcher-1.1.0.apk)
 
 ## Instalar na central
 
@@ -20,6 +20,7 @@ Requisitos: Android 7.0 ou superior. Funciona em tela horizontal e vertical.
 
 | Recurso | Cockpit |
 |---|---|
+| Janela flutuante por cima do Android Auto (velocidade, limite, giro e temperatura), arrastável | ✅ |
 | Tela inicial, atalhos (6 botões, toque e segure para trocar), gaveta de apps com busca | ✅ |
 | Velocímetro por GPS ou OBD2, placa de limite e aviso sonoro | ✅ |
 | Música: capa, faixa, progresso, controles e volume (funciona sem permissão pelas teclas de mídia) | ✅ |

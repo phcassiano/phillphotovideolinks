@@ -72,6 +72,11 @@ object Prefs {
     val tileStyle = P("tileStyle", "glass", true)
     val fullscreen = P("fullscreen", false)
 
+    // Janela flutuante por cima de outros apps (Android Auto)
+    val floatWin = P("floatWin", false)
+    val floatX = P("floatX", 24)
+    val floatY = P("floatY", 120)
+
     // Garagem (carro escolhido, desenhado pelo app)
     val carType = P("carType", "photo", true)
     val carColor = P("carColor", 0xFFD32F2F.toInt(), true)

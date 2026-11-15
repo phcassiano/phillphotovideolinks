@@ -143,6 +143,16 @@ fun SettingsScreen(act: MainActivity) {
         }
 
         item {
+            Section("Janela flutuante (Android Auto)") {
+                T("Mostra velocidade, limite e dados do motor numa janelinha por cima de outros apps, como o Android Auto. Arraste para mover e toque para voltar ao Cockpit.", 13f, alpha = 0.65f, maxLines = 4)
+                SwitchRow("Mostrar janela flutuante fora do Cockpit", Prefs.floatWin) {
+                    if (it && !FloatService.canDraw(ctx)) openOverlaySettings(ctx)
+                }
+                if (Prefs.floatWin.state.value && !FloatService.canDraw(ctx)) Btn("Permitir sobrepor outros apps") { openOverlaySettings(ctx) }
+            }
+        }
+
+        item {
             Section("Controle pelo celular (Wi-Fi)") {
                 T("Ligue, conecte o celular na mesma rede e abra o endereço no navegador dele. Dá para controlar a música e mandar um destino que abre o Waze aqui na central.", 13f, alpha = 0.65f, maxLines = 4)
                 SwitchRow("Ativar controle pelo celular", Prefs.remoteEnabled) { RemoteServer.ensure(ctx) }
@@ -253,6 +263,11 @@ fun SettingsScreen(act: MainActivity) {
             }
         }
     }
+}
+
+private fun openOverlaySettings(ctx: Context) {
+    if (Build.VERSION.SDK_INT >= 23)
+        Apps.open(ctx, Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${ctx.packageName}")))
 }
 
 private fun openWriteSettings(ctx: Context) {

@@ -83,14 +83,16 @@ fun ClockPanel(act: MainActivity, modifier: Modifier) {
     val w = Weather.now.value
     val ac = accent()
     Panel(modifier, onClick = { act.screen.value = Screen.Garage }) {
-        if (Prefs.showCar.state.value) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-                CarView(Modifier.fillMaxWidth(0.52f).fillMaxHeight(0.5f), Prefs.carType.state.value, Color(Prefs.carColor.state.value), Prefs.carVariant.state.value, ac)
-            }
-        }
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Column {
-                T(time, 58f, display = true)
+                // O carro fica ao lado do relógio, no espaço livre, para não cobrir data nem clima
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    T(time, 58f, display = true)
+                    if (Prefs.showCar.state.value) {
+                        Spacer(Modifier.width(8.dp))
+                        CarView(Modifier.weight(1f).height((64 * LocalK.current).dp), Prefs.carType.state.value, Color(Prefs.carColor.state.value), Prefs.carVariant.state.value, ac)
+                    }
+                }
                 T(date, 16f, alpha = 0.75f)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -309,12 +311,13 @@ fun Dock(act: MainActivity) {
 
 @Composable
 fun RowScope.DockBtn(icon: String, label: String, narrow: Boolean = false, onClick: () -> Unit) {
-    Row(
+    // Ícone em cima e nome embaixo: em telas de 1024px os quatro botões não cabem com o nome ao lado
+    Column(
         Modifier.weight(if (narrow) 0.45f else 1f).fillMaxHeight().clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.08f)).clickable { onClick() }.padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center
+            .background(Color.White.copy(alpha = 0.08f)).clickable { onClick() }.padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center
     ) {
-        T(icon, 20f, accent())
-        if (label.isNotEmpty()) { Spacer(Modifier.width(6.dp)); T(label, 12f) }
+        T(icon, 18f, accent())
+        if (label.isNotEmpty()) T(label, 11f)
     }
 }
