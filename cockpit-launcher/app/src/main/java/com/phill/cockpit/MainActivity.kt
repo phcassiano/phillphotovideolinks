@@ -94,9 +94,12 @@ class MainActivity : ComponentActivity() {
 
     fun applyFullscreen() {
         val c = WindowCompat.getInsetsController(window, window.decorView)
+        c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        // "Tela cheia" esconde só a barra de cima (status). Os botões Voltar/Início
+        // de baixo continuam sempre visíveis, para nunca prender o usuário numa tela preta.
         if (Prefs.fullscreen.v) {
-            c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            c.hide(WindowInsetsCompat.Type.systemBars())
+            c.show(WindowInsetsCompat.Type.navigationBars())
+            c.hide(WindowInsetsCompat.Type.statusBars())
         } else c.show(WindowInsetsCompat.Type.systemBars())
     }
 
