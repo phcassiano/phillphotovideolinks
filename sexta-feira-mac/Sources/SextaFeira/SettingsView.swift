@@ -1,0 +1,151 @@
+import SwiftUI
+import AppKit
+import AVFoundation
+
+struct SettingsView: View {
+    let assistant: Assistant
+
+    @AppStorage("assistantName") private var assistantName = "Sexta-feira"
+    @AppStorage("userName") private var userName = ""
+    @AppStorage("accent") private var accent = 0
+    @AppStorage("provider") private var provider = "gemini"
+    @AppStorage("geminiModel") private var geminiModel = Prefs.defaultGemini
+    @AppStorage("claudeModel") private var claudeModel = Prefs.defaultClaude
+    @AppStorage("ollamaModel") private var ollamaModel = Prefs.defaultOllama
+    @AppStorage("ollamaURL") private var ollamaURL = Prefs.defaultOllamaURL
+    @AppStorage("speakReplies") private var speakReplies = true
+    @AppStorage("wakeEnabled") private var wakeEnabled = false
+    @AppStorage("voiceID") private var voiceID = ""
+
+    @State private var geminiKey = Keychain.get("gemini")
+    @State private var claudeKey = Keychain.get("claude")
+    @State private var testResult = ""
+    @State private var testing = false
+
+    var body: some View {
+        Form {
+            identitySection
+            brainSection
+            voiceSection
+            dataSection
+        }
+        .formStyle(.grouped)
+        .frame(width: 540, height: 640)
+        .onChange(of: geminiKey) { Keychain.set($0, for: "gemini") }
+        .onChange(of: claudeKey) { Keychain.set($0, for: "claude") }
+        .onChange(of: wakeEnabled) { _ in assistant.applyPrefs() }
+        .onChange(of: assistantName) { _ in assistant.applyPrefs() }
+        .onChange(of: userName) { _ in assistant.applyPrefs() }
+        .onChange(of: accent) { _ in assistant.applyPrefs() }
+        .onDisappear { assistant.applyPrefs() }
+    }
+
+    private var identitySection: some View {
+        Section("Identidade") {
+            TextField("Nome da assistente", text: $assistantName)
+            TextField("Seu nome", text: $userName)
+            Picker("Cor", selection: $accent) {
+                ForEach(0..<Palette.colors.count, id: \.self) { i in
+                    Text(Palette.names[i]).tag(i)
+                }
+            }
+        }
+    }
+
+    private var brainSection: some View {
+        Section("Cérebro (IA)") {
+            Picker("Usar", selection: $provider) {
+                Text("Gemini (Google) — tem cota grátis").tag("gemini")
+                Text("Claude (Anthropic)").tag("claude")
+                Text("Local no Mac (Ollama, offline)").tag("local")
+            }
+
+            if provider == "gemini" {
+                SecureField("Chave da API do Gemini", text: $geminiKey)
+                TextField("Modelo", text: $geminiModel)
+                Link("Pegar uma chave grátis no Google AI Studio",
+                     destination: URL(string: "https://aistudio.google.com/apikey")!)
+            }
+
+            if provider == "claude" {
+                SecureField("Chave da API do Claude", text: $claudeKey)
+                Picker("Modelo", selection: $claudeModel) {
+                    Text("Claude Opus 5.5 — mais inteligente").tag("claude-opus-5-5")
+                    Text("Claude Sonnet 5.5 — equilibrado").tag("claude-sonnet-5-5")
+                    Text("Claude Haiku 5.5 — mais rápido e barato").tag("claude-haiku-5-5")
+                }
+                Link("Criar uma chave no Claude Console",
+                     destination: URL(string: "https://platform.claude.com/settings/keys")!)
+            }
+
+            if provider == "local" {
+                TextField("Endereço do Ollama", text: $ollamaURL)
+                TextField("Modelo", text: $ollamaModel)
+                Text("Instale o Ollama (ollama.com) e rode no Terminal:  ollama pull \(ollamaModel)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+
+            HStack(alignment: .top) {
+                Button(testing ? "Testando…" : "Testar IA", action: test)
+                    .disabled(testing)
+                Text(testResult)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(4)
+            }
+        }
+    }
+
+    private var voiceSection: some View {
+        Section("Voz") {
+            Toggle("Responder em voz alta", isOn: $speakReplies)
+            Picker("Voz", selection: $voiceID) {
+                Text("Automática").tag("")
+                ForEach(Speaker.ptVoices(), id: \.identifier) { v in
+                    Text("\(v.name) (\(v.language))").tag(v.identifier)
+                }
+            }
+            Toggle("Sempre ouvindo: diga “\(assistantName)” + o pedido", isOn: $wakeEnabled)
+            Text("Segure ⌥ Espaço para falar a qualquer momento. Um toque rápido em ⌥ Espaço abre a caixa de texto.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Dica: para uma voz bem mais natural, baixe uma voz “Aprimorada” ou “Premium” de Português (Brasil) em Ajustes do Sistema › Acessibilidade › Conteúdo Falado › Voz do Sistema › Gerenciar Vozes.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    private var dataSection: some View {
+        Section("Seus dados") {
+            Text("Tarefas, memória e notas ficam só no seu Mac. As chaves de API ficam no Keychain.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Button("Abrir pasta de dados (notas.md, tarefas, memória)") {
+                NSWorkspace.shared.open(Storage.dir)
+            }
+            Button("Sair da Sexta-feira") {
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
+    private func test() {
+        testing = true
+        testResult = ""
+        Keychain.set(geminiKey, for: "gemini")
+        Keychain.set(claudeKey, for: "claude")
+        Task { @MainActor in
+            do {
+                let raw = try await AIClient.complete(
+                    system: "Responda só com JSON no formato {\"say\": \"...\", \"actions\": []}.",
+                    turns: [ChatTurn(role: "user", text: "Diga oi em uma frase curta, em português.")])
+                testResult = "✅ " + ReplyParser.parse(raw).say
+            } catch {
+                testResult = "❌ " + error.localizedDescription
+            }
+            testing = false
+        }
+    }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.local.sextafeira</string>
+	<key>CFBundleName</key>
+	<string>Sexta-feira</string>
+	<key>CFBundleDisplayName</key>
+	<string>Sexta-feira</string>
+	<key>CFBundleExecutable</key>
+	<string>SextaFeira</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>pt-BR</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>A Sexta-feira usa o microfone para ouvir seus pedidos.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>A Sexta-feira transforma sua voz em texto para entender os pedidos.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>A Sexta-feira controla o Spotify, o app Música e o volume do Mac.</string>
+</dict>
+</plist>
