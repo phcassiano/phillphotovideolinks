@@ -13,6 +13,8 @@ final class SpeechService {
     var wakePhrase = "Sexta-feira"
 
     private(set) var isPushing = false
+    /// O microfone está aberto pela própria Sexta-feira?
+    var micActive: Bool { engine.isRunning }
     private var wakeEnabled = false
     private var paused = false
     private var awake = false

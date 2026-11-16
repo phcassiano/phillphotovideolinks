@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UserNotifications
+import Carbon.HIToolbox
 
 @main
 struct SextaFeiraApp: App {
@@ -17,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var assistant: Assistant!
     private var notch: NotchController!
     private var pet: DesktopPet!
+    private var widgets: DesktopWidgets!
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
     private var holdTimer: Timer?
@@ -33,12 +35,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                 openSettings: { [weak self] in self?.openSettings() })
 
         pet = DesktopPet(app: state)
-        assistant.onPrefsChanged = { [weak self] in self?.pet.setEnabled(Prefs.petEnabled) }
+        widgets = DesktopWidgets(tools: assistant.tools, state: state)
+        assistant.onPrefsChanged = { [weak self] in
+            self?.pet.setEnabled(Prefs.petEnabled)
+            self?.widgets.refresh()
+        }
 
         setupStatusItem()
 
-        HotKey.handler = { [weak self] pressed in self?.hotKey(pressed) }
-        HotKey.register()
+        registerHotKeys()
 
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
 
@@ -48,6 +53,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.set(true, forKey: "jaConfigurado")
             openSettings()
         }
+    }
+
+    private func registerHotKeys() {
+        HotKey.register(id: 1, keyCode: kVK_Space, modifiers: optionKey) { [weak self] pressed in self?.hotKey(pressed) }
+        // ⌃⌥V: histórico do que você copiou
+        HotKey.register(id: 2, keyCode: kVK_ANSI_V, modifiers: controlKey | optionKey) { [weak self] pressed in
+            if pressed { self?.notch.openTab(.clips) }
+        }
+        // Janelas: ⌃⌥ + setas / Return / C, e ⌃⌥⌘ ← → para trocar de monitor
+        let ctrlOpt = controlKey | optionKey
+        let snaps: [(UInt32, Int, Int, WindowSnap)] = [
+            (10, kVK_LeftArrow, ctrlOpt, .left), (11, kVK_RightArrow, ctrlOpt, .right),
+            (12, kVK_UpArrow, ctrlOpt, .top), (13, kVK_DownArrow, ctrlOpt, .bottom),
+            (14, kVK_Return, ctrlOpt, .maximize), (15, kVK_ANSI_C, ctrlOpt, .center),
+            (16, kVK_RightArrow, ctrlOpt | cmdKey, .nextDisplay), (17, kVK_LeftArrow, ctrlOpt | cmdKey, .previousDisplay),
+        ]
+        for (id, key, mods, snap) in snaps {
+            HotKey.register(id: id, keyCode: key, modifiers: mods) { pressed in
+                guard pressed, Prefs.windowHotkeys else { return }
+                if let msg = WindowManager.snap(snap) { Notifier.post(title: "Janelas", body: msg) }
+            }
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        DisplayDimmer.resetAll()
     }
 
     // MARK: ⌥ Espaço — segurar = falar, toque rápido = abrir/fechar

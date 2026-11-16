@@ -11,6 +11,8 @@ enum Action {
     case note(String), remember(String), forget(String)
     case shortcut(String)
     case habit(String), copyPix, checkMac, image(String), run(String)
+    case boost, battery, agenda, caffeine(Int?), caffeineOff
+    case window(WindowSnap), audioOutput(String), brightness(Int)
 
     /// Converte um item de "actions" do JSON da IA.
     static func from(_ d: [String: Any]) -> Action? {
@@ -57,6 +59,35 @@ enum Action {
         case "check_mac": return .checkMac
         case "image": return nonEmpty(str("prompt")) { .image($0) }
         case "run": return nonEmpty(str("name")) { .run($0) }
+        case "boost": return .boost
+        case "battery_status": return .battery
+        case "agenda": return .agenda
+        case "caffeine":
+            if str("state").lowercased() == "off" { return .caffeineOff }
+            return .caffeine(num("minutes").map { Int($0) })
+        case "window":
+            let pos = str("position").lowercased()
+            return WindowSnap(rawValue: pos).map { .window($0) } ?? windowAlias(pos).map { .window($0) }
+        case "audio_output": return nonEmpty(str("name")) { .audioOutput($0) }
+        case "brightness": return num("level").map { .brightness(Int($0)) }
+        default: return nil
+        }
+    }
+
+    static func windowAlias(_ s: String) -> WindowSnap? {
+        switch s {
+        case "left", "esquerda": return .left
+        case "right", "direita": return .right
+        case "top", "cima", "em cima": return .top
+        case "bottom", "baixo", "embaixo": return .bottom
+        case "maximize", "max", "tela cheia", "full": return .maximize
+        case "center", "centro", "meio": return .center
+        case "next_display", "outro monitor", "outra tela", "proximo monitor": return .nextDisplay
+        case "previous_display": return .previousDisplay
+        case "top_left": return .topLeft
+        case "top_right": return .topRight
+        case "bottom_left": return .bottomLeft
+        case "bottom_right": return .bottomRight
         default: return nil
         }
     }
@@ -120,6 +151,44 @@ enum QuickCommands {
         // Arte / imagem
         if Rx.match(#"^(?:cria|crie|criar|gera|gere|gerar|faz|faca|fazer|desenha|desenhe)(?: uma| um)? (?:arte|imagem|desenho|logo|logotipo|figura|ilustracao|foto)\b.+$"#, t) != nil {
             return Result(actions: [.image(raw.trimmed)], say: "Criando sua arte… já te mostro! 🎨")
+        }
+
+        // Ferramentas do Mac (Pulso)
+        if ["boost", "faz um boost", "faca um boost", "da um boost", "acelera o mac", "otimiza o mac", "otimizar o mac"].contains(t) {
+            return Result(actions: [.boost], say: "Boost começando! Vou limpar o que é seguro e te digo a nota. ⚡")
+        }
+        if ["bateria", "como esta a bateria", "como ta a bateria", "quanto de bateria", "saude da bateria",
+            "como esta a saude da bateria", "quanto tem de bateria"].contains(t) {
+            return Result(actions: [.battery], say: "")
+        }
+        if ["agenda", "minha agenda", "agenda de hoje", "o que tenho hoje", "o que eu tenho hoje", "proximo compromisso",
+            "qual meu proximo compromisso", "tenho reuniao hoje", "compromissos de hoje"].contains(t) {
+            return Result(actions: [.agenda], say: "")
+        }
+        if ["desliga a cafeina", "pode dormir", "desativa a cafeina", "tira a cafeina"].contains(t) {
+            return Result(actions: [.caffeineOff], say: "Cafeína desligada. O Mac pode dormir quando quiser.")
+        }
+        if let m = Rx.match(#"^(?:deixa|mantem|mantenha|manter) o (?:mac|computador|pc) acordado(?: (?:por|durante) (\d+) ?(minutos?|min|horas?|h))?$"#, n) {
+            let mins = Int(m[1]).map { $0 * (m[2].hasPrefix("h") ? 60 : 1) }
+            return Result(actions: [.caffeine(mins)],
+                          say: mins.map { "Cafeína ligada por \(Fmt.duration(Double($0 * 60)))." } ?? "Cafeína ligada. O Mac não vai dormir.")
+        }
+        if ["cafeina", "modo cafeina", "liga a cafeina", "ativa a cafeina"].contains(t) {
+            return Result(actions: [.caffeine(nil)], say: "Cafeína ligada. O Mac não vai dormir.")
+        }
+        if let m = Rx.match(#"^(?:coloca|joga|manda|move|poe|bota|leva)?(?: a)? ?janela (?:para a |pra |na |no |pro |para o |a |o |em )?(esquerda|direita|cima|em cima|baixo|embaixo|tela cheia|centro|meio|outro monitor|outra tela|proximo monitor)$"#, t),
+           let snap = Action.windowAlias(m[1]) {
+            return Result(actions: [.window(snap)], say: "")
+        }
+        if ["maximiza", "maximiza a janela", "janela em tela cheia", "aumenta a janela"].contains(t) {
+            return Result(actions: [.window(.maximize)], say: "")
+        }
+        if let m = Rx.match(#"^(?:muda|troca|coloca|passa|joga) (?:o )?(?:som|audio|saida de audio|saida) (?:para|pra|no|na|nos|nas) (?:o |a |os |as )?(.+)$"#, t) {
+            return Result(actions: [.audioOutput(m[1])], say: "Som trocado.")
+        }
+        if let m = Rx.match(#"^(?:brilho|escurece a tela|escurecer a tela)(?: em| para| pra| no| a)? (\d{1,3})(?: por cento)?$"#, n),
+           let v = Int(m[1]) {
+            return Result(actions: [.brightness(v)], say: "")
         }
 
         // Volume

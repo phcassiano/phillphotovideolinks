@@ -31,7 +31,8 @@ struct NowPlaying: Equatable {
 }
 
 enum PanelTab: String, CaseIterable, Identifiable {
-    case home, chat, tasks, habits, timers, clips, routines, memory, mymac
+    case home, chat, tasks, habits, timers, clips, routines, memory
+    case mymac, battery, cleanup, windows, agenda, privacy
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -44,6 +45,11 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .routines: return "Rotinas"
         case .memory: return "Memória"
         case .mymac: return "Meu Mac"
+        case .battery: return "Bateria"
+        case .cleanup: return "Limpeza"
+        case .windows: return "Janelas e telas"
+        case .agenda: return "Agenda"
+        case .privacy: return "Vigia"
         }
     }
     var icon: String {
@@ -56,7 +62,12 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .clips: return "doc.on.clipboard"
         case .routines: return "bolt.fill"
         case .memory: return "brain"
-        case .mymac: return "laptopcomputer"
+        case .mymac: return "gauge.with.dots.needle.67percent"
+        case .battery: return "battery.75"
+        case .cleanup: return "sparkles"
+        case .windows: return "macwindow.on.rectangle"
+        case .agenda: return "calendar"
+        case .privacy: return "eye.fill"
         }
     }
 }
@@ -116,6 +127,7 @@ final class AppState: ObservableObject {
     @Published var scanSteps: [ScanStep] = []
     @Published var scanProgress: Double?
     @Published var report: [ReportLine] = []
+    @Published var score: Int?
 
     @Published var assistantName = Prefs.assistantName
     @Published var userName = Prefs.userName
@@ -182,6 +194,10 @@ enum Prefs {
     static var waterReminder: Bool { d.bool(forKey: "waterReminder") }
     static var pixKey: String { d.string(forKey: "pixKey") ?? "" }
     static let defaultImageModel = "gemini-2.5-flash-image"
+    static var chargeAlert: Bool { d.object(forKey: "chargeAlert") as? Bool ?? true }
+    static var chargeLimit: Int { d.object(forKey: "chargeLimit") as? Int ?? 80 }
+    static var privacyWatch: Bool { d.object(forKey: "privacyWatch") as? Bool ?? true }
+    static var windowHotkeys: Bool { d.object(forKey: "windowHotkeys") as? Bool ?? true }
     static var imageModel: String { d.string(forKey: "imageModel").nonEmpty ?? defaultImageModel }
 }
 

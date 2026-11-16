@@ -196,7 +196,7 @@ struct ExpandedView: View {
                     }
                 }
             }
-            .padding(.bottom, 8)
+            .padding(.bottom, 6)
 
             ForEach(PanelTab.allCases) { tab in
                 Button {
@@ -220,7 +220,7 @@ struct ExpandedView: View {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
+                    .padding(.vertical, 3)
                     .background(
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
                             .fill(state.tab == tab ? state.accent : Color.clear)
@@ -257,6 +257,12 @@ struct ExpandedView: View {
             return state.habits.isEmpty ? nil : "\(done)/\(state.habits.count)"
         case .timers:
             return state.timers.isEmpty ? nil : "\(state.timers.count)"
+        case .battery:
+            return assistant.tools.battery.map { "\($0.percent)%" }
+        case .mymac:
+            return state.score.map { "\($0)" }
+        case .privacy:
+            return (assistant.tools.micOn || assistant.tools.camOn) ? "●" : nil
         default:
             return nil
         }
@@ -309,7 +315,12 @@ struct ExpandedView: View {
         case .clips: ClipsTab(state: state)
         case .routines: RoutinesTab(state: state, assistant: assistant)
         case .memory: MemoryTab(state: state)
-        case .mymac: MyMacTab(state: state, assistant: assistant)
+        case .mymac: MyMacTab(state: state, tools: assistant.tools, assistant: assistant)
+        case .battery: BatteryTab(state: state, tools: assistant.tools)
+        case .cleanup: CleanupTab(state: state, tools: assistant.tools)
+        case .windows: WindowsTab(state: state, tools: assistant.tools)
+        case .agenda: AgendaTab(state: state, tools: assistant.tools)
+        case .privacy: PrivacyTab(state: state, tools: assistant.tools)
         }
     }
 }

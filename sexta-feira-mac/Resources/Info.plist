@@ -28,6 +28,10 @@
 	<string>A Sexta-feira usa o microfone para ouvir seus pedidos.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>A Sexta-feira transforma sua voz em texto para entender os pedidos.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>A Sexta-feira mostra e lê seus próximos compromissos.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>A Sexta-feira mostra e lê seus próximos compromissos.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>A Sexta-feira controla o Spotify, o app Música e o volume do Mac.</string>
 </dict>

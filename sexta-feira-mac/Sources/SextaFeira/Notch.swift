@@ -81,6 +81,7 @@ final class NotchController {
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
+                assistant.tools.refreshDisplays()
                 self?.updateGeometry()
                 self?.layout(animated: false)
             }
@@ -121,7 +122,7 @@ final class NotchController {
         guard let screen else { return .zero }
         let size: NSSize
         if state.expanded {
-            size = NSSize(width: 720, height: 500 + (state.notchWidth > 0 ? state.menuBarHeight : 0))
+            size = NSSize(width: 740, height: 560 + (state.notchWidth > 0 ? state.menuBarHeight : 0))
         } else {
             size = collapsedSize()
         }
@@ -195,35 +196,58 @@ final class NotchController {
         state.expanded = true
         state.pinned = true
     }
+
+    func openTab(_ tab: PanelTab) {
+        state.tab = tab
+        state.expanded = true
+        state.pinned = true
+    }
 }
 
-/// Atalho global ⌥ Espaço (segurar = falar, tocar = abrir).
+/// Atalhos globais (⌥ Espaço, ⌃⌥V, atalhos de janela…).
 @MainActor
 enum HotKey {
-    static var handler: (@MainActor (Bool) -> Void)?
-    private static var ref: EventHotKeyRef?
+    private static var handlers: [UInt32: @MainActor (Bool) -> Void] = [:]
+    private static var refs: [EventHotKeyRef] = []
     private static var installed = false
 
-    static func register() {
-        if !installed {
-            var types = [
-                EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
-                EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
-            ]
-            InstallEventHandler(GetApplicationEventTarget(), hotKeyCallback, 2, &types, nil, nil)
-            installed = true
+    static func register(id: UInt32, keyCode: Int, modifiers: Int, handler: @escaping @MainActor (Bool) -> Void) {
+        install()
+        handlers[id] = handler
+        var ref: EventHotKeyRef?
+        let hkID = EventHotKeyID(signature: OSType(0x5345_5854), id: id) // "SEXT"
+        let status = RegisterEventHotKey(UInt32(keyCode), UInt32(modifiers), hkID, GetApplicationEventTarget(), 0, &ref)
+        if status != noErr {
+            NSLog("Não consegui registrar o atalho %d (já está em uso?)", Int(id))
+        } else if let ref {
+            refs.append(ref)
         }
-        let id = EventHotKeyID(signature: OSType(0x5345_5854), id: 1) // "SEXT"
-        let status = RegisterEventHotKey(UInt32(kVK_Space), UInt32(optionKey), id,
-                                         GetApplicationEventTarget(), 0, &ref)
-        if status != noErr { NSLog("Não consegui registrar ⌥Espaço (já está em uso?)") }
+    }
+
+    static func fire(_ id: UInt32, _ pressed: Bool) {
+        handlers[id]?(pressed)
+    }
+
+    private static func install() {
+        guard !installed else { return }
+        installed = true
+        var types = [
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+            EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
+        ]
+        InstallEventHandler(GetApplicationEventTarget(), hotKeyCallback, 2, &types, nil, nil)
     }
 }
 
 private func hotKeyCallback(_ next: EventHandlerCallRef?, _ event: EventRef?,
                             _ userData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let event else { return OSStatus(eventNotHandledErr) }
+    var hkID = EventHotKeyID()
+    let err = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                nil, MemoryLayout<EventHotKeyID>.size, nil, &hkID)
+    guard err == noErr else { return OSStatus(eventNotHandledErr) }
     let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
-    Task { @MainActor in HotKey.handler?(pressed) }
+    let id = hkID.id
+    Task { @MainActor in HotKey.fire(id, pressed) }
     return noErr
 }

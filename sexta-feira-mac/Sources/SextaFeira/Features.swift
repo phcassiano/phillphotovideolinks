@@ -96,6 +96,8 @@ struct ReportLine: Identifiable, Equatable {
     let title: String
     let value: String
     let warn: Bool
+    /// Pontos que este item tira da nota (0–100).
+    var penalty: Int = 0
 }
 
 enum MacInfo {
@@ -106,7 +108,7 @@ enum MacInfo {
         "Somando arquivos temporários (caches)",
         "Conferindo a lixeira",
         "Contando o que abre junto com o Mac",
-        "Checando a bateria",
+        "Checando a bateria e a temperatura",
     ]
 
     static func bytes(_ n: Int64) -> String {
@@ -120,47 +122,68 @@ enum MacInfo {
             guard m.total > 0 else { return [] }
             let pct = Int((m.used / m.total * 100).rounded())
             return [ReportLine(icon: "memorychip", title: "Memória em uso",
-                               value: "\(pct)% de \(bytes(Int64(m.total)))", warn: pct >= 85)]
+                               value: "\(pct)% de \(bytes(Int64(m.total)))", warn: pct >= 85,
+                               penalty: max(0, (pct - 75) / 2))]
         case 1:
             let top = topCPU()
             guard let first = top.first else { return [] }
             let list = top.prefix(3).map { "\($0.0) (\(Int($0.1))%)" }.joined(separator: ", ")
-            return [ReportLine(icon: "cpu", title: "Mais usam o processador", value: list, warn: first.1 >= 80)]
+            return [ReportLine(icon: "cpu", title: "Mais usam o processador", value: list, warn: first.1 >= 80,
+                               penalty: first.1 >= 80 ? 5 : 0)]
         case 2:
             guard let d = disk() else { return [] }
             let lowPct = Double(d.free) / Double(max(d.total, 1)) < 0.10
             return [ReportLine(icon: "internaldrive", title: "Espaço livre no disco",
                                value: "\(bytes(d.free)) de \(bytes(d.total))",
-                               warn: lowPct || d.free < 15_000_000_000)]
+                               warn: lowPct || d.free < 15_000_000_000,
+                               penalty: lowPct ? 20 : (d.free < 30_000_000_000 ? 8 : 0))]
         case 3:
             let caches = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches")
             guard let size = folderSize(caches) else { return [] }
-            return [ReportLine(icon: "archivebox", title: "Caches dos apps", value: bytes(size), warn: size > 5_000_000_000)]
+            return [ReportLine(icon: "archivebox", title: "Caches dos apps", value: bytes(size), warn: size > 5_000_000_000,
+                               penalty: size > 5_000_000_000 ? 10 : (size > 2_000_000_000 ? 5 : 0))]
         case 4:
             let trash = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash")
             guard let size = folderSize(trash) else {
                 return [ReportLine(icon: "trash", title: "Lixeira", value: "sem permissão para medir", warn: false)]
             }
-            return [ReportLine(icon: "trash", title: "Lixeira", value: bytes(size), warn: size > 1_000_000_000)]
+            return [ReportLine(icon: "trash", title: "Lixeira", value: bytes(size), warn: size > 1_000_000_000,
+                               penalty: size > 1_000_000_000 ? 5 : 0)]
         case 5:
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             let n = countPlists(home + "/Library/LaunchAgents") + countPlists("/Library/LaunchAgents")
-            return [ReportLine(icon: "power", title: "Itens que iniciam sozinhos", value: "\(n)", warn: n > 15)]
+            return [ReportLine(icon: "power", title: "Itens que iniciam sozinhos", value: "\(n)", warn: n > 15,
+                               penalty: n > 15 ? 5 : 0)]
         case 6:
-            guard let b = battery() else { return [] }
-            return [ReportLine(icon: b.charging ? "battery.100.bolt" : "battery.50", title: "Bateria",
-                               value: "\(b.percent)%\(b.charging ? " (carregando)" : "")",
-                               warn: b.percent < 20 && !b.charging)]
+            var lines: [ReportLine] = []
+            if let b = BatteryReader.read() {
+                let h = b.health
+                lines.append(ReportLine(icon: b.plugged ? "battery.100.bolt" : "battery.50", title: "Bateria",
+                                        value: "\(b.percent)% · saúde \(h > 0 ? "\(h)%" : "—") · \(b.cycles) ciclos",
+                                        warn: (h > 0 && h < 80) || (b.percent < 20 && !b.plugged),
+                                        penalty: h > 0 && h < 80 ? 10 : 0))
+            }
+            let t = ProcessInfo.processInfo.thermalState
+            let hot = t == .serious || t == .critical
+            lines.append(ReportLine(icon: "thermometer.medium", title: "Temperatura",
+                                    value: t == .nominal ? "Normal" : (t == .fair ? "Morno" : (t == .serious ? "Quente" : "Muito quente")),
+                                    warn: hot, penalty: t == .critical ? 30 : (t == .serious ? 15 : 0)))
+            return lines
         default:
             return []
         }
     }
 
+    static func score(_ lines: [ReportLine]) -> Int {
+        max(0, min(100, 100 - lines.reduce(0) { $0 + $1.penalty }))
+    }
+
     static func summary(_ lines: [ReportLine]) -> String {
         let warns = lines.filter { $0.warn }
-        if warns.isEmpty { return "Seu Mac está tranquilo, tudo em ordem! ✅" }
+        let s = score(lines)
+        if warns.isEmpty { return "Nota \(s) de 100. Seu Mac está tranquilo, tudo em ordem! ✅" }
         let items = warns.map { "\($0.title.lowercased()): \($0.value)" }.joined(separator: "; ")
-        return "Achei \(warns.count == 1 ? "1 ponto" : "\(warns.count) pontos") de atenção — \(items)."
+        return "Nota \(s) de 100. Achei \(warns.count == 1 ? "1 ponto" : "\(warns.count) pontos") de atenção — \(items)."
     }
 
     // MARK: medições
@@ -263,6 +286,7 @@ final class MacChecker {
                 try? await Task.sleep(nanoseconds: 250_000_000)
             }
             state.report = lines
+            state.score = MacInfo.score(lines)
             state.scanProgress = nil
             running = false
             done(MacInfo.summary(lines))

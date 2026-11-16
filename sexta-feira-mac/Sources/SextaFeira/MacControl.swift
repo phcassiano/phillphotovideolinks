@@ -164,15 +164,43 @@ final class ActionRunner {
     let state: AppState
     let music: MusicController
     let checker: MacChecker
+    let tools: MacTools
     var announce: (@MainActor (String) -> Void)?
     /// Roda uma função personalizada ou rotina pelo nome (configurado pelo Assistant).
     var runNamed: (@MainActor (String) -> String?)?
     private var handles: [UUID: Timer] = [:]
 
-    init(state: AppState, music: MusicController) {
+    init(state: AppState, music: MusicController, tools: MacTools) {
         self.state = state
         self.music = music
+        self.tools = tools
         self.checker = MacChecker(state: state)
+    }
+
+    private func openTab(_ tab: PanelTab) {
+        state.tab = tab
+        state.expanded = true
+    }
+
+    /// Boost: limpa caches seguros e logs e verifica de novo, mostrando a nota antes e depois.
+    func boost() {
+        openTab(.mymac)
+        let before = state.score
+        let running = Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier?.lowercased() })
+        Task { @MainActor [weak self] in
+            let items = await Task.detached { Cleaner.scan(running: running) }.value
+            let safe = items.filter { $0.safe }
+            let freed = await Task.detached { Cleaner.clean(safe) }.value
+            guard let self else { return }
+            self.state.addXP(20)
+            self.checker.run { [weak self] _ in
+                guard let self else { return }
+                let after = self.state.score ?? 0
+                var msg = "Boost feito! Liberei \(MacInfo.bytes(freed))."
+                if let b = before { msg += " Nota de \(b) para \(after)." } else { msg += " Nota: \(after) de 100." }
+                self.announce?(msg)
+            }
+        }
     }
 
     /// Abre o destino de uma função personalizada: site, pasta, arquivo ou app.
@@ -267,8 +295,7 @@ final class ActionRunner {
             return nil
 
         case .checkMac:
-            state.tab = .mymac
-            state.expanded = true
+            openTab(.mymac)
             checker.run { [weak self] summary in self?.announce?(summary) }
             return nil
 
@@ -282,6 +309,44 @@ final class ActionRunner {
                     self?.announce?("Não consegui criar a imagem: \(error.localizedDescription)")
                 }
             }
+            return nil
+
+        case .boost:
+            boost()
+            return nil
+
+        case .battery:
+            openTab(.battery)
+            tools.slowRefresh()
+            announce?(tools.batterySummary())
+            return nil
+
+        case .agenda:
+            openTab(.agenda)
+            if !tools.agendaAllowed {
+                tools.requestAgenda()
+                return "Preciso de acesso à sua agenda: aceite o pedido do macOS e pergunte de novo."
+            }
+            announce?(tools.agendaSummary())
+            return nil
+
+        case .caffeine(let minutes):
+            tools.setCaffeine(minutes: minutes)
+            return nil
+
+        case .caffeineOff:
+            tools.stopCaffeine()
+            return nil
+
+        case .window(let snap):
+            return WindowManager.snap(snap)
+
+        case .audioOutput(let name):
+            return tools.setOutput(named: name)
+
+        case .brightness(let level):
+            tools.refreshDisplays()
+            tools.setAllDim(Double(max(15, min(100, level))) / 100)
             return nil
 
         case .run(let name):

@@ -8,6 +8,7 @@ final class Assistant {
     let speech = SpeechService()
     let speaker = Speaker()
     let music: MusicController
+    let tools: MacTools
     let actions: ActionRunner
 
     private var history: [ChatTurn] = []
@@ -27,7 +28,9 @@ final class Assistant {
         self.state = state
         let music = MusicController()
         self.music = music
-        self.actions = ActionRunner(state: state, music: music)
+        let tools = MacTools(state: state)
+        self.tools = tools
+        self.actions = ActionRunner(state: state, music: music, tools: tools)
 
         speech.onPartial = { [weak self] text in self?.state.partial = text }
         speech.onListeningChanged = { [weak self] on in self?.listeningChanged(on) }
@@ -35,6 +38,8 @@ final class Assistant {
         speaker.onFinish = { [weak self] in self?.speechFinished() }
         actions.announce = { [weak self] msg in self?.respond(msg) }
         actions.runNamed = { [weak self] name in self?.runNamed(name) }
+        tools.announce = { [weak self] msg in self?.respond(msg) }
+        tools.ownMicActive = { [weak self] in self?.speech.micActive ?? false }
 
         musicTimer = every(2) { [weak self] in self?.refreshMusic() }
         clipTimer = every(1) { [weak self] in self?.checkClipboard() }
@@ -256,7 +261,7 @@ final class Assistant {
     func respond(_ say: String, speak: Bool = true) {
         let text = say.trimmed
         guard !text.isEmpty else {
-            if state.mode != .listening { state.mode = .idle }
+            if state.mode == .thinking { state.mode = .idle }
             return
         }
         state.messages.append(ChatMessage(fromUser: false, text: text))
@@ -323,6 +328,9 @@ final class Assistant {
         if let np = state.nowPlaying {
             ctx += "\nMúsica: \(np.playing ? "tocando" : "pausada") “\(np.title)” de \(np.artist) (\(np.app)).\n"
         }
+        if let b = tools.battery {
+            ctx += "\nMac: bateria \(b.percent)% (\(b.statusText.lowercased())), CPU \(Int(tools.cpu * 100))%, memória \(tools.memPercent)%, temperatura \(tools.thermalText.lowercased())\(tools.caffeineOn ? ", cafeína ligada" : "").\n"
+        }
         if !state.habits.isEmpty {
             ctx += "\nHábitos de hoje: " + state.habits.map { "\($0.name) \($0.count)/\($0.goal)" }.joined(separator: ", ") + "\n"
         }
@@ -364,6 +372,13 @@ final class Assistant {
         - {"type":"check_mac"}  (verifica memória, processador, disco, caches, lixeira e bateria)
         - {"type":"image","prompt":"descrição detalhada da imagem"}  (cria uma arte/imagem/logo)
         - {"type":"run","name":"nome da função ou rotina"}
+        - {"type":"boost"}  (limpa caches seguros e dá a nota do Mac de 0 a 100)
+        - {"type":"battery_status"}  (fala a carga, saúde e ciclos da bateria)
+        - {"type":"agenda"}  (fala os compromissos de hoje)
+        - {"type":"caffeine","minutes":60}  ou  {"type":"caffeine","state":"off"}  (manter o Mac acordado)
+        - {"type":"window","position":"left|right|top|bottom|top_left|top_right|bottom_left|bottom_right|maximize|center|next_display"}  (move a janela da frente)
+        - {"type":"audio_output","name":"AirPods"}  (troca a saída de som)
+        - {"type":"brightness","level":60}  (brilho das telas, 15–100)
 
         Regras:
         - Só use ações quando o pedido pedir. Para conversa normal, "actions" fica vazia.

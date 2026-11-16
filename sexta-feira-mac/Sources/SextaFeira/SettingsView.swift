@@ -21,6 +21,15 @@ struct SettingsView: View {
     @AppStorage("waterReminder") private var waterReminder = false
     @AppStorage("pixKey") private var pixKey = ""
     @AppStorage("imageModel") private var imageModel = Prefs.defaultImageModel
+    @AppStorage("windowHotkeys") private var windowHotkeys = true
+    @AppStorage("privacyWatch") private var privacyWatch = true
+    @AppStorage("chargeAlert") private var chargeAlert = true
+    @AppStorage("widget.clock") private var wClock = false
+    @AppStorage("widget.battery") private var wBattery = false
+    @AppStorage("widget.system") private var wSystem = false
+    @AppStorage("widget.agenda") private var wAgenda = false
+    @AppStorage("widget.world") private var wWorld = false
+    @AppStorage("widget.habits") private var wHabits = false
 
     @State private var geminiKey = Keychain.get("gemini")
     @State private var claudeKey = Keychain.get("claude")
@@ -31,6 +40,7 @@ struct SettingsView: View {
         Form {
             identitySection
             extrasSection
+            toolsSection
             brainSection
             voiceSection
             dataSection
@@ -45,6 +55,12 @@ struct SettingsView: View {
         .onChange(of: accent) { _ in assistant.applyPrefs() }
         .onChange(of: petEnabled) { _ in assistant.applyPrefs() }
         .onChange(of: waterReminder) { _ in assistant.applyPrefs() }
+        .onChange(of: wClock) { _ in assistant.applyPrefs() }
+        .onChange(of: wBattery) { _ in assistant.applyPrefs() }
+        .onChange(of: wSystem) { _ in assistant.applyPrefs() }
+        .onChange(of: wAgenda) { _ in assistant.applyPrefs() }
+        .onChange(of: wWorld) { _ in assistant.applyPrefs() }
+        .onChange(of: wHabits) { _ in assistant.applyPrefs() }
         .onDisappear { assistant.applyPrefs() }
     }
 
@@ -74,6 +90,25 @@ struct SettingsView: View {
             Text("Criar artes usa a chave do Gemini, mesmo que o cérebro seja outro. Pode ter custo dependendo da sua conta.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+        }
+    }
+
+    private var toolsSection: some View {
+        Section("Ferramentas do Mac") {
+            Toggle("Atalhos de janela (⌃⌥ setas, ⌃⌥↩ tela cheia, ⌃⌥⌘ setas troca de monitor)", isOn: $windowHotkeys)
+            Toggle("Vigia: avisar quando um app ligar câmera ou microfone", isOn: $privacyWatch)
+            Toggle("Avisar quando a bateria chegar no limite de carga", isOn: $chargeAlert)
+            Text("⌃⌥V abre o histórico de copiados de qualquer lugar.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("Widgets na área de trabalho (arraste para posicionar):")
+                .font(.caption)
+            Toggle("Relógio", isOn: $wClock)
+            Toggle("Bateria", isOn: $wBattery)
+            Toggle("Sistema (CPU e memória)", isOn: $wSystem)
+            Toggle("Agenda", isOn: $wAgenda)
+            Toggle("Relógio mundial", isOn: $wWorld)
+            Toggle("Hábitos e água", isOn: $wHabits)
         }
     }
 
