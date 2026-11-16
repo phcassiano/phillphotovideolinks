@@ -30,6 +30,29 @@ Feita em Swift/SwiftUI nativo: leve, sem Electron e só para o seu Mac.
 | "abre o painel da TV" | abre o que você cadastrou em **Rotinas › Funções** |
 | "ativa o modo foco" | roda uma **rotina** (vários comandos de uma vez) |
 
+## Ferramentas do Mac (vindas do Pulso)
+
+- **Meu Mac**: CPU, GPU, memória, rede e temperatura ao vivo, com gráficos. **Nota de 0 a 100**
+  e **⚡ Boost** (limpa caches seguros e logs, depois mostra a nota de antes e de depois).
+- **Bateria**: carga, saúde (%), ciclos, capacidade em mAh, temperatura, potência e tempo restante.
+  Avisa (com voz e notificação) quando a carga chega no limite (80% por padrão).
+  **Cafeína** mantém o Mac acordado por 30 min, 1 h, 2 h ou sempre.
+- **Limpeza**: caches e logs com o tamanho de cada um, sem mexer em caches da Apple nem de apps
+  abertos. **Desinstalador completo**: o app e todos os restos (preferências, caches, containers…) vão para o Lixo.
+- **Janelas e telas**: ⌃⌥←/→/↑/↓ metades, ⌃⌥↩ tela cheia, ⌃⌥C centraliza, ⌃⌥⌘←/→ troca de monitor,
+  além de cantos e terços. Brilho de qualquer monitor (escurecimento por software). Volume e saída de som.
+- **Agenda**: próximos compromissos (Calendário, Google, iCloud) e **relógio mundial** com bandeiras.
+- **Vigia**: avisa quando algum app liga a **câmera** ou o **microfone**, com histórico.
+- **⌃⌥V** abre os Copiados de qualquer lugar.
+- **Widgets de mesa**: relógio, bateria, sistema, agenda, relógio mundial e hábitos. Ligue em
+  Configurações › Ferramentas do Mac e arraste para posicionar.
+- Voz: "faz um boost", "como está a bateria?", "o que tenho hoje?", "deixa o Mac acordado por 1 hora",
+  "coloca a janela na esquerda", "muda o som para o AirPods", "brilho 50".
+
+Limites honestos: o **limite físico de carga** e o **controle de ventoinha** precisam de um ajudante
+com senha de administrador (que escreve no chip SMC). Por isso, por enquanto, a Sexta-feira avisa no limite
+em vez de cortar a carga. **Equalizador** e **esconder ícones da barra** ainda não estão incluídos.
+
 ## Telas
 
 - **Início**: saudação ("Boa tarde, …"), nível/XP, cartões de água, tarefas, timers,
