@@ -252,6 +252,14 @@ enum AudioDevices {
         return n.takeRetainedValue() as String
     }
 
+    static func uid(_ id: AudioDeviceID) -> String? {
+        var addr = address(kAudioDevicePropertyDeviceUID)
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        guard AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &value) == noErr, let v = value else { return nil }
+        return v.takeRetainedValue() as String
+    }
+
     static func outputs() -> [AudioDevice] {
         allIDs().filter { channels($0, input: false) > 0 }.map { AudioDevice(id: $0, name: name($0)) }
     }
@@ -397,6 +405,13 @@ final class MacTools: ObservableObject {
     @Published var memHistory: [Double] = []
     @Published var topApps: [ProcUsage] = []
 
+    @Published var cpuTemp: Double?
+    @Published var gpuTemp: Double?
+    @Published var fans: [FanInfo] = []
+    let helper = HelperManager()
+    let eq = EqualizerController()
+    let menuBar = MenuBarCleaner()
+
     @Published var caffeineOn = false
     @Published var caffeineUntil: Date?
 
@@ -430,6 +445,10 @@ final class MacTools: ObservableObject {
     private var slowTimer: Timer?
     private var caffeineTimer: Timer?
     private var chargeNotified = false
+    private var cpuKeys: [String] = []
+    private var gpuKeys: [String] = []
+    private var sensorsReady = false
+    private var ddcServices: [CFTypeRef] = []
     private var privacyPrimed = false
 
     init(state: AppState) {
@@ -439,6 +458,12 @@ final class MacTools: ObservableObject {
         tick()
         slowTick()
         fastTimer = every(2) { [weak self] in self?.tick() }
+        Task { @MainActor [weak self] in
+            let found = await Task.detached { SMCSensors.discover() }.value
+            self?.cpuKeys = found.cpu
+            self?.gpuKeys = found.gpu
+            self?.sensorsReady = true
+        }
         slowTimer = every(20) { [weak self] in self?.slowTick() }
         if Self.calendarAuthorized() {
             agendaAllowed = true
@@ -458,6 +483,13 @@ final class MacTools: ObservableObject {
         netOut = n.1
         gpu = GPUReader.usage()
         thermal = ProcessInfo.processInfo.thermalState
+        if sensorsReady {
+            cpuTemp = SMCSensors.temperature(cpuKeys)
+            gpuTemp = SMCSensors.temperature(gpuKeys)
+            fans = SMCSensors.fans()
+        }
+        helper.refresh()
+        eq.checkDevice()
         cpuHistory = Array((cpuHistory + [cpu]).suffix(60))
         memHistory = Array((memHistory + [m.total > 0 ? m.used / m.total : 0]).suffix(60))
         checkPrivacy()
@@ -480,6 +512,11 @@ final class MacTools: ObservableObject {
 
     var memPercent: Int { memTotal > 0 ? Int((memUsed / memTotal * 100).rounded()) : 0 }
 
+    var tempText: String {
+        if let t = cpuTemp { return String(format: "%.0f °C", t) }
+        return thermalText
+    }
+
     var thermalText: String {
         switch thermal {
         case .nominal: return "Normal"
@@ -494,6 +531,10 @@ final class MacTools: ObservableObject {
 
     private func checkCharge() {
         guard let b = battery else { return }
+        // "Carregar até 100% agora": volta ao limite quando enche ou quando tira da tomada.
+        if helper.topUp && (b.percent >= 100 || !b.plugged) { helper.topUp = false }
+        // Com o ajudante cuidando do limite de verdade, não precisa avisar.
+        if helper.running && helper.limitEnabled { return }
         let limit = Prefs.chargeLimit
         if !b.plugged || b.percent < limit - 3 {
             chargeNotified = false
@@ -540,14 +581,31 @@ final class MacTools: ObservableObject {
     // MARK: Telas
 
     func refreshDisplays() {
+        ddcServices = []
         displays = DisplayDimmer.displays()
         for d in displays {
             if let v = dim[d.id], v < 1 { DisplayDimmer.set(d.id, level: v) }
         }
     }
 
+    /// Brilho: tela do Mac pelo sistema; monitor externo por DDC; se não der, escurece por software.
     func setDim(_ id: CGDirectDisplayID, _ v: Double) {
         dim[id] = v
+        let software = UserDefaults.standard.bool(forKey: "softwareBrightness")
+        if !software {
+            if CGDisplayIsBuiltin(id) != 0 {
+                if DisplayHardware.setBuiltIn(id, v) { DisplayDimmer.set(id, level: 1); return }
+            } else {
+                let externals = displays.filter { CGDisplayIsBuiltin($0.id) == 0 }
+                if let idx = externals.firstIndex(where: { $0.id == id }) {
+                    if ddcServices.isEmpty { ddcServices = DisplayHardware.externalServices() }
+                    if idx < ddcServices.count, DisplayHardware.setDDC(ddcServices[idx], brightness: Int(v * 100)) {
+                        DisplayDimmer.set(id, level: 1)
+                        return
+                    }
+                }
+            }
+        }
         DisplayDimmer.set(id, level: v)
     }
 

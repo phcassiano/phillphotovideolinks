@@ -30,6 +30,12 @@ struct SettingsView: View {
     @AppStorage("widget.agenda") private var wAgenda = false
     @AppStorage("widget.world") private var wWorld = false
     @AppStorage("widget.habits") private var wHabits = false
+    @AppStorage("widget.temps") private var wTemps = false
+    @AppStorage("widget.disk") private var wDisk = false
+    @AppStorage("widget.network") private var wNetwork = false
+    @AppStorage("widget.music") private var wMusic = false
+    @AppStorage("widget.timers") private var wTimers = false
+    @AppStorage("menuBarClean") private var menuBarClean = false
 
     @State private var geminiKey = Keychain.get("gemini")
     @State private var claudeKey = Keychain.get("claude")
@@ -61,6 +67,12 @@ struct SettingsView: View {
         .onChange(of: wAgenda) { _ in assistant.applyPrefs() }
         .onChange(of: wWorld) { _ in assistant.applyPrefs() }
         .onChange(of: wHabits) { _ in assistant.applyPrefs() }
+        .onChange(of: wTemps) { _ in assistant.applyPrefs() }
+        .onChange(of: wDisk) { _ in assistant.applyPrefs() }
+        .onChange(of: wNetwork) { _ in assistant.applyPrefs() }
+        .onChange(of: wMusic) { _ in assistant.applyPrefs() }
+        .onChange(of: wTimers) { _ in assistant.applyPrefs() }
+        .onChange(of: menuBarClean) { _ in assistant.applyPrefs() }
         .onDisappear { assistant.applyPrefs() }
     }
 
@@ -109,6 +121,15 @@ struct SettingsView: View {
             Toggle("Agenda", isOn: $wAgenda)
             Toggle("Relógio mundial", isOn: $wWorld)
             Toggle("Hábitos e água", isOn: $wHabits)
+            Toggle("Temperatura e ventoinha", isOn: $wTemps)
+            Toggle("Disco", isOn: $wDisk)
+            Toggle("Rede", isOn: $wNetwork)
+            Toggle("Música", isOn: $wMusic)
+            Toggle("Timers", isOn: $wTimers)
+            Toggle("Barra de menus limpa (esconde os ícones à esquerda do │)", isOn: $menuBarClean)
+            Text("Para escolher o que esconder, segure ⌘ e arraste os ícones da barra para a esquerda do │.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 

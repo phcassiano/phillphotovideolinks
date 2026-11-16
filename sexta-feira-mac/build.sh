@@ -13,9 +13,13 @@ APP="build/Sexta-feira.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/SextaFeira" "$APP/Contents/MacOS/SextaFeira"
+cp "$BIN_DIR/SextaFeiraHelper" "$APP/Contents/MacOS/SextaFeiraHelper"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+cp Resources/install-helper.sh "$APP/Contents/Resources/install-helper.sh"
+chmod +x "$APP/Contents/Resources/install-helper.sh"
 
 echo "▶︎ Assinando localmente (ad-hoc)…"
+codesign --force --sign - "$APP/Contents/MacOS/SextaFeiraHelper"
 codesign --force --sign - "$APP"
 
 echo "✅ Pronto: $APP"

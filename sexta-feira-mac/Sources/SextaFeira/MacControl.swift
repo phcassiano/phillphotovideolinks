@@ -188,6 +188,7 @@ final class ActionRunner {
         let before = state.score
         let running = Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier?.lowercased() })
         Task { @MainActor [weak self] in
+            if self?.tools.helper.running == true { self?.tools.helper.requestPurge() }
             let items = await Task.detached { Cleaner.scan(running: running) }.value
             let safe = items.filter { $0.safe }
             let freed = await Task.detached { Cleaner.clean(safe) }.value
@@ -348,6 +349,59 @@ final class ActionRunner {
             tools.refreshDisplays()
             tools.setAllDim(Double(max(15, min(100, level))) / 100)
             return nil
+
+        case .fan(let mode):
+            let h = tools.helper
+            guard h.running else {
+                openTab(.fans)
+                return "Para controlar a ventoinha, instale o ajudante na aba Ventoinha."
+            }
+            let fan = tools.fans.first
+            switch mode {
+            case "automatico", "automatica", "auto", "normal":
+                h.fanMode = "auto"
+            case "maximo", "max", "maxima":
+                h.fanRPM = fan?.max ?? 6000
+                h.fanMode = "manual"
+            case "silencioso", "silenciosa", "minimo", "minima":
+                h.fanRPM = fan?.min ?? 1200
+                h.fanMode = "manual"
+            default:
+                if let f = fan { h.fanRPM = (f.min + f.max) / 2 }
+                h.fanMode = "manual"
+            }
+            return nil
+
+        case .chargeLimit(let limit):
+            let h = tools.helper
+            guard h.running else {
+                openTab(.battery)
+                return "Para o limite real, instale o ajudante na aba Bateria (pede sua senha uma vez)."
+            }
+            if let l = limit {
+                h.limit = max(50, min(100, l))
+                h.limitEnabled = true
+            } else {
+                h.limitEnabled = false
+            }
+            return nil
+
+        case .topUp:
+            guard tools.helper.running else { return "O ajudante não está instalado." }
+            tools.helper.topUp = true
+            return nil
+
+        case .equalizer(let preset):
+            if Words.normalize(preset) == "off" {
+                tools.eq.stop()
+                return nil
+            }
+            openTab(.windows)
+            if !tools.eq.apply(preset: preset) {
+                tools.eq.start()
+                return "Liguei o equalizador. Os modos são: " + EqualizerController.presets.map { $0.name }.joined(separator: ", ") + "."
+            }
+            return tools.eq.error.isEmpty ? nil : tools.eq.error
 
         case .run(let name):
             return runNamed?(name) ?? "Não achei a função ou rotina “\(name)”."

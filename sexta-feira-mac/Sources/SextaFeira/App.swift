@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         assistant.onPrefsChanged = { [weak self] in
             self?.pet.setEnabled(Prefs.petEnabled)
             self?.widgets.refresh()
+            self?.assistant.tools.menuBar.setEnabled(Prefs.menuBarClean)
         }
 
         setupStatusItem()

@@ -218,6 +218,7 @@ struct MyMacTab: View {
 struct BatteryTab: View {
     @ObservedObject var state: AppState
     @ObservedObject var tools: MacTools
+    @ObservedObject var helper: HelperManager
     @AppStorage("chargeAlert") private var chargeAlert = true
     @AppStorage("chargeLimit") private var chargeLimit = 80
 
@@ -230,7 +231,8 @@ struct BatteryTab: View {
                 } else {
                     Card { Text("Este Mac não tem bateria (ou não consegui ler).").foregroundColor(.secondary) }
                 }
-                limit
+                realLimit
+                if !helper.running { limit }
                 caffeine
             }
         }
@@ -278,6 +280,60 @@ struct BatteryTab: View {
                 Text(value).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.7)
             }
         }
+    }
+
+    // Limite de carga REAL (com o ajudante)
+    private var realLimit: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "bolt.shield.fill").foregroundColor(state.accent)
+                    Text("Limite de carga real").font(.system(size: 13, weight: .bold))
+                    Spacer()
+                    HelperBadge(helper: helper)
+                }
+                if !helper.running {
+                    Text("Para a carga de verdade no limite (como o AlDente/Pulso). Precisa de um ajudante instalado com sua senha de administrador, uma única vez.")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    Button(helper.installed ? "Reinstalar o ajudante" : "Instalar o ajudante (pede sua senha)") { helper.install() }
+                } else {
+                    Toggle(isOn: $helper.limitEnabled) {
+                        Text("Parar de carregar em \(helper.limit)%").font(.system(size: 12, weight: .semibold))
+                    }
+                    Slider(value: Binding(get: { Double(helper.limit) }, set: { helper.limit = Int($0) }), in: 50...100, step: 5)
+                        .tint(state.accent)
+                        .disabled(!helper.limitEnabled)
+                    Stepper("Volta a carregar quando cair \(helper.sailing)% abaixo do limite", value: $helper.sailing, in: 1...20)
+                        .font(.system(size: 11))
+                    if helper.status.canDischarge {
+                        Toggle("Se estiver acima do limite na tomada, descarregar até o limite", isOn: $helper.dischargeToLimit)
+                            .font(.system(size: 11))
+                    }
+                    HStack {
+                        Text(chargeState).font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                        Spacer()
+                        Button(helper.topUp ? "Carregando até 100%…" : "Carregar até 100% agora") { helper.topUp.toggle() }
+                    }
+                    if !helper.status.error.isEmpty {
+                        Text(helper.status.error).font(.system(size: 10)).foregroundColor(.orange)
+                    }
+                    Button("Remover o ajudante") { helper.uninstall() }
+                        .font(.system(size: 10))
+                }
+                if !helper.message.isEmpty {
+                    Text(helper.message).font(.system(size: 10)).foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    private var chargeState: String {
+        let s = helper.status
+        if s.discharging { return "⬇︎ Descarregando até o limite" }
+        if s.chargingInhibited { return "⏸ Carga pausada no limite" }
+        if tools.battery?.charging == true { return "⚡ Carregando" }
+        return tools.battery?.plugged == true ? "Na tomada" : "Na bateria"
     }
 
     private var limit: some View {
@@ -543,6 +599,7 @@ struct WindowsTab: View {
     @ObservedObject var tools: MacTools
     @State private var volume = Double(SystemControl.volume())
     @State private var trusted = WindowManager.trusted
+    @AppStorage("softwareBrightness") private var softwareBrightness = false
 
     private let grid: [WindowSnap] = [.left, .right, .top, .bottom, .topLeft, .topRight, .bottomLeft, .bottomRight,
                                       .leftThird, .centerThird, .rightThird, .maximize, .center, .nextDisplay]
@@ -617,7 +674,9 @@ struct WindowsTab: View {
                     }
                 }
             }
-            Text("Escurece por software, então funciona em qualquer monitor externo, sem botão físico. O brilho original volta ao fechar o app.")
+            Toggle("Usar só escurecimento por software", isOn: $softwareBrightness)
+                .font(.system(size: 11))
+            Text("Tela do Mac: brilho real. Monitores externos: brilho real pelo cabo (DDC), quando o monitor aceita; senão, escurecimento por software, que funciona em qualquer tela.")
                 .font(.system(size: 10))
                 .foregroundColor(.secondary)
         }
@@ -641,6 +700,7 @@ struct WindowsTab: View {
                     }
                 }
             }
+            EqualizerCard(eq: tools.eq, accent: state.accent)
         }
     }
 }
@@ -795,6 +855,184 @@ struct PrivacyTab: View {
                 }
                 Spacer()
                 Circle().fill(on ? Color.red : Color.green.opacity(0.6)).frame(width: 10, height: 10)
+            }
+        }
+    }
+}
+
+// MARK: - Ajudante (selo de status)
+
+struct HelperBadge: View {
+    @ObservedObject var helper: HelperManager
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle().fill(helper.running ? Color.green : (helper.installed ? Color.orange : Color.gray))
+                .frame(width: 7, height: 7)
+            Text(helper.running ? "ajudante ativo" : (helper.installed ? "ajudante parado" : "sem ajudante"))
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Ventoinha e temperatura
+
+struct FanTab: View {
+    @ObservedObject var state: AppState
+    @ObservedObject var tools: MacTools
+    @ObservedObject var helper: HelperManager
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                temps
+                fans
+                control
+            }
+        }
+    }
+
+    private var temps: some View {
+        HStack(spacing: 8) {
+            tempCard("Processador", tools.cpuTemp, "cpu")
+            tempCard("GPU", tools.gpuTemp, "cube")
+            tempCard("Bateria", tools.battery?.temperature, "battery.75")
+            Card {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label("Estado térmico", systemImage: "thermometer.sun").font(.system(size: 10)).foregroundColor(.secondary)
+                    Text(tools.thermalText).font(.system(size: 18, weight: .bold, design: .rounded))
+                }
+            }
+        }
+    }
+
+    private func tempCard(_ title: String, _ value: Double?, _ icon: String) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 3) {
+                Label(title, systemImage: icon).font(.system(size: 10)).foregroundColor(.secondary)
+                Text(value.map { String(format: "%.0f °C", $0) } ?? "—")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor((value ?? 0) >= 90 ? .orange : .white)
+            }
+        }
+    }
+
+    private var fans: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionTitle(text: "Ventoinhas")
+            if tools.fans.isEmpty {
+                Card { Text("Este Mac não tem ventoinha (ou ainda estou procurando os sensores).").font(.system(size: 12)).foregroundColor(.secondary) }
+            }
+            ForEach(tools.fans) { f in
+                Card {
+                    HStack {
+                        Image(systemName: "fanblades.fill").foregroundColor(state.accent)
+                        Text("Ventoinha \(f.id + 1)").font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                        Text("\(Int(f.rpm)) rpm").font(.system(size: 16, weight: .bold, design: .rounded))
+                        Text("(\(Int(f.min))–\(Int(f.max)))").font(.system(size: 10)).foregroundColor(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var control: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Controle da ventoinha").font(.system(size: 13, weight: .bold))
+                    Spacer()
+                    HelperBadge(helper: helper)
+                }
+                if !helper.running {
+                    Text("Mais ar quando esquenta, silêncio quando precisa. Precisa do ajudante (o mesmo do limite de carga).")
+                        .font(.system(size: 11)).foregroundColor(.secondary)
+                    Button(helper.installed ? "Reinstalar o ajudante" : "Instalar o ajudante (pede sua senha)") { helper.install() }
+                } else if let f = tools.fans.first {
+                    Picker("", selection: $helper.fanMode) {
+                        Text("Automático (do macOS)").tag("auto")
+                        Text("Velocidade fixa").tag("manual")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    if helper.fanMode == "manual" {
+                        Slider(value: $helper.fanRPM, in: f.min...max(f.min + 1, f.max), step: 100)
+                            .tint(state.accent)
+                        HStack {
+                            Text("\(Int(helper.fanRPM)) rpm").font(.system(size: 12, weight: .semibold))
+                            Spacer()
+                            Button("Silenciosa") { helper.fanRPM = f.min }
+                            Button("Equilibrada") { helper.fanRPM = ((f.min + f.max) / 2).rounded() }
+                            Button("Máxima") { helper.fanRPM = f.max }
+                        }
+                    }
+                    if !helper.status.error.isEmpty {
+                        Text(helper.status.error).font(.system(size: 10)).foregroundColor(.orange)
+                    }
+                    Text("Ao fechar o ajudante ou desligar, a ventoinha volta sozinha para o automático.")
+                        .font(.system(size: 10)).foregroundColor(.secondary)
+                } else {
+                    Text("Não encontrei ventoinha para controlar.").font(.system(size: 11)).foregroundColor(.secondary)
+                }
+                if !helper.message.isEmpty {
+                    Text(helper.message).font(.system(size: 10)).foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Equalizador
+
+struct EqualizerCard: View {
+    @ObservedObject var eq: EqualizerController
+    let accent: Color
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: "slider.vertical.3").foregroundColor(accent)
+                    Text("Equalizador do sistema").font(.system(size: 13, weight: .bold))
+                    Text("beta").font(.system(size: 9)).foregroundColor(.secondary)
+                    Spacer()
+                    Toggle("", isOn: Binding(get: { eq.enabled }, set: { eq.setEnabled($0) }))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .disabled(!eq.supported)
+                }
+                if !eq.supported {
+                    Text("Precisa do macOS 14.2 ou mais novo.").font(.system(size: 11)).foregroundColor(.secondary)
+                } else {
+                    Picker("Modo", selection: Binding(get: { "" }, set: { name in _ = eq.apply(preset: name) })) {
+                        Text("Escolher um modo…").tag("")
+                        ForEach(EqualizerController.presets.indices, id: \.self) { i in
+                            Text(EqualizerController.presets[i].name).tag(EqualizerController.presets[i].name)
+                        }
+                    }
+                    ForEach(0..<EqualizerController.labels.count, id: \.self) { i in
+                        HStack {
+                            Text(EqualizerController.labels[i]).font(.system(size: 10)).frame(width: 30, alignment: .leading)
+                            Slider(value: Binding(get: { i < eq.gains.count ? eq.gains[i] : 0 },
+                                                  set: { v in if i < eq.gains.count { eq.gains[i] = v } }),
+                                   in: -12...12, step: 1)
+                                .tint(accent)
+                            Text(String(format: "%+.0f dB", i < eq.gains.count ? eq.gains[i] : 0))
+                                .font(.system(size: 10)).frame(width: 44)
+                        }
+                    }
+                    HStack {
+                        Text("Pré").font(.system(size: 10)).frame(width: 30, alignment: .leading)
+                        Slider(value: $eq.preamp, in: -12...6, step: 1).tint(accent)
+                        Text(String(format: "%+.0f dB", eq.preamp)).font(.system(size: 10)).frame(width: 44)
+                    }
+                    Text("Na primeira vez o macOS pede permissão para “gravar o áudio do sistema”: é assim que o equalizador recebe o som de todos os apps.")
+                        .font(.system(size: 10)).foregroundColor(.secondary)
+                }
+                if !eq.error.isEmpty {
+                    Text(eq.error).font(.system(size: 10)).foregroundColor(.orange)
+                }
             }
         }
     }

@@ -3,7 +3,7 @@ import SwiftUI
 import Combine
 
 enum WidgetKind: String, CaseIterable, Identifiable {
-    case clock, battery, system, agenda, world, habits
+    case clock, battery, system, agenda, world, habits, temps, disk, network, music, timers
     var id: String { rawValue }
 
     var title: String {
@@ -14,11 +14,16 @@ enum WidgetKind: String, CaseIterable, Identifiable {
         case .agenda: return "Agenda"
         case .world: return "Relógio mundial"
         case .habits: return "Hábitos e água"
+        case .temps: return "Temperatura e ventoinha"
+        case .disk: return "Disco"
+        case .network: return "Rede"
+        case .music: return "Música"
+        case .timers: return "Timers"
         }
     }
 
     var key: String { "widget.\(rawValue)" }
-    var height: CGFloat { self == .agenda || self == .world || self == .habits ? 150 : 110 }
+    var height: CGFloat { [.agenda, .world, .habits, .timers].contains(self) ? 150 : 110 }
 }
 
 /// Janela que dá para arrastar clicando em qualquer parte.
@@ -172,6 +177,8 @@ struct DesktopWidgetView: View {
                     }
                 }
             }
+        case .temps, .disk, .network, .music, .timers:
+            moreContent
         case .habits:
             VStack(alignment: .leading, spacing: 6) {
                 Label("Hábitos de hoje", systemImage: "drop.fill")
@@ -184,6 +191,64 @@ struct DesktopWidgetView: View {
                         Text("\(h.count)/\(h.goal)")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundColor(h.count >= h.goal ? state.accent : .white)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var moreContent: some View {
+        switch kind {
+        case .temps:
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Temperatura", systemImage: "thermometer.medium")
+                    .font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                Text(tools.cpuTemp.map { String(format: "%.0f °C", $0) } ?? tools.thermalText)
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                Text(tools.fans.first.map { "Ventoinha: \(Int($0.rpm)) rpm" } ?? "Sem ventoinha")
+                    .font(.system(size: 11)).foregroundColor(.secondary)
+            }
+        case .disk:
+            let d = MacInfo.disk()
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Disco", systemImage: "internaldrive")
+                    .font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                Text(d.map { MacInfo.bytes($0.free) } ?? "—")
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                Text("livres de \(d.map { MacInfo.bytes($0.total) } ?? "—")")
+                    .font(.system(size: 11)).foregroundColor(.secondary)
+            }
+        case .network:
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Rede", systemImage: "network")
+                    .font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                Text("↓ \(MyMacTab.speed(tools.netIn))").font(.system(size: 18, weight: .bold, design: .rounded))
+                Text("↑ \(MyMacTab.speed(tools.netOut))").font(.system(size: 18, weight: .bold, design: .rounded))
+            }
+        case .music:
+            VStack(alignment: .leading, spacing: 6) {
+                Label(state.nowPlaying?.app ?? "Música", systemImage: "music.note")
+                    .font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                Text(state.nowPlaying?.title ?? "Nada tocando")
+                    .font(.system(size: 15, weight: .bold)).lineLimit(2)
+                Text(state.nowPlaying?.artist ?? "").font(.system(size: 11)).foregroundColor(.secondary).lineLimit(1)
+            }
+        default:
+            TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Timers", systemImage: "timer")
+                        .font(.system(size: 11, weight: .semibold)).foregroundColor(state.accent)
+                    if state.timers.isEmpty {
+                        Text("Nenhum timer").font(.system(size: 12)).foregroundColor(.secondary)
+                    }
+                    ForEach(state.timers.prefix(3)) { t in
+                        HStack {
+                            Text(t.label.isEmpty ? "Timer" : t.label).font(.system(size: 12)).lineLimit(1)
+                            Spacer()
+                            Text(Fmt.countdown(t.end.timeIntervalSince(ctx.date)))
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        }
                     }
                 }
             }

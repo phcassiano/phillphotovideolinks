@@ -13,6 +13,7 @@ enum Action {
     case habit(String), copyPix, checkMac, image(String), run(String)
     case boost, battery, agenda, caffeine(Int?), caffeineOff
     case window(WindowSnap), audioOutput(String), brightness(Int)
+    case fan(String), chargeLimit(Int?), topUp, equalizer(String)
 
     /// Converte um item de "actions" do JSON da IA.
     static func from(_ d: [String: Any]) -> Action? {
@@ -70,6 +71,12 @@ enum Action {
             return WindowSnap(rawValue: pos).map { .window($0) } ?? windowAlias(pos).map { .window($0) }
         case "audio_output": return nonEmpty(str("name")) { .audioOutput($0) }
         case "brightness": return num("level").map { .brightness(Int($0)) }
+        case "fan": return nonEmpty(str("mode").lowercased()) { .fan($0) }
+        case "charge_limit":
+            if str("state").lowercased() == "off" { return .chargeLimit(nil) }
+            return .chargeLimit(num("limit").map { Int($0) } ?? 80)
+        case "top_up": return .topUp
+        case "equalizer": return nonEmpty(str("preset")) { .equalizer($0) }
         default: return nil
         }
     }
@@ -189,6 +196,27 @@ enum QuickCommands {
         if let m = Rx.match(#"^(?:brilho|escurece a tela|escurecer a tela)(?: em| para| pra| no| a)? (\d{1,3})(?: por cento)?$"#, n),
            let v = Int(m[1]) {
             return Result(actions: [.brightness(v)], say: "")
+        }
+
+        // Ventoinha, limite de carga, equalizador
+        if let m = Rx.match(#"^(?:ventoinha|ventilador|cooler|ventoinhas)(?: no| na| em| para| pra|)? ?(maximo|max|maxima|automatico|automatica|auto|silencioso|silenciosa|minimo|minima|equilibrado|equilibrada|normal)$"#, t) {
+            return Result(actions: [.fan(m[1])], say: "")
+        }
+        if let m = Rx.match(#"^(?:limite de carga|limita a carga|limitar a carga|limita a bateria|segura a carga)(?: em| para| pra| a| no)? (\d{2,3})(?: por cento)?$"#, n), let v = Int(m[1]) {
+            return Result(actions: [.chargeLimit(v)], say: "Limite de carga em \(v)%.")
+        }
+        if ["desliga o limite de carga", "tira o limite de carga", "sem limite de carga"].contains(t) {
+            return Result(actions: [.chargeLimit(nil)], say: "Limite de carga desligado.")
+        }
+        if ["carrega ate 100", "carregar ate 100", "carrega tudo", "carga completa", "carrega ate cem", "carregar ate cem"].contains(t) {
+            return Result(actions: [.topUp], say: "Beleza, vou carregar até 100% desta vez.")
+        }
+        if ["desliga o equalizador", "tira o equalizador", "equalizador desligado"].contains(t) {
+            return Result(actions: [.equalizer("off")], say: "Equalizador desligado.")
+        }
+        if let m = Rx.match(#"^(?:liga o equalizador|equalizador|eq)(?: (?:no |em |modo |com )?(.+))?$"#, t) {
+            let preset = m[1].isEmpty ? "plano" : m[1]
+            return Result(actions: [.equalizer(preset)], say: "")
         }
 
         // Volume

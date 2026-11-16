@@ -32,7 +32,7 @@ struct NowPlaying: Equatable {
 
 enum PanelTab: String, CaseIterable, Identifiable {
     case home, chat, tasks, habits, timers, clips, routines, memory
-    case mymac, battery, cleanup, windows, agenda, privacy
+    case mymac, battery, fans, cleanup, windows, agenda, privacy
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -46,6 +46,7 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .memory: return "Memória"
         case .mymac: return "Meu Mac"
         case .battery: return "Bateria"
+        case .fans: return "Ventoinha"
         case .cleanup: return "Limpeza"
         case .windows: return "Janelas e telas"
         case .agenda: return "Agenda"
@@ -64,6 +65,7 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .memory: return "brain"
         case .mymac: return "gauge.with.dots.needle.67percent"
         case .battery: return "battery.75"
+        case .fans: return "fanblades.fill"
         case .cleanup: return "sparkles"
         case .windows: return "macwindow.on.rectangle"
         case .agenda: return "calendar"
@@ -197,6 +199,7 @@ enum Prefs {
     static var chargeAlert: Bool { d.object(forKey: "chargeAlert") as? Bool ?? true }
     static var chargeLimit: Int { d.object(forKey: "chargeLimit") as? Int ?? 80 }
     static var privacyWatch: Bool { d.object(forKey: "privacyWatch") as? Bool ?? true }
+    static var menuBarClean: Bool { d.bool(forKey: "menuBarClean") }
     static var windowHotkeys: Bool { d.object(forKey: "windowHotkeys") as? Bool ?? true }
     static var imageModel: String { d.string(forKey: "imageModel").nonEmpty ?? defaultImageModel }
 }

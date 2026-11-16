@@ -329,7 +329,7 @@ final class Assistant {
             ctx += "\nMúsica: \(np.playing ? "tocando" : "pausada") “\(np.title)” de \(np.artist) (\(np.app)).\n"
         }
         if let b = tools.battery {
-            ctx += "\nMac: bateria \(b.percent)% (\(b.statusText.lowercased())), CPU \(Int(tools.cpu * 100))%, memória \(tools.memPercent)%, temperatura \(tools.thermalText.lowercased())\(tools.caffeineOn ? ", cafeína ligada" : "").\n"
+            ctx += "\nMac: bateria \(b.percent)% (\(b.statusText.lowercased())), CPU \(Int(tools.cpu * 100))%, memória \(tools.memPercent)%, temperatura \(tools.tempText.lowercased())\(tools.caffeineOn ? ", cafeína ligada" : "").\n"
         }
         if !state.habits.isEmpty {
             ctx += "\nHábitos de hoje: " + state.habits.map { "\($0.name) \($0.count)/\($0.goal)" }.joined(separator: ", ") + "\n"
@@ -379,6 +379,10 @@ final class Assistant {
         - {"type":"window","position":"left|right|top|bottom|top_left|top_right|bottom_left|bottom_right|maximize|center|next_display"}  (move a janela da frente)
         - {"type":"audio_output","name":"AirPods"}  (troca a saída de som)
         - {"type":"brightness","level":60}  (brilho das telas, 15–100)
+        - {"type":"fan","mode":"auto|silencioso|equilibrado|maximo"}  (ventoinha; precisa do ajudante)
+        - {"type":"charge_limit","limit":80}  ou  {"type":"charge_limit","state":"off"}  (limite real de carga)
+        - {"type":"top_up"}  (carregar até 100% só desta vez)
+        - {"type":"equalizer","preset":"Plano|Mais graves|Voz e podcast|Mais agudos|Rock|Pop|Eletrônica|Notebook|off"}
 
         Regras:
         - Só use ações quando o pedido pedir. Para conversa normal, "actions" fica vazia.
