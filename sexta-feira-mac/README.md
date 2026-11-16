@@ -49,9 +49,9 @@ Feita em Swift/SwiftUI nativo: leve, sem Electron e só para o seu Mac.
 - Voz: "faz um boost", "como está a bateria?", "o que tenho hoje?", "deixa o Mac acordado por 1 hora",
   "coloca a janela na esquerda", "muda o som para o AirPods", "brilho 50".
 
-Limites honestos: o **limite físico de carga** e o **controle de ventoinha** precisam de um ajudante
-com senha de administrador (que escreve no chip SMC). Por isso, por enquanto, a Sexta-feira avisa no limite
-em vez de cortar a carga. **Equalizador** e **esconder ícones da barra** ainda não estão incluídos.
+Também: **equalizador do sistema** de 5 faixas (macOS 14.2+, sem driver), **barra de menus limpa**
+(⌘-arraste os ícones para a esquerda do │), **temperatura real do chip** e da GPU, **brilho de verdade**
+(tela do Mac e monitores externos via DDC) e **11 widgets de mesa**.
 
 ## Telas
 
@@ -70,7 +70,31 @@ em vez de cortar a carga. **Equalizador** e **esconder ícones da barra** ainda 
 Os comandos simples (abrir app, música, volume, timer, lembrete, tarefa, nota) funcionam
 **sem IA e sem internet**. O resto vai para a IA que você escolher.
 
-## Instalar (uma vez)
+## Instalar com um comando (recomendado)
+
+No Terminal do Mac:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/phcassiano/phillphotovideolinks/ccr-25491ce5-f2q1mg/sexta-feira-mac/instalar.sh | bash
+```
+
+Ele baixa a versão mais recente, **remove o Pulso** (app, ajudante e restos, que vão para o Lixo),
+instala a Sexta-feira em Aplicativos e instala o **ajudante** (pede sua senha uma vez).
+
+## Ajudante (limite de carga real e ventoinha)
+
+Um serviço pequeno que roda como administrador (`/Library/PrivilegedHelperTools/com.local.sextafeira.helper`)
+e escreve no chip SMC:
+- **Limite de carga real**: para de carregar no limite (ex.: 80%) e volta a carregar quando cai
+  a "folga" (ex.: 75%). Tem a opção de descarregar até o limite mesmo na tomada e o botão "Carregar até 100% agora".
+- **Ventoinha**: automática ou velocidade fixa (silenciosa, equilibrada, máxima).
+- **Purge** de memória no Boost.
+
+Segurança: se o ajudante parar ou for removido, ele **religa a carga** e devolve a ventoinha ao automático.
+Para remover: aba Bateria › "Remover o ajudante", ou
+`sudo bash /Applications/Sexta-feira.app/Contents/Resources/install-helper.sh uninstall`.
+
+## Instalar compilando você mesmo
 
 1. Instale as ferramentas da Apple. Abra o **Terminal** e rode:
    ```bash
