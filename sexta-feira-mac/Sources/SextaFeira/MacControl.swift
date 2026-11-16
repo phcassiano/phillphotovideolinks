@@ -163,12 +163,31 @@ final class MusicController {
 final class ActionRunner {
     let state: AppState
     let music: MusicController
+    let checker: MacChecker
     var announce: (@MainActor (String) -> Void)?
+    /// Roda uma função personalizada ou rotina pelo nome (configurado pelo Assistant).
+    var runNamed: (@MainActor (String) -> String?)?
     private var handles: [UUID: Timer] = [:]
 
     init(state: AppState, music: MusicController) {
         self.state = state
         self.music = music
+        self.checker = MacChecker(state: state)
+    }
+
+    /// Abre o destino de uma função personalizada: site, pasta, arquivo ou app.
+    func openTarget(_ target: String) -> String? {
+        let t = target.trimmed
+        guard !t.isEmpty else { return "Essa função não tem destino." }
+        if t.contains("://") || t.hasPrefix("www.") { return run(.openURL(t)) }
+        let path = (t as NSString).expandingTildeInPath
+        if FileManager.default.fileExists(atPath: path) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+            return nil
+        }
+        if AppFinder.find(t) != nil { return run(.openApp(t)) }
+        if t.contains(".") { return run(.openURL(t)) }
+        return "Não achei “\(t)”."
     }
 
     /// Devolve uma frase só quando algo deu errado ou precisa de aviso.
@@ -230,12 +249,51 @@ final class ActionRunner {
             state.tasks.append(TaskItem(text: text))
             return nil
 
+        case .habit(let name):
+            let t = Words.normalize(name)
+            guard let i = state.habits.firstIndex(where: {
+                let n = Words.normalize($0.name)
+                return n.contains(t) || t.contains(n)
+            }) else { return "Não achei o hábito \(name)." }
+            state.habits[i].count += 1
+            state.addXP(3)
+            return nil
+
+        case .copyPix:
+            let key = Prefs.pixKey.trimmed
+            guard !key.isEmpty else { return "Você ainda não cadastrou sua chave Pix nas Configurações." }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(key, forType: .string)
+            return nil
+
+        case .checkMac:
+            state.tab = .mymac
+            state.expanded = true
+            checker.run { [weak self] summary in self?.announce?(summary) }
+            return nil
+
+        case .image(let prompt):
+            Task { @MainActor [weak self] in
+                do {
+                    let file = try await ImageGen.generate(prompt)
+                    NSWorkspace.shared.open(file)
+                    self?.announce?("Sua arte ficou pronta! Salvei em Imagens › Sexta-feira.")
+                } catch {
+                    self?.announce?("Não consegui criar a imagem: \(error.localizedDescription)")
+                }
+            }
+            return nil
+
+        case .run(let name):
+            return runNamed?(name) ?? "Não achei a função ou rotina “\(name)”."
+
         case .completeTask(let text):
             let t = Words.normalize(text)
             let i = state.tasks.firstIndex { !$0.done && Words.normalize($0.text).contains(t) }
                 ?? state.tasks.firstIndex { !$0.done && t.contains(Words.normalize($0.text)) }
             guard let i else { return "Não achei essa tarefa." }
             state.tasks[i].done = true
+            state.addXP(10)
             return nil
 
         case .note(let text):

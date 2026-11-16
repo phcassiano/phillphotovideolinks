@@ -14,7 +14,14 @@ final class Assistant {
     private var busy: Task<Void, Never>?
     private var pillTimer: Timer?
     private var musicTimer: Timer?
+    private var clipTimer: Timer?
+    private var dayTimer: Timer?
+    private var waterTimer: Timer?
     private var wantPush = false
+    private var lastClipChange = NSPasteboard.general.changeCount
+
+    /// Chamado quando as preferências mudam (ex.: ligar/desligar o mascote).
+    var onPrefsChanged: (@MainActor () -> Void)?
 
     init(state: AppState) {
         self.state = state
@@ -27,8 +34,11 @@ final class Assistant {
         speech.onCommand = { [weak self] text in self?.handle(text, fromVoice: true) }
         speaker.onFinish = { [weak self] in self?.speechFinished() }
         actions.announce = { [weak self] msg in self?.respond(msg) }
+        actions.runNamed = { [weak self] name in self?.runNamed(name) }
 
         musicTimer = every(2) { [weak self] in self?.refreshMusic() }
+        clipTimer = every(1) { [weak self] in self?.checkClipboard() }
+        dayTimer = every(60) { [weak self] in self?.state.rolloverHabits() }
         refreshMusic()
     }
 
@@ -50,6 +60,65 @@ final class Assistant {
         } else {
             speech.setWake(false)
         }
+
+        waterTimer?.invalidate()
+        waterTimer = nil
+        if Prefs.waterReminder {
+            waterTimer = every(60 * 60) { [weak self] in self?.waterNudge() }
+        }
+        onPrefsChanged?()
+    }
+
+    private func waterNudge() {
+        let hour = Calendar.current.component(.hour, from: Date())
+        guard (8..<22).contains(hour), let w = state.waterHabit, w.count < w.goal else { return }
+        respond("Hora de beber água! 💧 Você está em \(w.count) de \(w.goal) copos hoje.")
+    }
+
+    // MARK: Copiados (histórico da área de transferência)
+
+    private func checkClipboard() {
+        let pb = NSPasteboard.general
+        guard pb.changeCount != lastClipChange else { return }
+        lastClipChange = pb.changeCount
+        // Gerenciadores de senha marcam o que é secreto: não guardamos isso.
+        let concealed = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
+        if pb.types?.contains(concealed) == true { return }
+        guard let s = pb.string(forType: .string)?.trimmed, !s.isEmpty, s.count < 5000 else { return }
+        state.clips.removeAll { $0.text == s }
+        state.clips.insert(ClipItem(text: s), at: 0)
+        if state.clips.count > 40 { state.clips.removeLast(state.clips.count - 40) }
+    }
+
+    // MARK: Funções personalizadas e rotinas
+
+    /// Roda uma função ou rotina pelo nome. Devolve um aviso se algo deu errado.
+    func runNamed(_ name: String) -> String? {
+        if let cmd = state.customCommands.first(where: { Automations.matches(name, name: $0.name) }) {
+            return actions.openTarget(cmd.target)
+        }
+        if let r = state.routines.first(where: { Automations.matches(name, name: $0.name) }) {
+            runRoutine(r)
+            return nil
+        }
+        return "Não achei a função ou rotina “\(name)”."
+    }
+
+    func runRoutine(_ r: Routine) {
+        for step in r.steps {
+            let s = step.trimmed
+            guard !s.isEmpty else { continue }
+            if let cmd = state.customCommands.first(where: { Automations.matches(s, name: $0.name) }) {
+                _ = actions.openTarget(cmd.target)
+            } else if let quick = QuickCommands.parse(s) {
+                for a in quick.actions { _ = actions.run(a) }
+            } else if s.contains("://") {
+                _ = actions.run(.openURL(s))
+            } else {
+                NSLog("Passo de rotina não entendido: \(s)")
+            }
+        }
+        refreshMusicSoon()
     }
 
     // MARK: Música
@@ -125,8 +194,23 @@ final class Assistant {
         let display = String(text.prefix(1)).uppercased() + String(text.dropFirst())
         state.messages.append(ChatMessage(fromUser: true, text: display))
         state.partial = ""
+        state.addXP(5)
 
-        // 1) Comandos rápidos (sem IA)
+        // 1) Suas funções e rotinas
+        if let cmd = state.customCommands.first(where: { Automations.matches(text, name: $0.name) }) {
+            let problem = actions.openTarget(cmd.target)
+            addToHistory(user: text, say: problem ?? "Abrindo \(cmd.name).")
+            respond(problem ?? "Abrindo \(cmd.name).")
+            return
+        }
+        if let r = state.routines.first(where: { Automations.matches(text, name: $0.name) }) {
+            runRoutine(r)
+            addToHistory(user: text, say: "Rotina \(r.name) pronta.")
+            respond("Rotina “\(r.name)” pronta! ⚡")
+            return
+        }
+
+        // 2) Comandos rápidos (sem IA)
         if let quick = QuickCommands.parse(text) {
             let problems = quick.actions.compactMap { actions.run($0) }
             let say = problems.first ?? quick.say
@@ -136,7 +220,7 @@ final class Assistant {
             return
         }
 
-        // 2) IA
+        // 3) IA
         state.mode = .thinking
         state.pillText = ""
         let request = text
@@ -239,13 +323,20 @@ final class Assistant {
         if let np = state.nowPlaying {
             ctx += "\nMúsica: \(np.playing ? "tocando" : "pausada") “\(np.title)” de \(np.artist) (\(np.app)).\n"
         }
+        if !state.habits.isEmpty {
+            ctx += "\nHábitos de hoje: " + state.habits.map { "\($0.name) \($0.count)/\($0.goal)" }.joined(separator: ", ") + "\n"
+        }
+        let named = state.customCommands.map { $0.name } + state.routines.map { $0.name }
+        if !named.isEmpty {
+            ctx += "\nFunções e rotinas criadas por \(user) (rode com a ação run): " + named.joined(separator: ", ") + "\n"
+        }
         if !state.timers.isEmpty {
             ctx += "\nTimers ativos: " + state.timers.map { "\($0.label.isEmpty ? "timer" : $0.label) (faltam \(Fmt.countdown($0.end.timeIntervalSinceNow)))" }.joined(separator: ", ") + "\n"
         }
 
         return """
         Você é \(name), uma assistente pessoal que vive no topo da tela do Mac de \(user). \
-        Fale português do Brasil, com um jeito simpático, esperto e direto. \
+        Fale português do Brasil. Sua personalidade: \(Personality.prompt(Prefs.personality)). \
         Suas respostas são faladas em voz alta: seja breve (no máximo 2 frases curtas), sem markdown, sem listas e sem emojis.
 
         \(ctx)
@@ -268,6 +359,11 @@ final class Assistant {
         - {"type":"remember","fact":"..."}  (use quando \(user) pedir para lembrar algo, ou contar algo importante e duradouro sobre si)
         - {"type":"forget","fact":"..."}
         - {"type":"shortcut","name":"Nome do atalho"}  (roda um atalho do app Atalhos)
+        - {"type":"habit","name":"Água"}  (soma 1 num hábito, ex.: quando disser que bebeu água)
+        - {"type":"copy_pix"}  (copia a chave Pix do usuário)
+        - {"type":"check_mac"}  (verifica memória, processador, disco, caches, lixeira e bateria)
+        - {"type":"image","prompt":"descrição detalhada da imagem"}  (cria uma arte/imagem/logo)
+        - {"type":"run","name":"nome da função ou rotina"}
 
         Regras:
         - Só use ações quando o pedido pedir. Para conversa normal, "actions" fica vazia.

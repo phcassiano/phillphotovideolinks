@@ -120,7 +120,7 @@ enum AIClient {
 
     // MARK: HTTP
 
-    private static func post(_ url: URL, headers: [String: String], body: [String: Any],
+    static func post(_ url: URL, headers: [String: String], body: [String: Any],
                              timeout: TimeInterval = 60) async throws -> [String: Any] {
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -142,5 +142,41 @@ enum AIClient {
             if let msg = obj["error"] as? String { return msg }
         }
         return String(decoding: data.prefix(300), as: UTF8.self)
+    }
+}
+
+/// Cria imagens com o modelo de imagem do Gemini (usa a mesma chave do Gemini).
+enum ImageGen {
+    static func generate(_ prompt: String) async throws -> URL {
+        let key = Keychain.get("gemini")
+        guard !key.isEmpty else { throw AIError.missingKey("Gemini (usada para criar imagens)") }
+        let model = Prefs.imageModel
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent") else {
+            throw AIError.offline("Nome de modelo de imagem inválido: \(model)")
+        }
+        let body: [String: Any] = [
+            "contents": [["parts": [["text": prompt]]]],
+            "generationConfig": ["responseModalities": ["IMAGE", "TEXT"]],
+        ]
+        let obj = try await AIClient.post(url, headers: ["x-goog-api-key": key], body: body, timeout: 180)
+        guard let cands = obj["candidates"] as? [[String: Any]],
+              let content = cands.first?["content"] as? [String: Any],
+              let parts = content["parts"] as? [[String: Any]] else { throw AIError.empty }
+
+        for part in parts {
+            guard let inline = (part["inlineData"] ?? part["inline_data"]) as? [String: Any],
+                  let b64 = inline["data"] as? String,
+                  let data = Data(base64Encoded: b64) else { continue }
+            let mime = inline["mimeType"] as? String ?? "image/png"
+            let ext = mime.contains("jpeg") ? "jpg" : "png"
+            let dir = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Pictures/Sexta-feira", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let stamp = Fmt.stamp(Date()).replacingOccurrences(of: ":", with: "-").replacingOccurrences(of: " ", with: "_")
+            let file = dir.appendingPathComponent("arte-\(stamp).\(ext)")
+            try data.write(to: file)
+            return file
+        }
+        throw AIError.offline("O modelo não devolveu nenhuma imagem. Tente descrever de outro jeito.")
     }
 }

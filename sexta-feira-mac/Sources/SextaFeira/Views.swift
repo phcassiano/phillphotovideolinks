@@ -25,9 +25,11 @@ struct RobotFace: View {
     let mode: Mode
     let size: CGFloat
     let accent: Color
+    var asleep = false
+    var bouncing = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 12.0, paused: false)) { ctx in
+        TimelineView(.animation(minimumInterval: bouncing ? 1.0 / 24.0 : 1.0 / 12.0, paused: false)) { ctx in
             face(t: ctx.date.timeIntervalSinceReferenceDate)
         }
         .frame(width: size, height: size * 0.8)
@@ -37,7 +39,8 @@ struct RobotFace: View {
         let blinking = t.truncatingRemainder(dividingBy: 4.2) < 0.15
         let eyeW = size * 0.16
         var eyeH = size * (mode == .listening ? 0.30 : 0.24)
-        if blinking && mode != .listening { eyeH = size * 0.04 }
+        if (blinking && mode != .listening) || asleep { eyeH = size * 0.04 }
+        let bounce: CGFloat = bouncing ? -abs(CGFloat(sin(t * 10))) * size * 0.08 : 0
         let lookX: CGFloat = mode == .thinking ? CGFloat(sin(t * 2.5)) * size * 0.08 : 0
         let lookY: CGFloat = mode == .thinking ? -size * 0.05 : 0
         let mouthH: CGFloat = mode == .speaking ? size * (0.04 + 0.08 * CGFloat(abs(sin(t * 11)))) : size * 0.035
@@ -60,6 +63,7 @@ struct RobotFace: View {
             }
         }
         .shadow(color: accent.opacity(glow > 0 ? 0.6 : 0), radius: glow)
+        .offset(y: bounce)
     }
 }
 
@@ -146,38 +150,122 @@ struct ExpandedView: View {
     let openSettings: @MainActor () -> Void
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 0) {
             if state.notchWidth > 0 {
                 Color.clear.frame(height: state.menuBarHeight - 6)
             }
-            header
-            Picker("", selection: $state.tab) {
-                ForEach(PanelTab.allCases) { tab in
-                    Text(tab.title).tag(tab)
+            HStack(alignment: .top, spacing: 0) {
+                sidebar
+                    .frame(width: 168)
+                Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1)
+                VStack(spacing: 10) {
+                    header
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if let np = state.nowPlaying {
+                        MusicBar(np: np, assistant: assistant, accent: state.accent)
+                    }
                 }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if let np = state.nowPlaying {
-                MusicBar(np: np, assistant: assistant, accent: state.accent)
+                .padding(.leading, 14)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 14)
         .padding(.top, 10)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(NotchShape(radius: 24).fill(Color.black.opacity(0.95)))
     }
 
+    // Menu lateral: rostinho, nome, nível e abas
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                RobotFace(mode: state.mode, size: 34, accent: state.accent)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(state.assistantName)
+                        .font(.system(size: 13, weight: .bold))
+                        .lineLimit(1)
+                    HStack(spacing: 5) {
+                        Text("Nv \(state.level)")
+                            .font(.system(size: 9, weight: .heavy))
+                            .foregroundColor(state.accent)
+                        ProgressView(value: state.levelProgress)
+                            .progressViewStyle(.linear)
+                            .tint(state.accent)
+                            .frame(width: 60)
+                    }
+                }
+            }
+            .padding(.bottom, 8)
+
+            ForEach(PanelTab.allCases) { tab in
+                Button {
+                    state.tab = tab
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: tab.icon)
+                            .frame(width: 16)
+                            .foregroundColor(state.tab == tab ? .black : state.accent)
+                        Text(tab.title)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(state.tab == tab ? .black : .white)
+                        Spacer()
+                        if let badge = badge(tab) {
+                            Text(badge)
+                                .font(.system(size: 9, weight: .bold))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Capsule().fill(Color.white.opacity(0.15)))
+                                .foregroundColor(state.tab == tab ? .black : .white)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(state.tab == tab ? state.accent : Color.clear)
+                    )
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer(minLength: 4)
+
+            Button {
+                openSettings()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape.fill").frame(width: 16)
+                    Text("Configurações").font(.system(size: 12))
+                }
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.trailing, 10)
+    }
+
+    private func badge(_ tab: PanelTab) -> String? {
+        switch tab {
+        case .tasks:
+            let n = state.tasks.filter { !$0.done }.count
+            return n > 0 ? "\(n)" : nil
+        case .habits:
+            let done = state.habits.filter { $0.count >= $0.goal }.count
+            return state.habits.isEmpty ? nil : "\(done)/\(state.habits.count)"
+        case .timers:
+            return state.timers.isEmpty ? nil : "\(state.timers.count)"
+        default:
+            return nil
+        }
+    }
+
     private var header: some View {
-        HStack(spacing: 12) {
-            RobotFace(mode: state.mode, size: 42, accent: state.accent)
+        HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(state.userName.isEmpty ? "Olá!" : "Olá, \(state.userName)!")
+                Text(state.tab == .home ? greeting : state.tab.title)
                     .font(.system(size: 16, weight: .bold))
                 Text(subtitle)
                     .font(.system(size: 11))
@@ -191,15 +279,11 @@ struct ExpandedView: View {
             }
             .buttonStyle(.plain)
             .help("Manter aberta")
-
-            Button {
-                openSettings()
-            } label: {
-                Image(systemName: "gearshape")
-            }
-            .buttonStyle(.plain)
-            .help("Configurações")
         }
+    }
+
+    private var greeting: String {
+        state.userName.isEmpty ? "\(Fmt.greeting())!" : "\(Fmt.greeting()), \(state.userName)!"
     }
 
     private var subtitle: String {
@@ -217,10 +301,15 @@ struct ExpandedView: View {
     @ViewBuilder
     private var content: some View {
         switch state.tab {
+        case .home: HomeTab(state: state, assistant: assistant)
         case .chat: ChatTab(state: state, assistant: assistant)
         case .tasks: TasksTab(state: state)
+        case .habits: HabitsTab(state: state)
         case .timers: TimersTab(state: state, assistant: assistant)
+        case .clips: ClipsTab(state: state)
+        case .routines: RoutinesTab(state: state, assistant: assistant)
         case .memory: MemoryTab(state: state)
+        case .mymac: MyMacTab(state: state, assistant: assistant)
         }
     }
 }
@@ -403,7 +492,10 @@ struct TasksTab: View {
     private func row(_ t: TaskItem) -> some View {
         HStack(spacing: 10) {
             Button {
-                if let i = state.tasks.firstIndex(where: { $0.id == t.id }) { state.tasks[i].done.toggle() }
+                if let i = state.tasks.firstIndex(where: { $0.id == t.id }) {
+                    state.tasks[i].done.toggle()
+                    if state.tasks[i].done { state.addXP(10) }
+                }
             } label: {
                 Image(systemName: t.done ? "checkmark.circle.fill" : "circle")
                     .foregroundColor(t.done ? state.accent : .secondary)

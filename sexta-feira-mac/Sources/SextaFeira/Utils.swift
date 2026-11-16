@@ -144,7 +144,22 @@ enum Fmt {
         return f
     }()
 
+    private static let dayF: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
     static func time(_ d: Date) -> String { hm.string(from: d) }
+    static func day(_ d: Date) -> String { dayF.string(from: d) }
+
+    static func greeting(_ d: Date = Date()) -> String {
+        let h = Calendar.current.component(.hour, from: d)
+        if h < 5 { return "Boa madrugada" }
+        if h < 12 { return "Bom dia" }
+        if h < 18 { return "Boa tarde" }
+        return "Boa noite"
+    }
     static func longDate(_ d: Date) -> String { full.string(from: d) }
     static func stamp(_ d: Date) -> String { stampF.string(from: d) }
 

@@ -31,14 +31,32 @@ struct NowPlaying: Equatable {
 }
 
 enum PanelTab: String, CaseIterable, Identifiable {
-    case chat, tasks, timers, memory
+    case home, chat, tasks, habits, timers, clips, routines, memory, mymac
     var id: String { rawValue }
     var title: String {
         switch self {
+        case .home: return "Início"
         case .chat: return "Conversa"
         case .tasks: return "Tarefas"
+        case .habits: return "Hábitos"
         case .timers: return "Timers"
+        case .clips: return "Copiados"
+        case .routines: return "Rotinas"
         case .memory: return "Memória"
+        case .mymac: return "Meu Mac"
+        }
+    }
+    var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .chat: return "bubble.left.and.bubble.right.fill"
+        case .tasks: return "checklist"
+        case .habits: return "drop.fill"
+        case .timers: return "timer"
+        case .clips: return "doc.on.clipboard"
+        case .routines: return "bolt.fill"
+        case .memory: return "brain"
+        case .mymac: return "laptopcomputer"
         }
     }
 }
@@ -62,7 +80,7 @@ final class AppState: ObservableObject {
     @Published var pinned = false
     @Published var inputFocused = false
     @Published var wantsFocus = false
-    @Published var tab: PanelTab = .chat
+    @Published var tab: PanelTab = .home
 
     @Published var mode: Mode = .idle
     @Published var partial = ""
@@ -77,6 +95,27 @@ final class AppState: ObservableObject {
     @Published var memories: [String] = [] {
         didSet { Storage.save(memories, "memoria.json") }
     }
+    @Published var habits: [Habit] = [] {
+        didSet { Storage.save(habits, "habitos.json") }
+    }
+    @Published var customCommands: [CustomCommand] = [] {
+        didSet { Storage.save(customCommands, "funcoes.json") }
+    }
+    @Published var routines: [Routine] = [] {
+        didSet { Storage.save(routines, "rotinas.json") }
+    }
+    @Published var clips: [ClipItem] = []
+
+    /// Nível e XP: cresce a cada pedido, tarefa concluída e hábito cumprido.
+    @Published var xp: Int = UserDefaults.standard.integer(forKey: "xp") {
+        didSet { UserDefaults.standard.set(xp, forKey: "xp") }
+    }
+    var level: Int { xp / 100 + 1 }
+    var levelProgress: Double { Double(xp % 100) / 100 }
+
+    @Published var scanSteps: [ScanStep] = []
+    @Published var scanProgress: Double?
+    @Published var report: [ReportLine] = []
 
     @Published var assistantName = Prefs.assistantName
     @Published var userName = Prefs.userName
@@ -94,6 +133,27 @@ final class AppState: ObservableObject {
     init() {
         tasks = Storage.load([TaskItem].self, "tarefas.json") ?? []
         memories = Storage.load([String].self, "memoria.json") ?? []
+        habits = Storage.load([Habit].self, "habitos.json") ?? Habit.defaults
+        customCommands = Storage.load([CustomCommand].self, "funcoes.json") ?? []
+        routines = Storage.load([Routine].self, "rotinas.json") ?? Routine.defaults
+        rolloverHabits()
+    }
+
+    func addXP(_ n: Int) { xp += n }
+
+    /// Zera os contadores de hábitos quando vira o dia.
+    func rolloverHabits() {
+        let today = Habit.today()
+        guard habits.contains(where: { $0.day != today }) else { return }
+        habits = habits.map { h in
+            var h = h
+            if h.day != today { h.count = 0; h.day = today }
+            return h
+        }
+    }
+
+    var waterHabit: Habit? {
+        habits.first { Words.normalize($0.name).contains("agua") }
     }
 }
 
@@ -117,6 +177,12 @@ enum Prefs {
     static var wakeEnabled: Bool { d.bool(forKey: "wakeEnabled") }
     static var voiceID: String { d.string(forKey: "voiceID") ?? "" }
     static var accent: Int { d.integer(forKey: "accent") }
+    static var personality: String { d.string(forKey: "personality").nonEmpty ?? "divertido" }
+    static var petEnabled: Bool { d.object(forKey: "petEnabled") as? Bool ?? true }
+    static var waterReminder: Bool { d.bool(forKey: "waterReminder") }
+    static var pixKey: String { d.string(forKey: "pixKey") ?? "" }
+    static let defaultImageModel = "gemini-2.5-flash-image"
+    static var imageModel: String { d.string(forKey: "imageModel").nonEmpty ?? defaultImageModel }
 }
 
 /// Arquivos em ~/Library/Application Support/SextaFeira

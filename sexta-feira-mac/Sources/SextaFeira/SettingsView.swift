@@ -16,6 +16,11 @@ struct SettingsView: View {
     @AppStorage("speakReplies") private var speakReplies = true
     @AppStorage("wakeEnabled") private var wakeEnabled = false
     @AppStorage("voiceID") private var voiceID = ""
+    @AppStorage("personality") private var personality = "divertido"
+    @AppStorage("petEnabled") private var petEnabled = true
+    @AppStorage("waterReminder") private var waterReminder = false
+    @AppStorage("pixKey") private var pixKey = ""
+    @AppStorage("imageModel") private var imageModel = Prefs.defaultImageModel
 
     @State private var geminiKey = Keychain.get("gemini")
     @State private var claudeKey = Keychain.get("claude")
@@ -25,18 +30,21 @@ struct SettingsView: View {
     var body: some View {
         Form {
             identitySection
+            extrasSection
             brainSection
             voiceSection
             dataSection
         }
         .formStyle(.grouped)
-        .frame(width: 540, height: 640)
+        .frame(width: 560, height: 700)
         .onChange(of: geminiKey) { Keychain.set($0, for: "gemini") }
         .onChange(of: claudeKey) { Keychain.set($0, for: "claude") }
         .onChange(of: wakeEnabled) { _ in assistant.applyPrefs() }
         .onChange(of: assistantName) { _ in assistant.applyPrefs() }
         .onChange(of: userName) { _ in assistant.applyPrefs() }
         .onChange(of: accent) { _ in assistant.applyPrefs() }
+        .onChange(of: petEnabled) { _ in assistant.applyPrefs() }
+        .onChange(of: waterReminder) { _ in assistant.applyPrefs() }
         .onDisappear { assistant.applyPrefs() }
     }
 
@@ -49,6 +57,23 @@ struct SettingsView: View {
                     Text(Palette.names[i]).tag(i)
                 }
             }
+        }
+    }
+
+    private var extrasSection: some View {
+        Section("Jeito e extras") {
+            Picker("Personalidade", selection: $personality) {
+                ForEach(Personality.all.indices, id: \.self) { i in
+                    Text(Personality.all[i].title).tag(Personality.all[i].id)
+                }
+            }
+            Toggle("Mascote passeando pela tela", isOn: $petEnabled)
+            Toggle("Lembrar de beber água (de hora em hora, 8h–22h)", isOn: $waterReminder)
+            TextField("Sua chave Pix (para “copia meu pix”)", text: $pixKey)
+            TextField("Modelo para criar imagens (Gemini)", text: $imageModel)
+            Text("Criar artes usa a chave do Gemini, mesmo que o cérebro seja outro. Pode ter custo dependendo da sua conta.")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
     }
 

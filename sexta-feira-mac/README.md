@@ -1,7 +1,8 @@
 # Sexta-feira — assistente de IA no topo da tela do Mac
 
-Uma "ilha" preta no centro da barra de menus. Passe o mouse e ela abre com conversa,
-tarefas, timers, memória e controle de música. Fale com ela segurando **⌥ Espaço**
+Uma "ilha" preta no centro da barra de menus. Passe o mouse e ela abre um painel com
+menu lateral: Início, Conversa, Tarefas, Hábitos, Timers, Copiados, Rotinas, Memória e
+Meu Mac, além do controle de música. Um mascote também passeia pela sua tela. Fale com ela segurando **⌥ Espaço**
 ou, se quiser, dizendo **"Sexta-feira, …"**.
 
 Feita em Swift/SwiftUI nativo: leve, sem Electron e só para o seu Mac.
@@ -22,6 +23,26 @@ Feita em Swift/SwiftUI nativo: leve, sem Electron e só para o seu Mac.
 | "quanto é 15% de 230?", "me explica X" | conversa com a IA |
 | "abre o YouTube", "pesquisa o clima amanhã" | abre o site ou a pesquisa |
 | "roda o atalho Modo Foco" | roda um atalho do app Atalhos |
+| "bebi água" | soma um copo no hábito Água |
+| "como está meu Mac?" | verificação com anel de progresso: memória, processador, disco, caches, lixeira, bateria |
+| "cria uma arte de um gato astronauta" | gera a imagem (Gemini), salva em Imagens › Sexta-feira e abre |
+| "copia meu pix" | copia sua chave Pix |
+| "abre o painel da TV" | abre o que você cadastrou em **Rotinas › Funções** |
+| "ativa o modo foco" | roda uma **rotina** (vários comandos de uma vez) |
+
+## Telas
+
+- **Início**: saudação ("Boa tarde, …"), nível/XP, cartões de água, tarefas, timers,
+  rotinas, verificar o Mac, criar arte e sugestões do que dizer.
+- **Hábitos**: contadores diários com meta (água 0/8, leitura, exercício…). Zeram todo dia.
+- **Copiados**: histórico do que você copiou (ignora senhas de gerenciadores de senha).
+- **Rotinas**: *Funções* (um nome → site, app, pasta ou arquivo) e *Rotinas* (um comando por linha).
+- **Meu Mac**: verificação do sistema, esvaziar lixeira (com confirmação) e atalho para o Monitor de Atividade.
+- **Nível**: cada pedido, tarefa concluída e hábito cumprido dá XP.
+- **Mascote**: anda pela tela, segue o mouse, faz comentários, mostra o que a assistente
+  está falando e cochila se você some por 2 minutos. Ele não bloqueia cliques.
+  Dá para desligar em Configurações.
+- **Personalidade**: divertida, fofa, profissional, sarcástica ou zen.
 
 Os comandos simples (abrir app, música, volume, timer, lembrete, tarefa, nota) funcionam
 **sem IA e sem internet**. O resto vai para a IA que você escolher.
@@ -118,3 +139,6 @@ porque o app é assinado localmente. Clique em **Sempre permitir**.
 | `Voice.swift` | reconhecimento de voz (pt-BR) e fala |
 | `Actions.swift` | ações, comandos rápidos e leitura da resposta da IA |
 | `MacControl.swift` | apps, música, volume, notificações, timers |
+| `Features.swift` | hábitos, funções, rotinas, personalidade, verificação do Mac |
+| `MoreTabs.swift` | telas Início, Hábitos, Copiados, Rotinas e Meu Mac |
+| `Pet.swift` | mascote que passeia pela tela |

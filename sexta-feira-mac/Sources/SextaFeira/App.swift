@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var state: AppState!
     private var assistant: Assistant!
     private var notch: NotchController!
+    private var pet: DesktopPet!
     private var statusItem: NSStatusItem!
     private var settingsWindow: NSWindow?
     private var holdTimer: Timer?
@@ -30,6 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.assistant = assistant
         notch = NotchController(state: state, assistant: assistant,
                                 openSettings: { [weak self] in self?.openSettings() })
+
+        pet = DesktopPet(app: state)
+        assistant.onPrefsChanged = { [weak self] in self?.pet.setEnabled(Prefs.petEnabled) }
 
         setupStatusItem()
 

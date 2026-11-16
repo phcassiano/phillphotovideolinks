@@ -10,6 +10,7 @@ enum Action {
     case addTask(String), completeTask(String)
     case note(String), remember(String), forget(String)
     case shortcut(String)
+    case habit(String), copyPix, checkMac, image(String), run(String)
 
     /// Converte um item de "actions" do JSON da IA.
     static func from(_ d: [String: Any]) -> Action? {
@@ -51,6 +52,11 @@ enum Action {
         case "remember": return nonEmpty(str("fact")) { .remember($0) }
         case "forget": return nonEmpty(str("fact")) { .forget($0) }
         case "shortcut": return nonEmpty(str("name")) { .shortcut($0) }
+        case "habit": return nonEmpty(str("name")) { .habit($0) }
+        case "copy_pix": return .copyPix
+        case "check_mac": return .checkMac
+        case "image": return nonEmpty(str("prompt")) { .image($0) }
+        case "run": return nonEmpty(str("name")) { .run($0) }
         default: return nil
         }
     }
@@ -91,6 +97,29 @@ enum QuickCommands {
         // Horas
         if ["que horas sao", "que hora e", "que horas e", "me diz as horas", "me fala as horas"].contains(t) {
             return Result(actions: [], say: "São \(Fmt.time(Date())).")
+        }
+
+        // Água / hábitos
+        if Rx.match(#"^(?:bebi|tomei) (?:mais )?(?:um |1 )?(?:copo )?(?:de |d )?agua$"#, t) != nil {
+            return Result(actions: [.habit("água")], say: "Boa! Mais um copo de água. 💧")
+        }
+
+        // Pix
+        if ["copia meu pix", "copia o pix", "copia minha chave pix", "copiar meu pix", "meu pix"].contains(t) {
+            return Result(actions: [.copyPix], say: "Pix copiado!")
+        }
+
+        // Verificar o Mac
+        let checkPhrases = ["como esta meu mac", "como esta o mac", "como ta meu mac", "como esta meu pc",
+                            "como ta meu pc", "como esta meu computador", "verifica o mac", "verifica meu mac",
+                            "verifica o pc", "verifica meu pc", "checa meu mac", "analisa meu mac"]
+        if checkPhrases.contains(t) {
+            return Result(actions: [.checkMac], say: "Deixa eu dar uma olhada no seu Mac…")
+        }
+
+        // Arte / imagem
+        if Rx.match(#"^(?:cria|crie|criar|gera|gere|gerar|faz|faca|fazer|desenha|desenhe)(?: uma| um)? (?:arte|imagem|desenho|logo|logotipo|figura|ilustracao|foto)\b.+$"#, t) != nil {
+            return Result(actions: [.image(raw.trimmed)], say: "Criando sua arte… já te mostro! 🎨")
         }
 
         // Volume

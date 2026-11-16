@@ -121,7 +121,7 @@ final class NotchController {
         guard let screen else { return .zero }
         let size: NSSize
         if state.expanded {
-            size = NSSize(width: 560, height: 470 + (state.notchWidth > 0 ? state.menuBarHeight : 0))
+            size = NSSize(width: 720, height: 500 + (state.notchWidth > 0 ? state.menuBarHeight : 0))
         } else {
             size = collapsedSize()
         }
