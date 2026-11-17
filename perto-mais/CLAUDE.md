@@ -12,7 +12,7 @@ Tudo roda a partir desta pasta (`perto-mais/`); a raiz do repositório hospeda o
 | `npm run lint` | ESLint |
 | `npm test` | testes unitários (Vitest) |
 | `npm run test:rls` | testes de permissão contra o Supabase local (precisa de `npm run db:start`) |
-| `npm run test:e2e` | Playwright (sobe o app sozinho; precisa do Supabase local) |
+| `npm run test:e2e` | recria o banco local e roda Playwright (sobe o app sozinho) |
 | `npm run db:start` / `db:stop` | Supabase local (Docker) |
 | `npm run db:reset` | recria o banco local: migrations + `supabase/seed.sql` |
 | `npm run db:types` | regenera `app/types/database.ts` a partir do banco local |

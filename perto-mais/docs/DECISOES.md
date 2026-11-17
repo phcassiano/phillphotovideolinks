@@ -15,3 +15,10 @@ Registro das decisões tomadas sem consulta (reversíveis). Mais recente no fim.
 11. **Categorias de alimentação usam layout de cardápio** pela flag `categories.uses_menu_layout` (editável no admin), não por nome fixo.
 12. **Página de demonstração recebe `noindex`** para não indexar negócios fictícios no Google.
 13. **Seed com contas de teste** é só para ambiente local (senhas conhecidas). Em produção aplica-se apenas as migrations, que já trazem planos, categorias, Brasília e bairros.
+14. **Leituras do painel no cliente (TanStack Query) e escritas críticas por action**: cadastro, dados do negócio, conta e assinatura passam por `action` com o mesmo schema Zod; produtos, fotos e horários vão direto ao Supabase pelo navegador (RLS + gatilhos validam no banco).
+15. **Horários salvos por função atômica** `set_business_hours` (SECURITY INVOKER, então a RLS continua valendo).
+16. **Imagens só na pasta da própria loja**: gatilho recusa `logo_path`, `cover_path`, `photo_path` e `path` fora de `<business_id>/`.
+17. **Verde de sucesso escurecido para `#276B43`** após a auditoria axe (o tom anterior ficava 4,4:1 nos selos).
+18. **Supabase-js fora do bundle das páginas públicas**: `usePublicEnv` vive em módulo próprio.
+19. **Teste E2E recria o banco** (`npm run test:e2e` roda `supabase db reset`), para ser determinístico.
+20. **Capas de demonstração sem texto**: o nome já aparece no card da página.

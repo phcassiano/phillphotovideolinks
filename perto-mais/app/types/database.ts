@@ -575,6 +575,9 @@ isOneToOne: false
 "log_admin_action":
 { Args: { "p_action": string,"p_details"?: Json,"p_entity": string,"p_entity_id": string }; Returns: undefined
                            },
+"media_path_ok":
+{ Args: { "p_business_id": string,"p_path": string }; Returns: boolean
+                           },
 "owns_business":
 { Args: { "p_business_id": string }; Returns: boolean
                            },

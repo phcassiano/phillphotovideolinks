@@ -153,6 +153,14 @@ describe('comerciante B (Vitrine)', () => {
     const { data } = await anon.from('products').select('id').eq('business_id', bizB.id);
     expect(data?.map((r) => r.id)).toContain(p!.id);
   });
+  it('não aponta imagem para a pasta de outra loja', async () => {
+    const { error } = await B.client.from('businesses').update({ logo_path: `${bizA.id}/logo/x.webp` }).eq('id', bizB.id);
+    expect(error?.code).toBe('42501');
+    const { error: e2 } = await B.client.from('products').insert({ business_id: bizB.id, name: 'X', photo_path: `${bizA.id}/product/x.webp` });
+    expect(e2?.code).toBe('42501');
+    const { error: e3 } = await B.client.from('business_photos').insert({ business_id: bizB.id, path: '/demo/acai-ponto-roxo/foto-1.webp' });
+    expect(e3?.code).toBe('42501');
+  });
   it('define logo e descrição', async () => {
     const { error } = await B.client.from('businesses').update({ logo_path: `${bizB.id}/logo/a.webp`, description: 'Pizzas' }).eq('id', bizB.id);
     expect(error).toBeNull();

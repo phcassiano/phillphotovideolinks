@@ -55,8 +55,7 @@ const coverSvg = (name, sub, color, seed) => `<svg xmlns="http://www.w3.org/2000
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#292521"/></linearGradient></defs>
   <rect width="1200" height="480" fill="url(#g)"/>
   ${blobs(1200, 480, '#ffffff', seed)}
-  <text x="64" y="380" ${font} font-size="64" font-weight="800" fill="#fff">${esc(name)}</text>
-  <text x="64" y="430" ${font} font-size="30" font-weight="500" fill="#fff" opacity=".85">${esc(sub)}</text>
+  <!-- ${esc(name)} · ${esc(sub)} (sem texto: o nome aparece na página) -->
 </svg>`;
 
 const photoSvg = (label, color, seed) => `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="675" viewBox="0 0 900 675">

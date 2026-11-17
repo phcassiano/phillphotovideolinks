@@ -102,7 +102,7 @@ export default function AdminEstabelecimentos() {
             {list.data.rows.map((b) => (
               <li key={b.id}>
                 <Link to={`/admin/estabelecimentos/${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-cream">
-                  <span className="min-w-0 flex-1 font-semibold">
+                  <span className="w-full min-w-0 font-semibold lg:w-auto lg:flex-1">
                     {b.name} {b.is_demo ? <Badge variant="demo">Demo</Badge> : null}
                   </span>
                   <span className="text-sm text-ink-muted">
