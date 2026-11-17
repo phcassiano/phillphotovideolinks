@@ -1,0 +1,87 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Tokens de marca */
+  --color-cream: #f5f0e7;
+  --color-cream-200: #ebe3d4;
+  --color-cream-300: #ddd2bf;
+  --color-ink: #292521;
+  --color-ink-muted: #5f574e; /* 6.4:1 sobre cream */
+  --color-brand: #e86b19; /* destaque, ícones e textos grandes */
+  --color-brand-600: #c75a12;
+  --color-brand-700: #a3480d; /* texto branco sobre este passa AA (6,1:1) */
+  --color-brand-50: #fdf0e6;
+  --color-brand-100: #fbdcc4;
+  --color-accent: #f4a261;
+  --color-accent-100: #fde9d6;
+  --color-whatsapp: #25d366;
+  --color-whatsapp-ink: #07331a; /* texto sobre o verde (7:1) */
+  --color-whatsapp-700: #128c3e;
+  --color-success: #276b43; /* 5,6:1 sobre o verde-claro dos selos */
+  --color-danger: #b42318;
+  --color-danger-50: #fdecea;
+  --color-warning: #8a5a00;
+  --color-warning-50: #fff4d6;
+  --color-card: #ffffff;
+  --color-line: #e7dfd2;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 2px rgb(41 37 33 / 0.06), 0 4px 16px rgb(41 37 33 / 0.06);
+  --shadow-lift: 0 2px 4px rgb(41 37 33 / 0.08), 0 12px 28px rgb(41 37 33 / 0.1);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-cream text-ink antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-brand-700);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@utility container-page {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  @media (width >= 48rem) {
+    padding-inline: 1.5rem;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
+
+/* Leaflet (carregado sob demanda) */
+.leaflet-container {
+  font: inherit;
+  border-radius: var(--radius-card);
+}

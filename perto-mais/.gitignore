@@ -1,0 +1,14 @@
+node_modules
+/build
+/.react-router
+.env
+.env.*
+!.env.example
+/test-results
+/playwright-report
+/blob-report
+supabase/.branches
+supabase/.temp
+*.log
+.DS_Store
+.vercel
