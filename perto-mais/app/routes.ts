@@ -6,6 +6,8 @@ export default [
   route('api/location', 'routes/api/location.ts'),
   route('api/locais', 'routes/api/locais.ts'),
   route('manifest.webmanifest', 'routes/api/manifest.ts'),
+  route('auth/confirmar', 'routes/auth/confirmar.ts'),
+  route('sair', 'routes/auth/sair.ts'),
 
   layout('routes/public/layout.tsx', [
     index('routes/public/home.tsx'),
@@ -16,9 +18,20 @@ export default [
     route('planos', 'routes/public/planos.tsx'),
     route('termos', 'routes/public/termos.tsx'),
     route('privacidade', 'routes/public/privacidade.tsx'),
+    route('login', 'routes/public/login.tsx'),
+    route('cadastro', 'routes/public/cadastro.tsx'),
+    route('cadastro/confirme', 'routes/public/cadastro-confirme.tsx'),
+    route('recuperar-senha', 'routes/public/recuperar-senha.tsx'),
+    route('redefinir-senha', 'routes/public/redefinir-senha.tsx'),
     route('estabelecimento/:slug', 'routes/public/estabelecimento.tsx'),
     route(':cidade', 'routes/public/cidade.tsx'),
     route(':cidade/:bairro', 'routes/public/listagem.tsx', { id: 'listagem-bairro' }),
     route(':cidade/:bairro/:categoria', 'routes/public/listagem.tsx', { id: 'listagem-categoria' }),
+  ]),
+
+  route('painel', 'routes/painel/layout.tsx', [
+    index('routes/painel/index.tsx'),
+    route('estabelecimento', 'routes/painel/estabelecimento.tsx'),
+    route('conta', 'routes/painel/conta.tsx'),
   ]),
 ] satisfies RouteConfig;

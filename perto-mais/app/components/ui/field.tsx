@@ -23,9 +23,9 @@ export function Field({ id, label, error, hint, optional, className, children }:
       </Label>
       {React.cloneElement(children, { id, 'aria-invalid': error ? true : undefined, 'aria-describedby': describedBy })}
       {hint ? (
-        <p id={`${id}-hint`} className="text-sm text-ink-muted">
+        <div id={`${id}-hint`} className="text-sm text-ink-muted">
           {hint}
-        </p>
+        </div>
       ) : null}
       {error ? (
         <p id={`${id}-error`} role="alert" className="text-sm font-medium text-danger">

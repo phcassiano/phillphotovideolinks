@@ -735,7 +735,7 @@ begin
     ),
     'daily', case when v_detailed then (
       select coalesce(jsonb_agg(jsonb_build_object(
-        'day', d.day,
+        'day', d.day::date,
         'page_views', coalesce(m.page_views, 0),
         'whatsapp_clicks', coalesce(m.whatsapp_clicks, 0),
         'phone_clicks', coalesce(m.phone_clicks, 0),

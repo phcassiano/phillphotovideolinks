@@ -592,6 +592,9 @@ isOneToOne: false
               "distance_km": number,"id": string,"rank": number,"total_count": number
             }[]
                            },
+"set_business_hours":
+{ Args: { "p_business_id": string,"p_hours": Json }; Returns: undefined
+                           },
 "slugify":
 { Args: { "value": string }; Returns: string
                            },
