@@ -44,7 +44,7 @@ export default function AdminUsuarios() {
         <Button type="submit" variant="secondary" aria-label="Buscar"><Search aria-hidden /></Button>
       </form>
       {list.isError ? <Alert tone="error" className="mt-4">Erro ao carregar.</Alert> : null}
-      <div className="mt-4 overflow-x-auto rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)]">
+      <div className="mt-4 overflow-x-auto rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)]" tabIndex={0} role="region" aria-label="Tabela de usuários">
         {list.isLoading ? <div className="p-4"><Skeleton className="h-40" /></div> : (
           <table className="w-full min-w-[40rem] text-left text-sm">
             <thead className="border-b border-line text-ink-muted">

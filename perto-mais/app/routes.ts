@@ -6,6 +6,8 @@ export default [
   route('api/location', 'routes/api/location.ts'),
   route('api/locais', 'routes/api/locais.ts'),
   route('manifest.webmanifest', 'routes/api/manifest.ts'),
+  route('sitemap.xml', 'routes/api/sitemap.ts'),
+  route('robots.txt', 'routes/api/robots.ts'),
   route('auth/confirmar', 'routes/auth/confirmar.ts'),
   route('sair', 'routes/auth/sair.ts'),
 

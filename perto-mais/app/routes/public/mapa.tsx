@@ -12,7 +12,7 @@ import { PUBLIC_BUSINESS_COLUMNS, type PublicBusiness } from '~/features/busines
 import { readLocation } from '~/lib/location.server';
 import { mediaUrl } from '~/lib/images';
 import { seo } from '~/lib/seo';
-import { usePublicEnv } from '~/lib/supabase/client';
+import { usePublicEnv } from '~/lib/public-env';
 import { createSupabaseServerClient } from '~/lib/supabase/server';
 import { directionsLink } from '~/lib/whatsapp';
 import { cn } from '~/lib/utils';

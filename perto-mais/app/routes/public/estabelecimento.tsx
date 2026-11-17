@@ -17,7 +17,7 @@ import { mediaUrl } from '~/lib/images';
 import { formatPhoneBR } from '~/lib/phone';
 import { absoluteUrl, breadcrumbJsonLd, seo, siteUrlFromMatches } from '~/lib/seo';
 import { createSupabaseServerClient } from '~/lib/supabase/server';
-import { usePublicEnv } from '~/lib/supabase/client';
+import { usePublicEnv } from '~/lib/public-env';
 import { directionsLink } from '~/lib/whatsapp';
 
 export async function loader({ request, params }: Route.LoaderArgs) {

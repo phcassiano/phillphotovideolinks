@@ -13,12 +13,11 @@
     "lint": "eslint .",
     "test": "vitest run --project unit",
     "test:rls": "vitest run --project rls",
-    "test:e2e": "playwright test --trace off",
+    "test:e2e": "supabase db reset && playwright test --trace off",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
-    "db:reset": "supabase db reset && npm run db:users",
+    "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --schema public 2>/dev/null > app/types/database.ts",
-    "db:users": "node --experimental-strip-types scripts/seed-users.ts",
     "demo:remove": "node --experimental-strip-types scripts/remove-demo.ts",
     "admin:create": "node --experimental-strip-types scripts/create-admin.ts",
     "demo:build": "node scripts/demo/build.mjs",
@@ -46,6 +45,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.63.0",
     "@react-router/dev": "^7.18.5",

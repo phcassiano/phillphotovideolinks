@@ -8,7 +8,7 @@ import type { PublicBusiness } from '~/features/business/types';
 import { formatDistance } from '~/lib/geo';
 import { mediaUrl } from '~/lib/images';
 import { cn } from '~/lib/utils';
-import { usePublicEnv } from '~/lib/supabase/client';
+import { usePublicEnv } from '~/lib/public-env';
 
 export function BusinessCard({ business: b, priority = false }: { business: PublicBusiness; priority?: boolean }) {
   const env = usePublicEnv();

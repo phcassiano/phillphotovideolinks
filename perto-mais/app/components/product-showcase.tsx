@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from '~/components/ui/dialog';
 import { track } from '~/features/metrics/track';
 import { mediaUrl } from '~/lib/images';
 import { formatBRL } from '~/lib/money';
-import { usePublicEnv } from '~/lib/supabase/client';
+import { usePublicEnv } from '~/lib/public-env';
 import { cn } from '~/lib/utils';
 
 type Product = {

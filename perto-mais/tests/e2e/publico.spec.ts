@@ -45,6 +45,37 @@ test('combinação vazia recebe noindex e chamada para anunciar', async ({ page 
 });
 
 test('pendentes não aparecem publicamente', async ({ page }) => {
-  const res = await page.goto('/estabelecimento/oficina-roda-viva');
+  const res = await page.goto('/estabelecimento/assistencia-celular-conecta');
   expect(res?.status()).toBe(404);
+});
+
+test('robots, sitemap, manifest e canonical', async ({ page, request }) => {
+  const robots = await (await request.get('/robots.txt')).text();
+  expect(robots).toContain('Disallow: /painel');
+  expect(robots).toContain('Disallow: /admin');
+  expect(robots).toMatch(/Sitemap: .*\/sitemap\.xml/);
+  const sitemap = await request.get('/sitemap.xml');
+  expect(sitemap.headers()['content-type']).toContain('xml');
+  expect(await sitemap.text()).not.toContain('oficina-roda-viva'); // pendente/demonstração fora
+  const manifest = await (await request.get('/manifest.webmanifest')).json();
+  expect(manifest.icons.length).toBeGreaterThan(1);
+  await page.goto('/brasilia/sobradinho');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/brasilia\/sobradinho$/);
+  const ld = await page.locator('script[type="application/ld+json"]').allTextContents();
+  expect(ld.some((t) => t.includes('BreadcrumbList'))).toBe(true);
+});
+
+test('mapa mostra agrupamentos e o resumo ao tocar no pino', async ({ page }) => {
+  await page.goto('/brasilia/sobradinho'); // define o bairro
+  await page.goto('/mapa');
+  const marker = page.locator('.leaflet-marker-icon').first();
+  await expect(marker).toBeVisible({ timeout: 15000 });
+  // aproxima até aparecerem pinos individuais
+  for (let i = 0; i < 6 && (await page.locator('.leaflet-marker-icon[title]').count()) === 0; i++) {
+    await page.locator('.leaflet-marker-icon').first().click();
+    await page.waitForTimeout(600);
+  }
+  await page.locator('.leaflet-marker-icon[title]').first().click();
+  await expect(page.getByRole('dialog', { name: /Resumo de/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ver página' })).toBeVisible();
 });

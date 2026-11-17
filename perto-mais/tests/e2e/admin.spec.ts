@@ -44,16 +44,16 @@ test('admin rejeita com motivo e destaca por período', async ({ page }) => {
   await expect(page.getByText('businesses.update').first()).toBeVisible();
 });
 
-test('admin ativa assinatura pendente e o negócio ganha Vitrine', async ({ page }) => {
+test('admin cria assinatura para um negócio e o painel reflete', async ({ page }) => {
   await login(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password);
-  await page.goto('/admin/assinaturas?status=pending');
-  const row = page.getByRole('listitem').filter({ hasText: 'Farmácia Bem Viver' });
-  await row.getByRole('button', { name: 'Ativar' }).click();
+  await page.goto('/admin/estabelecimentos?status=approved');
+  await page.getByRole('link', { name: /Mercadinho Bom Preço/ }).click();
+  await page.getByRole('link', { name: 'Gerenciar assinaturas →' }).click();
+  await page.getByRole('button', { name: 'Nova assinatura' }).click();
   await page.getByLabel('Observação').fill('Pix recebido (teste E2E)');
-  await page.getByRole('button', { name: 'Ativar' }).last().click();
-  await expect(page.getByText('Assinatura ativada.').first()).toBeVisible();
-  await page.goto('/admin');
-  await expect(page.getByText('Com Vitrine (premium)')).toBeVisible();
+  await page.getByRole('button', { name: 'Ativar' }).click();
+  await expect(page.getByText('Assinatura criada.').first()).toBeVisible();
+  await expect(page.getByText('Ativa', { exact: true })).toBeVisible();
 });
 
 test('admin cria subcategoria', async ({ page }) => {
