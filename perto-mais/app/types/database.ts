@@ -103,7 +103,7 @@ isOneToOne: false
                   }
                   ComputedFields: "business_search_vector"
                   Insert: {
-                    "address_complement"?: string | null,"address_line": string,"approved_at"?: string | null,"category_id": string,"city_id": string,"cover_path"?: string | null,"created_at"?: string,"description"?: string | null,"id"?: string,"instagram"?: string | null,"is_demo"?: boolean,"keywords"?: (string)[],"latitude"?: number | null,"logo_path"?: string | null,"longitude"?: number | null,"name": string,"neighborhood_id": string,"owner_id": string,"phone_e164"?: string | null,"postal_code"?: string | null,"search_vector"?: unknown,"slug": string,"status"?: Database["public"]['Enums']["business_status"],"status_reason"?: string | null,"updated_at"?: string,"whatsapp_e164"?: string | null
+                    "address_complement"?: string | null,"address_line": string,"approved_at"?: string | null,"category_id": string,"city_id": string,"cover_path"?: string | null,"created_at"?: string,"description"?: string | null,"id"?: string,"instagram"?: string | null,"is_demo"?: boolean,"keywords"?: (string)[],"latitude"?: number | null,"logo_path"?: string | null,"longitude"?: number | null,"name": string,"neighborhood_id": string,"owner_id": string,"phone_e164"?: string | null,"postal_code"?: string | null,"search_vector"?: unknown,"slug"?: string,"status"?: Database["public"]['Enums']["business_status"],"status_reason"?: string | null,"updated_at"?: string,"whatsapp_e164"?: string | null
                   }
                   Update: {
                     "address_complement"?: string | null,"address_line"?: string,"approved_at"?: string | null,"category_id"?: string,"city_id"?: string,"cover_path"?: string | null,"created_at"?: string,"description"?: string | null,"id"?: string,"instagram"?: string | null,"is_demo"?: boolean,"keywords"?: (string)[],"latitude"?: number | null,"logo_path"?: string | null,"longitude"?: number | null,"name"?: string,"neighborhood_id"?: string,"owner_id"?: string,"phone_e164"?: string | null,"postal_code"?: string | null,"search_vector"?: unknown,"slug"?: string,"status"?: Database["public"]['Enums']["business_status"],"status_reason"?: string | null,"updated_at"?: string,"whatsapp_e164"?: string | null
@@ -141,7 +141,7 @@ isOneToOne: false
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"description"?: string | null,"icon"?: string,"id"?: string,"is_active"?: boolean,"name": string,"parent_id"?: string | null,"slug": string,"sort_order"?: number,"updated_at"?: string,"uses_menu_layout"?: boolean
+                    "created_at"?: string,"description"?: string | null,"icon"?: string,"id"?: string,"is_active"?: boolean,"name": string,"parent_id"?: string | null,"slug"?: string,"sort_order"?: number,"updated_at"?: string,"uses_menu_layout"?: boolean
                   }
                   Update: {
                     "created_at"?: string,"description"?: string | null,"icon"?: string,"id"?: string,"is_active"?: boolean,"name"?: string,"parent_id"?: string | null,"slug"?: string,"sort_order"?: number,"updated_at"?: string,"uses_menu_layout"?: boolean
@@ -167,7 +167,7 @@ isOneToOne: false
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name": string,"slug": string,"sort_order"?: number,"state_id": string,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name": string,"slug"?: string,"sort_order"?: number,"state_id": string,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
                     "created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name"?: string,"slug"?: string,"sort_order"?: number,"state_id"?: string,"timezone"?: string,"updated_at"?: string
@@ -245,7 +245,7 @@ isOneToOne: false
                   }
                   ComputedFields: never
                   Insert: {
-                    "city_id": string,"created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name": string,"slug": string,"sort_order"?: number,"updated_at"?: string
+                    "city_id": string,"created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name": string,"slug"?: string,"sort_order"?: number,"updated_at"?: string
                   }
                   Update: {
                     "city_id"?: string,"created_at"?: string,"id"?: string,"is_active"?: boolean,"latitude"?: number | null,"longitude"?: number | null,"name"?: string,"slug"?: string,"sort_order"?: number,"updated_at"?: string
@@ -379,7 +379,7 @@ isOneToOne: false
                   }
                   ComputedFields: never
                   Insert: {
-                    "country_code"?: string,"created_at"?: string,"id"?: string,"name": string,"slug": string,"uf": string,"updated_at"?: string
+                    "country_code"?: string,"created_at"?: string,"id"?: string,"name": string,"slug"?: string,"uf": string,"updated_at"?: string
                   }
                   Update: {
                     "country_code"?: string,"created_at"?: string,"id"?: string,"name"?: string,"slug"?: string,"uf"?: string,"updated_at"?: string
@@ -550,6 +550,9 @@ isOneToOne: false
                            },
 "distance_km":
 { Args: { "lat1": number,"lat2": number,"lng1": number,"lng2": number }; Returns: number
+                           },
+"email_confirmed":
+{ Args: { "p_user_id": string }; Returns: boolean
                            },
 "expire_subscriptions":
 { Args: Record<PropertyKey, never>; Returns: number

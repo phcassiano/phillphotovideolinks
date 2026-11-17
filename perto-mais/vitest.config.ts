@@ -4,6 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
+    fileParallelism: false,
     projects: [
       {
         plugins: [tsconfigPaths()],
@@ -17,7 +18,6 @@ export default defineConfig({
           environment: 'node',
           testTimeout: 30000,
           hookTimeout: 60000,
-          fileParallelism: false,
           setupFiles: ['tests/rls/load-env.ts'],
         },
       },
