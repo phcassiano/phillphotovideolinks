@@ -1,0 +1,38 @@
+name: Sexta-feira DMG
+
+on:
+  push:
+    paths:
+      - "sexta-feira-mac/**"
+      - ".github/workflows/sexta-feira-dmg.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versão do Swift
+        run: swift --version
+      - name: Compilar e gerar DMG
+        working-directory: sexta-feira-mac
+        run: ./make-dmg.sh
+      - name: Publicar DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sexta-feira-dmg
+          path: sexta-feira-mac/build/Sexta-feira.dmg
+          retention-days: 30
+      - name: Atualizar a versão "mais recente" (usada pelo instalar.sh)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete sexta-feira-latest --yes --cleanup-tag || true
+          gh release create sexta-feira-latest sexta-feira-mac/build/Sexta-feira.dmg \
+            --title "Sexta-feira (versão mais recente)" \
+            --notes "Build automático do commit ${GITHUB_SHA}. Instale com: curl -fsSL https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_REF_NAME}/sexta-feira-mac/instalar.sh | bash" \
+            --prerelease --target "${GITHUB_SHA}"
