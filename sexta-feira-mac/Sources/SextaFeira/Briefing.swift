@@ -69,12 +69,12 @@ enum WebData {
               let daily = f["daily"] as? [String: Any] else {
             throw AIError.offline("A previsão do tempo não respondeu.")
         }
-        func first(_ key: String) -> Double { ((daily[key] as? [Any])?.first as? NSNumber)?.doubleValue ?? 0 }
+        func day(_ key: String) -> Double { ((daily[key] as? [Any])?.first as? NSNumber)?.doubleValue ?? 0 }
         return Weather(city: place,
                        temp: (current["temperature_2m"] as? NSNumber)?.doubleValue ?? 0,
-                       max: first("temperature_2m_max"),
-                       min: first("temperature_2m_min"),
-                       rainChance: Int(first("precipitation_probability_max")),
+                       max: day("temperature_2m_max"),
+                       min: day("temperature_2m_min"),
+                       rainChance: Int(day("precipitation_probability_max")),
                        code: (current["weather_code"] as? NSNumber)?.intValue ?? -1)
     }
 
