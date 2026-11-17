@@ -14,7 +14,7 @@ export type PlanCardData = {
   is_default: boolean;
 };
 
-export function PlanCards({ plans, ctaTo = '/cadastro' }: { plans: PlanCardData[]; ctaTo?: string }) {
+export function PlanCards({ plans, ctaTo = '/cadastro' }: { plans: PlanCardData[]; ctaTo?: string | null }) {
   return (
     <ul className="grid gap-4 md:grid-cols-2">
       {plans.map((p) => {
@@ -43,12 +43,14 @@ export function PlanCards({ plans, ctaTo = '/cadastro' }: { plans: PlanCardData[
                 </li>
               ))}
             </ul>
+            {ctaTo ? (
             <Link
               to={ctaTo}
               className={buttonVariants({ variant: highlight ? 'primary' : 'secondary', size: 'lg', className: 'mt-6 w-full' })}
             >
               {p.is_default ? 'Cadastrar grátis' : `Começar e pedir o ${p.name}`}
             </Link>
+            ) : null}
           </li>
         );
       })}

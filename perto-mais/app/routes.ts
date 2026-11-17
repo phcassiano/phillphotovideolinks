@@ -32,6 +32,8 @@ export default [
   route('painel', 'routes/painel/layout.tsx', [
     index('routes/painel/index.tsx'),
     route('estabelecimento', 'routes/painel/estabelecimento.tsx'),
+    route('produtos', 'routes/painel/produtos.tsx'),
+    route('assinatura', 'routes/painel/assinatura.tsx'),
     route('conta', 'routes/painel/conta.tsx'),
   ]),
 ] satisfies RouteConfig;
