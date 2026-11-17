@@ -36,4 +36,16 @@ export default [
     route('assinatura', 'routes/painel/assinatura.tsx'),
     route('conta', 'routes/painel/conta.tsx'),
   ]),
+
+  route('admin', 'routes/admin/layout.tsx', [
+    index('routes/admin/index.tsx'),
+    route('estabelecimentos', 'routes/admin/estabelecimentos.tsx'),
+    route('estabelecimentos/:id', 'routes/admin/estabelecimento.tsx'),
+    route('assinaturas', 'routes/admin/assinaturas.tsx'),
+    route('usuarios', 'routes/admin/usuarios.tsx'),
+    route('locais', 'routes/admin/locais.tsx'),
+    route('categorias', 'routes/admin/categorias.tsx'),
+    route('planos', 'routes/admin/planos.tsx'),
+    route('log', 'routes/admin/log.tsx'),
+  ]),
 ] satisfies RouteConfig;

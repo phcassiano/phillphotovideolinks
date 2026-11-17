@@ -225,3 +225,15 @@ describe('métricas', () => {
     expect((data as { totals: { whatsapp_clicks: number } }).totals.whatsapp_clicks).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('horários (função set_business_hours)', () => {
+  it('dono substitui os próprios horários; outro comerciante não altera', async () => {
+    const hours = [{ weekday: 1, opens_at: '08:00', closes_at: '12:00' }, { weekday: 1, opens_at: '14:00', closes_at: '18:00' }];
+    expect((await A.client.rpc('set_business_hours', { p_business_id: bizA.id, p_hours: hours })).error).toBeNull();
+    const { error } = await B.client.rpc('set_business_hours', { p_business_id: bizA.id, p_hours: [{ weekday: 2, opens_at: '08:00', closes_at: '09:00' }] });
+    expect(error).not.toBeNull();
+    const { data } = await anon.from('business_hours').select('weekday').eq('business_id', bizA.id);
+    expect(data).toHaveLength(2);
+    expect((await anon.rpc('set_business_hours', { p_business_id: bizA.id, p_hours: [] })).error).not.toBeNull();
+  });
+});

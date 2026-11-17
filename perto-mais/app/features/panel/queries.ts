@@ -83,6 +83,8 @@ export function dbErrorMessage(error: unknown): string {
   if (!e) return 'Algo deu errado.';
   if (e.hint === 'plan_limit' || e.code === 'P0001' || e.code === '23514') return e.message ?? 'Operação não permitida.';
   if (e.code === '42501') return 'Você não tem permissão para esta ação.';
+  if (e.code === '23503') return 'Este item está em uso e não pode ser excluído. Desative-o em vez disso.';
+  if (e.code === '23505') return 'Já existe um registro com esse nome ou endereço.';
   if (e.message?.includes('Failed to fetch')) return 'Sem conexão. Verifique sua internet.';
   return 'Não foi possível salvar. Tente novamente.';
 }
