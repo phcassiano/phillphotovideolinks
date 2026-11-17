@@ -25,9 +25,9 @@ enum AIError: LocalizedError {
 
 /// Fala com Gemini, Claude ou um modelo local (Ollama) e devolve o texto cru.
 enum AIClient {
-    static func complete(system: String, turns: [ChatTurn]) async throws -> String {
+    static func complete(system: String, turns: [ChatTurn], connectors: [MCPServer] = []) async throws -> String {
         switch Prefs.provider {
-        case "claude": return try await claude(system: system, turns: turns)
+        case "claude": return try await claude(system: system, turns: turns, connectors: connectors)
         case "local": return try await ollama(system: system, turns: turns)
         default: return try await gemini(system: system, turns: turns)
         }
@@ -61,7 +61,7 @@ enum AIClient {
 
     // MARK: Claude (Anthropic) — API REST /v1/messages
 
-    private static func claude(system: String, turns: [ChatTurn]) async throws -> String {
+    private static func claude(system: String, turns: [ChatTurn], connectors: [MCPServer]) async throws -> String {
         let key = Keychain.get("claude")
         guard !key.isEmpty else { throw AIError.missingKey("Claude") }
         let model = Prefs.claudeModel
@@ -80,12 +80,30 @@ enum AIClient {
         }
         // Se o modelo recusar por segurança, a API tenta de novo num modelo alternativo.
         let withFallback = ["claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5", "claude-fable-5-2", "claude-fable-5-1"]
-        if withFallback.contains(model) {
+        if !connectors.isEmpty {
+            // Conectores MCP: a API do Claude chama as ferramentas do servidor por conta própria.
+            var used = Set<String>()
+            var servers: [[String: Any]] = []
+            for c in connectors {
+                var name = Words.normalize(c.name).replacingOccurrences(of: " ", with: "-")
+                if name.isEmpty { name = "conector" }
+                while used.contains(name) { name += "-2" }
+                used.insert(name)
+                var s: [String: Any] = ["type": "url", "url": c.url, "name": name]
+                if !c.token.isEmpty { s["authorization_token"] = c.token }
+                servers.append(s)
+            }
+            body["mcp_servers"] = servers
+            body["tools"] = servers.map { ["type": "mcp_toolset", "mcp_server_name": $0["name"] as? String ?? ""] }
+            body["max_tokens"] = 4096
+            headers["anthropic-beta"] = "mcp-client-2025-11-20"
+        } else if withFallback.contains(model) {
             body["fallbacks"] = "default"
             headers["anthropic-beta"] = "server-side-fallback-2026-07-01"
         }
 
-        let obj = try await post(URL(string: "https://api.anthropic.com/v1/messages")!, headers: headers, body: body)
+        let obj = try await post(URL(string: "https://api.anthropic.com/v1/messages")!, headers: headers, body: body,
+                                 timeout: connectors.isEmpty ? 60 : 150)
         if (obj["stop_reason"] as? String) == "refusal" { throw AIError.refusal }
         let blocks = obj["content"] as? [[String: Any]] ?? []
         let text = blocks.filter { ($0["type"] as? String) == "text" }.compactMap { $0["text"] as? String }.joined()

@@ -168,6 +168,8 @@ final class ActionRunner {
     var announce: (@MainActor (String) -> Void)?
     /// Roda uma função personalizada ou rotina pelo nome (configurado pelo Assistant).
     var runNamed: (@MainActor (String) -> String?)?
+    var briefing: (@MainActor () async -> String)?
+    var claudeCode: (@MainActor (String) -> Void)?
     private var handles: [UUID: Timer] = [:]
 
     init(state: AppState, music: MusicController, tools: MacTools) {
@@ -348,6 +350,40 @@ final class ActionRunner {
         case .brightness(let level):
             tools.refreshDisplays()
             tools.setAllDim(Double(max(15, min(100, level))) / 100)
+            return nil
+
+        case .weather:
+            Task { @MainActor [weak self] in
+                do {
+                    let w = try await WebData.weather(city: Prefs.city)
+                    self?.announce?(w.sentence)
+                } catch {
+                    self?.announce?(error.localizedDescription)
+                }
+            }
+            return nil
+
+        case .currency:
+            Task { @MainActor [weak self] in
+                do { self?.announce?(try await WebData.currencies()) } catch { self?.announce?(error.localizedDescription) }
+            }
+            return nil
+
+        case .news:
+            Task { @MainActor [weak self] in
+                let list = (try? await WebData.news(limit: 5)) ?? []
+                self?.announce?(list.isEmpty ? "Não consegui buscar as notícias agora." : "As principais notícias: " + list.joined(separator: "; ") + ".")
+            }
+            return nil
+
+        case .briefing:
+            Task { @MainActor [weak self] in
+                if let text = await self?.briefing?() { self?.announce?(text) }
+            }
+            return nil
+
+        case .claudeCode(let task):
+            claudeCode?(task)
             return nil
 
         case .fan(let mode):

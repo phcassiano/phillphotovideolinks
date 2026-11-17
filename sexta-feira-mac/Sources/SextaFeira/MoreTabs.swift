@@ -6,17 +6,20 @@ import AppKit
 struct HomeTab: View {
     @ObservedObject var state: AppState
     let assistant: Assistant
+    var openSettings: @MainActor () -> Void = {}
     @State private var input = ""
 
     private let tryThese = [
-        "toca Henrique e Juliano", "timer de 10 minutos pra pizza", "como está meu Mac?",
-        "bebi água", "cria uma arte de um gato astronauta", "abre o YouTube",
+        "resumo do dia", "vai chover hoje?", "quanto está o dólar?", "como está meu Mac?",
+        "timer de 10 minutos pra pizza", "claude code, faz uma landing page de café",
     ]
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 askBar
+                SetupChecklist(state: state, assistant: assistant, openSettings: openSettings,
+                               helper: assistant.tools.helper, tools: assistant.tools, phone: assistant.phone)
 
                 if let last = state.messages.last(where: { !$0.fromUser }) {
                     HStack(alignment: .top, spacing: 8) {
@@ -276,14 +279,14 @@ struct RoutinesTab: View {
 
     @State private var fnName = ""
     @State private var fnTarget = ""
-    @State private var rtName = ""
-    @State private var rtSteps = ""
+    @State private var editing: Routine?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                functions
                 routines
+                BriefingSettings(assistant: assistant)
+                functions
             }
         }
     }
@@ -313,30 +316,47 @@ struct RoutinesTab: View {
 
     private var routines: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("ROTINAS — vários comandos de uma vez")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(.secondary)
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
-                    field("Nome (ex.: modo estudo)", $rtName)
-                    TextEditor(text: $rtSteps)
-                        .font(.system(size: 12))
-                        .frame(height: 64)
-                        .scrollContentBackground(.hidden)
-                        .padding(6)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.08)))
-                    Text("Um comando por linha: “abre o Notion”, “volume 30”, “timer de 25 minutos”…")
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
+            HStack {
+                SectionTitle(text: "Rotinas — vários passos de uma vez")
+                Spacer()
+                Button("+ Nova rotina") {
+                    editing = Routine(name: "", steps: [], items: [RoutineStep(kind: "falar", value: "")])
                 }
-                Button("Salvar", action: addRoutine)
+            }
+            Text("Diga o nome ou a frase da rotina (ex.: “acorda criança”), ou marque um horário para ela rodar sozinha.")
+                .font(.system(size: 10))
+                .foregroundColor(.secondary)
+            if let draft = editing {
+                RoutineEditor(routine: draft, accent: state.accent, onSave: { r in
+                    if let i = state.routines.firstIndex(where: { $0.id == r.id }) {
+                        state.routines[i] = r
+                    } else {
+                        state.routines.append(r)
+                    }
+                    editing = nil
+                }, onCancel: { editing = nil })
+                .id(draft.id)
             }
             ForEach(state.routines) { r in
-                itemRow(icon: "bolt.fill", title: r.name, detail: r.steps.joined(separator: " · "),
-                        run: { assistant.handle(r.name) },
-                        delete: { state.routines.removeAll { $0.id == r.id } })
+                itemRow(icon: r.hasSchedule ? "clock.fill" : "bolt.fill", title: r.name, detail: routineDetail(r),
+                        run: { assistant.runRoutine(r) },
+                        delete: { state.routines.removeAll { $0.id == r.id } },
+                        edit: { editing = r })
             }
         }
+    }
+
+    private func routineDetail(_ r: Routine) -> String {
+        var parts: [String] = []
+        if let p = r.phrase, !p.isEmpty { parts.append("frase: “\(p)”") }
+        if let t = r.time, !t.isEmpty {
+            let letters = ["D", "S", "T", "Q", "Q", "S", "S"]
+            let days = (r.days ?? []).map { letters[max(0, min(6, $0 - 1))] }.joined()
+            parts.append("às \(t)" + (days.isEmpty ? " todo dia" : " (\(days))"))
+        }
+        let steps = (r.items ?? []).map { (StepKind(rawValue: $0.kind)?.title ?? $0.kind) + ($0.value.isEmpty ? "" : ": \($0.value)") }
+        parts.append((steps.isEmpty ? r.steps : steps).joined(separator: " · "))
+        return parts.joined(separator: "  —  ")
     }
 
     private func field(_ placeholder: String, _ text: Binding<String>) -> some View {
@@ -348,7 +368,8 @@ struct RoutinesTab: View {
     }
 
     private func itemRow(icon: String, title: String, detail: String,
-                         run: @escaping () -> Void, delete: @escaping () -> Void) -> some View {
+                         run: @escaping () -> Void, delete: @escaping () -> Void,
+                         edit: (() -> Void)? = nil) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon).foregroundColor(state.accent)
             VStack(alignment: .leading, spacing: 2) {
@@ -357,6 +378,7 @@ struct RoutinesTab: View {
             }
             Spacer()
             Button(action: run) { Image(systemName: "play.fill") }.buttonStyle(.plain)
+            if let edit { Button(action: edit) { Image(systemName: "pencil") }.buttonStyle(.plain) }
             Button(action: delete) { Image(systemName: "trash").foregroundColor(.secondary) }.buttonStyle(.plain)
         }
         .padding(8)
@@ -385,12 +407,4 @@ struct RoutinesTab: View {
         fnTarget = ""
     }
 
-    private func addRoutine() {
-        let n = rtName.trimmed
-        let steps = rtSteps.split(separator: "\n").map { String($0).trimmed }.filter { !$0.isEmpty }
-        guard !n.isEmpty, !steps.isEmpty else { return }
-        state.routines.append(Routine(name: n, steps: steps))
-        rtName = ""
-        rtSteps = ""
-    }
 }

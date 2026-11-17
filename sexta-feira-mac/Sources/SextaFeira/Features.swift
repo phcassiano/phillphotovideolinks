@@ -29,14 +29,93 @@ struct CustomCommand: Codable, Identifiable, Equatable {
     var target: String
 }
 
-/// Vários comandos em sequência, ex.: "modo foco".
+/// Um passo de rotina com tipo (Falar, Abrir, Esperar…).
+struct RoutineStep: Codable, Identifiable, Equatable {
+    var id = UUID()
+    var kind: String
+    var value: String
+}
+
+enum StepKind: String, CaseIterable, Identifiable {
+    case say = "falar", open = "abrir", window = "janela", hideAll = "esconder", vpn = "vpn", wait = "esperar"
+    case music = "musica", timer = "timer", habit = "habito", briefing = "resumo", volume = "volume", command = "comando"
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .say: return "Falar"
+        case .open: return "Abrir app/site/arquivo"
+        case .window: return "Organizar janela"
+        case .hideAll: return "Esconder tudo"
+        case .vpn: return "Conectar VPN"
+        case .wait: return "Esperar"
+        case .music: return "Música"
+        case .timer: return "Timer"
+        case .habit: return "Hábito"
+        case .briefing: return "Resumo do dia"
+        case .volume: return "Volume"
+        case .command: return "Pedido livre"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .say: return "text.bubble.fill"
+        case .open: return "arrow.up.forward.app.fill"
+        case .window: return "rectangle.split.2x1.fill"
+        case .hideAll: return "eye.slash.fill"
+        case .vpn: return "lock.shield.fill"
+        case .wait: return "hourglass"
+        case .music: return "music.note"
+        case .timer: return "timer"
+        case .habit: return "drop.fill"
+        case .briefing: return "sun.max.fill"
+        case .volume: return "speaker.wave.2.fill"
+        case .command: return "sparkles"
+        }
+    }
+
+    var placeholder: String {
+        switch self {
+        case .say: return "Bom dia! Hora de começar 💪"
+        case .open: return "Spotify, youtube.com ou ~/Documents/arquivo.pdf"
+        case .window: return "esquerda, direita, tela cheia, centro…"
+        case .hideAll: return "(nada)"
+        case .vpn: return "nome da VPN (Ajustes › VPN)"
+        case .wait: return "segundos, ex.: 5"
+        case .music: return "play, pause, próxima — ou o nome da música"
+        case .timer: return "minutos e nome, ex.: 25 foco"
+        case .habit: return "Água"
+        case .briefing: return "(nada)"
+        case .volume: return "0 a 100"
+        case .command: return "qualquer pedido, ex.: abre meu e-mail"
+        }
+    }
+}
+
+/// Vários comandos em sequência, ex.: "modo foco". Pode ter frase própria e horário.
 struct Routine: Codable, Identifiable, Equatable {
     var id = UUID()
     var name: String
     var steps: [String]
+    var phrase: String? = nil
+    var time: String? = nil
+    var days: [Int]? = nil
+    var items: [RoutineStep]? = nil
+    var lastRun: String? = nil
+
+    var hasSchedule: Bool { !(time ?? "").isEmpty }
 
     static let defaults: [Routine] = [
-        Routine(name: "modo foco", steps: ["fecha o WhatsApp", "volume 30", "timer de 25 minutos para foco"]),
+        Routine(name: "modo foco", steps: [], items: [
+            RoutineStep(kind: "comando", value: "fecha o WhatsApp"),
+            RoutineStep(kind: "volume", value: "30"),
+            RoutineStep(kind: "timer", value: "25 foco"),
+            RoutineStep(kind: "falar", value: "Modo foco ligado. Bora!"),
+        ]),
+        Routine(name: "bom dia", steps: [], phrase: "bom dia", items: [
+            RoutineStep(kind: "resumo", value: ""),
+        ]),
     ]
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 // MARK: - Formas e rostinho
 
@@ -104,7 +105,7 @@ struct PillView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(NotchShape(radius: 10).fill(Color.black))
+        .background(PanelBackground(state: state, collapsed: true))
         .contentShape(Rectangle())
         .onTapGesture {
             state.tab = .chat
@@ -130,7 +131,9 @@ struct PillInfo: View {
     private func text(now: Date) -> String {
         switch state.mode {
         case .listening: return state.partial.isEmpty ? "Ouvindo…" : "🎙 " + state.partial
-        case .thinking: return "Pensando…"
+        case .thinking:
+            let secs = state.busySince.map { " · \(Int(now.timeIntervalSince($0)))s" } ?? ""
+            return (state.pillText.isEmpty ? "Pensando…" : "✳︎ " + state.pillText) + secs
         default: break
         }
         if !state.pillText.isEmpty { return state.pillText }
@@ -151,7 +154,7 @@ struct ExpandedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if state.notchWidth > 0 {
+            if state.notchWidth > 0 && state.islandStyle != "ilha" {
                 Color.clear.frame(height: state.menuBarHeight - 6)
             }
             HStack(alignment: .top, spacing: 0) {
@@ -173,7 +176,7 @@ struct ExpandedView: View {
         .padding(.top, 10)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(NotchShape(radius: 24).fill(Color.black.opacity(0.95)))
+        .background(PanelBackground(state: state, collapsed: false))
     }
 
     // Menu lateral: rostinho, nome, nível e abas
@@ -307,7 +310,7 @@ struct ExpandedView: View {
     @ViewBuilder
     private var content: some View {
         switch state.tab {
-        case .home: HomeTab(state: state, assistant: assistant)
+        case .home: HomeTab(state: state, assistant: assistant, openSettings: openSettings)
         case .chat: ChatTab(state: state, assistant: assistant)
         case .tasks: TasksTab(state: state)
         case .habits: HabitsTab(state: state)
@@ -322,6 +325,8 @@ struct ExpandedView: View {
         case .windows: WindowsTab(state: state, tools: assistant.tools)
         case .agenda: AgendaTab(state: state, tools: assistant.tools)
         case .privacy: PrivacyTab(state: state, tools: assistant.tools)
+        case .connectors: ConnectorsTab(state: state)
+        case .phone: PhoneTab(state: state, phone: assistant.phone)
         }
     }
 }
@@ -333,10 +338,12 @@ struct Bubble: View {
     let fromUser: Bool
     let accent: Color
     var faded = false
+    var files: [String] = []
 
     var body: some View {
         HStack {
             if fromUser { Spacer(minLength: 50) }
+            VStack(alignment: .leading, spacing: 6) {
             Text(text)
                 .font(.system(size: 13))
                 .textSelection(.enabled)
@@ -347,6 +354,33 @@ struct Bubble: View {
                         .fill(fromUser ? accent.opacity(0.22) : Color.white.opacity(0.08))
                 )
                 .opacity(faded ? 0.55 : 1)
+            if !files.isEmpty {
+                HStack(spacing: 6) {
+                    if let main = files.first(where: { $0.hasSuffix(".html") }) ?? files.first {
+                        Button {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: main))
+                        } label: {
+                            Label("Abrir \((main as NSString).lastPathComponent)", systemImage: "arrow.up.forward.square")
+                                .font(.system(size: 11, weight: .semibold))
+                                .padding(.horizontal, 9).padding(.vertical, 5)
+                                .background(Capsule().fill(accent))
+                                .foregroundColor(.black)
+                        }
+                        .buttonStyle(.plain)
+                        Button {
+                            NSWorkspace.shared.activateFileViewerSelecting(files.map { URL(fileURLWithPath: $0) })
+                        } label: {
+                            Label("Abrir pasta", systemImage: "folder")
+                                .font(.system(size: 11, weight: .semibold))
+                                .padding(.horizontal, 9).padding(.vertical, 5)
+                                .background(Capsule().fill(Color.yellow.opacity(0.85)))
+                                .foregroundColor(.black)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            }
             if !fromUser { Spacer(minLength: 50) }
         }
     }
@@ -369,12 +403,13 @@ struct ChatTab: View {
 
     var body: some View {
         VStack(spacing: 8) {
+            ClaudeModeBar(claude: assistant.claude, accent: state.accent)
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 8) {
                         if state.messages.isEmpty { suggestionsView }
                         ForEach(state.messages) { m in
-                            Bubble(text: m.text, fromUser: m.fromUser, accent: state.accent).id(m.id)
+                            Bubble(text: m.text, fromUser: m.fromUser, accent: state.accent, files: m.files).id(m.id)
                         }
                         if state.mode == .listening && !state.partial.isEmpty {
                             Bubble(text: state.partial, fromUser: true, accent: state.accent, faded: true)
@@ -687,6 +722,57 @@ struct MusicBar: View {
             assistant.refreshMusicSoon()
         } label: {
             Image(systemName: icon)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Alternar entre a assistente e o Claude Code
+
+struct ClaudeModeBar: View {
+    @ObservedObject var claude: ClaudeCodeRunner
+    let accent: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                modeButton("Assistente", !claude.enabled) { claude.enabled = false }
+                modeButton("✳︎ Claude Code", claude.enabled) {
+                    claude.enabled = true
+                    claude.checkInstalled()
+                }
+                Spacer()
+                if claude.running {
+                    Button("Parar") { claude.stop() }.font(.system(size: 10))
+                }
+                if claude.enabled {
+                    Button("Nova conversa") { claude.newConversation() }.font(.system(size: 10))
+                    Button {
+                        NSWorkspace.shared.open(ClaudeCodeRunner.workDir)
+                    } label: { Image(systemName: "folder") }
+                    .buttonStyle(.plain)
+                    .help("Pasta dos projetos")
+                }
+            }
+            if claude.enabled {
+                Text("Claude Code ativo: o que você escrever vai para ele, usando a sua conta. Os projetos ficam em Documentos › Sexta-feira › Projetos. Para falar comigo, volte para “Assistente” ou comece com “\(Prefs.assistantName)”.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.secondary)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.red.opacity(0.12)))
+            }
+        }
+    }
+
+    private func modeButton(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 11, weight: .semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(on ? accent : Color.white.opacity(0.08)))
+                .foregroundColor(on ? .black : .white)
         }
         .buttonStyle(.plain)
     }

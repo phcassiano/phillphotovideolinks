@@ -14,6 +14,7 @@ enum Action {
     case boost, battery, agenda, caffeine(Int?), caffeineOff
     case window(WindowSnap), audioOutput(String), brightness(Int)
     case fan(String), chargeLimit(Int?), topUp, equalizer(String)
+    case weather, currency, news, briefing, claudeCode(String)
 
     /// Converte um item de "actions" do JSON da IA.
     static func from(_ d: [String: Any]) -> Action? {
@@ -76,6 +77,11 @@ enum Action {
             if str("state").lowercased() == "off" { return .chargeLimit(nil) }
             return .chargeLimit(num("limit").map { Int($0) } ?? 80)
         case "top_up": return .topUp
+        case "weather": return .weather
+        case "currency": return .currency
+        case "news": return .news
+        case "briefing": return .briefing
+        case "claude_code": return nonEmpty(str("task")) { .claudeCode($0) }
         case "equalizer": return nonEmpty(str("preset")) { .equalizer($0) }
         default: return nil
         }
@@ -196,6 +202,24 @@ enum QuickCommands {
         if let m = Rx.match(#"^(?:brilho|escurece a tela|escurecer a tela)(?: em| para| pra| no| a)? (\d{1,3})(?: por cento)?$"#, n),
            let v = Int(m[1]) {
             return Result(actions: [.brightness(v)], say: "")
+        }
+
+        // Clima, cotação, notícias, resumo do dia
+        if ["como esta o clima", "como ta o clima", "como esta o tempo", "como ta o tempo", "vai chover hoje", "vai chover",
+            "previsao do tempo", "clima", "tempo hoje", "como esta o clima hoje", "como ta o clima hoje", "qual a temperatura",
+            "ta frio", "esta frio", "ta calor", "esta calor", "clima hoje", "como vai estar o tempo hoje"].contains(t) {
+            return Result(actions: [.weather], say: "")
+        }
+        if ["quanto esta o dolar", "quanto ta o dolar", "cotacao do dolar", "dolar hoje", "dolar", "quanto esta o euro",
+            "quanto ta o euro", "cotacao", "cotacao do euro", "quanto ta o dolar hoje", "quanto esta o dolar hoje"].contains(t) {
+            return Result(actions: [.currency], say: "")
+        }
+        if ["noticias", "noticias de hoje", "quais as noticias", "me conta as noticias", "principais noticias",
+            "o que esta acontecendo", "quais sao as noticias"].contains(t) {
+            return Result(actions: [.news], say: "")
+        }
+        if ["resumo do dia", "meu resumo", "resumo", "como esta meu dia", "me da o resumo do dia", "resumo de hoje"].contains(t) {
+            return Result(actions: [.briefing], say: "")
         }
 
         // Ventoinha, limite de carga, equalizador

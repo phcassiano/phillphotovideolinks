@@ -7,6 +7,7 @@ struct ChatMessage: Identifiable, Equatable {
     let id = UUID()
     let fromUser: Bool
     let text: String
+    var files: [String] = []
 }
 
 struct TaskItem: Codable, Identifiable, Equatable {
@@ -32,7 +33,7 @@ struct NowPlaying: Equatable {
 
 enum PanelTab: String, CaseIterable, Identifiable {
     case home, chat, tasks, habits, timers, clips, routines, memory
-    case mymac, battery, fans, cleanup, windows, agenda, privacy
+    case mymac, battery, fans, cleanup, windows, agenda, privacy, connectors, phone
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -51,6 +52,8 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .windows: return "Janelas e telas"
         case .agenda: return "Agenda"
         case .privacy: return "Vigia"
+        case .connectors: return "Conectores"
+        case .phone: return "Celular"
         }
     }
     var icon: String {
@@ -70,6 +73,8 @@ enum PanelTab: String, CaseIterable, Identifiable {
         case .windows: return "macwindow.on.rectangle"
         case .agenda: return "calendar"
         case .privacy: return "eye.fill"
+        case .connectors: return "point.3.connected.trianglepath.dotted"
+        case .phone: return "iphone"
         }
     }
 }
@@ -98,6 +103,7 @@ final class AppState: ObservableObject {
     @Published var mode: Mode = .idle
     @Published var partial = ""
     @Published var pillText = ""
+    @Published var busySince: Date?
     @Published var messages: [ChatMessage] = []
     @Published var timers: [RunningTimer] = []
     @Published var nowPlaying: NowPlaying?
@@ -118,6 +124,12 @@ final class AppState: ObservableObject {
         didSet { Storage.save(routines, "rotinas.json") }
     }
     @Published var clips: [ClipItem] = []
+    @Published var connectors: [Connector] = [] {
+        didSet { Storage.save(connectors, "conectores.json") }
+    }
+    @Published var islandStyle = Prefs.islandStyle
+    @Published var theme = Prefs.theme
+    @Published var background: NSImage? = Prefs.backgroundImage
 
     /// Nível e XP: cresce a cada pedido, tarefa concluída e hábito cumprido.
     @Published var xp: Int = UserDefaults.standard.integer(forKey: "xp") {
@@ -150,6 +162,7 @@ final class AppState: ObservableObject {
         habits = Storage.load([Habit].self, "habitos.json") ?? Habit.defaults
         customCommands = Storage.load([CustomCommand].self, "funcoes.json") ?? []
         routines = Storage.load([Routine].self, "rotinas.json") ?? Routine.defaults
+        connectors = Storage.load([Connector].self, "conectores.json") ?? []
         rolloverHabits()
     }
 
@@ -199,6 +212,13 @@ enum Prefs {
     static var chargeAlert: Bool { d.object(forKey: "chargeAlert") as? Bool ?? true }
     static var chargeLimit: Int { d.object(forKey: "chargeLimit") as? Int ?? 80 }
     static var privacyWatch: Bool { d.object(forKey: "privacyWatch") as? Bool ?? true }
+    static var islandStyle: String { d.string(forKey: "islandStyle") ?? "entalho" }
+    static var theme: String { d.string(forKey: "theme") ?? "escuro" }
+    static var backgroundPath: String { d.string(forKey: "backgroundPath") ?? "" }
+    static var backgroundImage: NSImage? { backgroundPath.isEmpty ? nil : NSImage(contentsOfFile: backgroundPath) }
+    static var city: String { d.string(forKey: "city") ?? "" }
+    static var phoneEnabled: Bool { d.bool(forKey: "phoneEnabled") }
+    static func brief(_ key: String) -> Bool { d.object(forKey: "brief." + key) as? Bool ?? true }
     static var menuBarClean: Bool { d.bool(forKey: "menuBarClean") }
     static var windowHotkeys: Bool { d.object(forKey: "windowHotkeys") as? Bool ?? true }
     static var imageModel: String { d.string(forKey: "imageModel").nonEmpty ?? defaultImageModel }

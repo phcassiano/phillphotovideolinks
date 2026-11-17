@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import AVFoundation
 
 struct SettingsView: View {
@@ -36,6 +37,9 @@ struct SettingsView: View {
     @AppStorage("widget.music") private var wMusic = false
     @AppStorage("widget.timers") private var wTimers = false
     @AppStorage("menuBarClean") private var menuBarClean = false
+    @AppStorage("islandStyle") private var islandStyle = "entalho"
+    @AppStorage("theme") private var theme = "escuro"
+    @AppStorage("backgroundPath") private var backgroundPath = ""
 
     @State private var geminiKey = Keychain.get("gemini")
     @State private var claudeKey = Keychain.get("claude")
@@ -45,6 +49,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             identitySection
+            lookSection
             extrasSection
             toolsSection
             brainSection
@@ -73,6 +78,9 @@ struct SettingsView: View {
         .onChange(of: wMusic) { _ in assistant.applyPrefs() }
         .onChange(of: wTimers) { _ in assistant.applyPrefs() }
         .onChange(of: menuBarClean) { _ in assistant.applyPrefs() }
+        .onChange(of: islandStyle) { _ in assistant.applyPrefs() }
+        .onChange(of: theme) { _ in assistant.applyPrefs() }
+        .onChange(of: backgroundPath) { _ in assistant.applyPrefs() }
         .onDisappear { assistant.applyPrefs() }
     }
 
@@ -83,6 +91,36 @@ struct SettingsView: View {
             Picker("Cor", selection: $accent) {
                 ForEach(0..<Palette.colors.count, id: \.self) { i in
                     Text(Palette.names[i]).tag(i)
+                }
+            }
+        }
+    }
+
+    private var lookSection: some View {
+        Section("Visual") {
+            Picker("Formato", selection: $islandStyle) {
+                Text("Entalho (colado no topo)").tag("entalho")
+                Text("Ilha (solta, abaixo da barra)").tag("ilha")
+            }
+            .pickerStyle(.segmented)
+            Picker("Fundo do painel", selection: $theme) {
+                Text("Escuro").tag("escuro")
+                Text("Aurora (azul)").tag("aurora")
+                Text("Foto").tag("foto")
+            }
+            .pickerStyle(.segmented)
+            if theme == "foto" {
+                HStack {
+                    Text(backgroundPath.isEmpty ? "Nenhuma foto escolhida" : (backgroundPath as NSString).lastPathComponent)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("Escolher foto…") {
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [.image]
+                        panel.allowsMultipleSelection = false
+                        if panel.runModal() == .OK, let url = panel.url { backgroundPath = url.path }
+                    }
                 }
             }
         }

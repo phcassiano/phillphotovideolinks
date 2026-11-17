@@ -110,7 +110,7 @@ final class NotchController {
     }
 
     private func collapsedSize() -> NSSize {
-        let h = state.menuBarHeight
+        let h = state.islandStyle == "ilha" ? 30 : state.menuBarHeight
         let hasInfo = state.mode != .idle || !state.pillText.isEmpty
         if state.notchWidth > 0 {
             return NSSize(width: state.notchWidth + (hasInfo ? 340 : 200), height: h)
@@ -127,7 +127,9 @@ final class NotchController {
             size = collapsedSize()
         }
         let sf = screen.frame
-        return NSRect(x: (sf.midX - size.width / 2).rounded(), y: sf.maxY - size.height,
+        // Ilha: solta, um pouco abaixo da barra de menus. Entalho: colada no topo.
+        let top = state.islandStyle == "ilha" ? state.menuBarHeight + 6 : 0
+        return NSRect(x: (sf.midX - size.width / 2).rounded(), y: sf.maxY - top - size.height,
                       width: size.width, height: size.height)
     }
 

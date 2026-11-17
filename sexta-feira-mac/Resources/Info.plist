@@ -34,6 +34,8 @@
 	<string>A Sexta-feira mostra e lê seus próximos compromissos.</string>
 	<key>NSAudioCaptureUsageDescription</key>
 	<string>A Sexta-feira usa o som do sistema para aplicar o equalizador.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>A Sexta-feira recebe pedidos do seu celular na mesma rede Wi-Fi.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>A Sexta-feira controla o Spotify, o app Música e o volume do Mac.</string>
 </dict>
